@@ -1,130 +1,321 @@
-
 import { useState, useEffect } from 'react';
-import { Coffee } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../lib/supabaseClient';
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    Tooltip,
+    ResponsiveContainer,
+    Cell
+} from 'recharts';
+import { format, subDays, startOfMonth, endOfMonth, isSameDay, parseISO } from 'date-fns';
+import { id } from 'date-fns/locale';
+import { Plus, Minus, TrendingUp, TrendingDown, Wallet, AlertCircle } from 'lucide-react';
+import ExpenseModal from './ExpenseModal'; // New component
+import { motion } from 'framer-motion';
 
 export default function DailyRecap({ session }) {
     const { settings } = useSettings();
-    const [orders, setOrders] = useState([]);
+    const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showExpenseModal, setShowExpenseModal] = useState(false);
+    const [chartData, setChartData] = useState([]);
+
+    // Financial Metrics
+    const [metrics, setMetrics] = useState({
+        grossIncome: 0,
+        marketingExpense: 0,
+        netCash: 0,
+        efficiencyScore: 0
+    });
 
     useEffect(() => {
-        fetchDailyOrders();
+        fetchData();
     }, [session]);
 
-    const fetchDailyOrders = async () => {
+    const fetchData = async () => {
         try {
             setLoading(true);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            const now = new Date();
+            const startMonth = startOfMonth(now).toISOString();
+            const endMonth = endOfMonth(now).toISOString();
 
-            const tomorrow = new Date(today);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-
-            const { data, error } = await supabase
+            // 1. Fetch Orders (Income)
+            const { data: ordersData, error: ordersError } = await supabase
                 .from('orders')
                 .select('*')
-                .gte('created_at', today.toISOString())
-                .lt('created_at', tomorrow.toISOString())
+                .gte('created_at', startMonth)
+                .lte('created_at', endMonth)
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
-            setOrders(data || []);
+            if (ordersError) throw ordersError;
+
+            // 2. Fetch Expenses (Outcome)
+            const { data: expensesData, error: expensesError } = await supabase
+                .from('expenses')
+                .select('*')
+                .gte('created_at', startMonth)
+                .lte('created_at', endMonth)
+                .order('created_at', { ascending: false });
+
+            if (expensesError) throw expensesError;
+
+            processFinancials(ordersData || [], expensesData || []);
+
         } catch (error) {
-            console.error('Error fetching orders:', error);
+            console.error('Error fetching data:', error);
         } finally {
             setLoading(false);
         }
     };
 
-    // Calculate totals
-    const totalProfit = orders.reduce((acc, order) => acc + (order.net_profit || 0), 0);
-    const totalOrders = orders.length;
-    const progress = Math.min(100, Math.max(0, (totalProfit / settings.dailyTarget) * 100));
+    const processFinancials = (orders, expenses) => {
+        // --- 1. Top Cards Metrics (Month to Date) ---
+        const totalIncome = orders.reduce((sum, o) => sum + (parseFloat(o.price) || 0), 0);
+        // "Real" expenses from the app inputs (fuel, service, etc) PLUS hidden fees if tracked? 
+        // For now, let's stick to the prompt: Gross Income = orders.price sum. 
+        // But Net Cash needs to consider order profit too? 
+        // The prompt says: Net Cash = Gross Income - Actual Expenses. 
+        // Note: order.net_profit calculation in ProfitEngine already subtracts an estimated fuel cost.
+        // The prompt asks to track "Actual Expenses" via the new modal. 
+        // Let's interpret: 
+        // Gross Income (Omzet) = Sum of orders.price
+        // Actual Expenses = Sum of expenses table (Manual Fuel/Food inputs)
+        // Net Cash = Gross Income - Actual Expenses
 
-    const formatCurrency = (value) => new Intl.NumberFormat('id-ID').format(value);
+        const totalExpenses = expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+        const cashBalance = totalIncome - totalExpenses;
 
-    // Helper to format time from ISO string
-    const formatTime = (isoString) => {
-        return new Date(isoString).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        // Efficiency: (Net Cash / Gross Income) * 100
+        let efficiency = 0;
+        if (totalIncome > 0) {
+            efficiency = (cashBalance / totalIncome) * 100;
+        }
+
+        setMetrics({
+            grossIncome: totalIncome,
+            actualExpenses: totalExpenses,
+            netCash: cashBalance,
+            efficiencyScore: efficiency
+        });
+
+        // --- 2. Chart Data (Last 7 Days) ---
+        const last7Days = Array.from({ length: 7 }, (_, i) => {
+            const d = subDays(new Date(), 6 - i);
+            return {
+                date: d,
+                label: format(d, 'dd/MM', { locale: id }),
+                net: 0
+            };
+        });
+
+        // Map data to last 7 days
+        // Net for chart = Income on that day - Expenses on that day
+        const chart = last7Days.map(day => {
+            const dayOrders = orders.filter(o => isSameDay(parseISO(o.created_at), day.date));
+            const dayExpenses = expenses.filter(e => isSameDay(parseISO(e.created_at), day.date));
+
+            const dailyIncome = dayOrders.reduce((s, o) => s + (o.price || 0), 0);
+            const dailyExpense = dayExpenses.reduce((s, e) => s + (e.amount || 0), 0);
+
+            return {
+                ...day,
+                net: dailyIncome - dailyExpense
+            };
+        });
+        setChartData(chart);
+
+        // --- 3. Transaction List (Merged) ---
+        const combined = [
+            ...orders.map(o => ({ ...o, type: 'income', displayAmount: o.price })),
+            ...expenses.map(e => ({ ...e, type: 'expense', displayAmount: e.amount }))
+        ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        setTransactions(combined);
     };
+
+    const formatCurrency = (val) => new Intl.NumberFormat('id-ID').format(val);
+    const formatTime = (iso) => format(parseISO(iso), 'HH:mm');
+
+    // Insight Logic
+    const getInsight = () => {
+        const score = metrics.efficiencyScore;
+        if (metrics.grossIncome === 0) return { text: "Belum ada tarikan. Gas cari orderan!", color: "text-gray-500" };
+
+        if (score >= 70) return { text: "Mantap! Efisiensi keuangan sangat bagus.", color: "text-green-600" };
+        if (score >= 50) return { text: "Not bad. Coba kurangi pengeluaran kecil.", color: "text-yellow-600" };
+        return { text: "Boros banget hari ini! Kurangi jajan kopi.", color: "text-red-500" };
+    };
+
+    const insight = getInsight();
 
     if (loading) {
         return (
-            <div className="flex flex-col h-full bg-maxim-bg p-4 space-y-4 pb-24 text-maxim-dark items-center justify-center">
+            <div className="flex h-full items-center justify-center bg-gray-50 pb-24">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-maxim-dark"></div>
             </div>
-        )
+        );
     }
 
     return (
-        <div className="flex flex-col h-full bg-maxim-bg p-4 space-y-4 pb-24 text-maxim-dark">
-            {/* Summary Card */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                <div className="flex justify-between items-start mb-4">
-                    <div>
-                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Total Pendapatan</p>
-                        <h2 className="text-3xl font-bold text-maxim-dark mt-1">
-                            <span className="text-sm font-normal text-gray-400 mr-1">Rp</span>
-                            {formatCurrency(totalProfit)}
-                        </h2>
+        <div className="flex flex-col h-full bg-gray-50 pb-24 relative">
+            {/* Header */}
+            <div className="px-5 pt-6 pb-2">
+                <h1 className="text-2xl font-bold text-gray-800">Financial Board</h1>
+                <p className="text-xs text-gray-400">Liputan Keuangan Bulan Ini</p>
+            </div>
+
+            {/* Insight Banner */}
+            <div className={`mx-5 mb-4 p-3 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center space-x-3`}>
+                <div className={`p-2 rounded-full bg-opacity-10 ${insight.color.replace('text', 'bg')}`}>
+                    <AlertCircle className={`w-5 h-5 ${insight.color}`} />
+                </div>
+                <p className={`text-sm font-medium ${insight.color}`}>
+                    "{insight.text}"
+                </p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 space-y-6">
+
+                {/* 1. Summary Cards */}
+                <div className="grid grid-cols-3 gap-3">
+                    {/* Income */}
+                    <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-24">
+                        <div className="p-1.5 bg-green-50 rounded-lg w-fit">
+                            <TrendingUp size={16} className="text-green-600" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] text-gray-400 font-semibold uppercase">Omzet</p>
+                            <p className="text-sm font-bold text-gray-800 truncate">
+                                {formatCurrency(metrics.grossIncome)}
+                            </p>
+                        </div>
                     </div>
-                    <div className="text-right">
-                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Total Order</p>
-                        <h2 className="text-3xl font-bold text-maxim-dark mt-1">{totalOrders}</h2>
+
+                    {/* Expense */}
+                    <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-24">
+                        <div className="p-1.5 bg-red-50 rounded-lg w-fit">
+                            <TrendingDown size={16} className="text-red-600" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] text-gray-400 font-semibold uppercase">Keluar</p>
+                            <p className="text-sm font-bold text-gray-800 truncate">
+                                {formatCurrency(metrics.actualExpenses)}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Net Cash */}
+                    <div className="bg-maxim-dark p-3 rounded-2xl shadow-lg border border-gray-800 flex flex-col justify-between h-24 text-white">
+                        <div className="p-1.5 bg-white/10 rounded-lg w-fit">
+                            <Wallet size={16} className="text-maxim-yellow" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] text-gray-400 font-semibold uppercase">Sisa Uang</p>
+                            <p className="text-sm font-bold text-maxim-yellow truncate">
+                                {formatCurrency(metrics.netCash)}
+                            </p>
+                        </div>
                     </div>
                 </div>
 
-                {/* Progress Bar */}
-                <div className="mt-2">
-                    <div className="flex justify-between text-xs mb-1">
-                        <span className="text-gray-400">Target: Rp {formatCurrency(settings.dailyTarget)}</span>
-                        <span className="font-bold text-maxim-dark">{Math.round(progress)}%</span>
+                {/* 2. Efficiency Meter */}
+                <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                    <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-bold text-gray-400 uppercase">Skor Efisiensi</span>
+                        <span className={`text-lg font-bold ${metrics.efficiencyScore > 70 ? 'text-green-500' : metrics.efficiencyScore > 50 ? 'text-yellow-500' : 'text-red-500'}`}>
+                            {Math.round(metrics.efficiencyScore)}%
+                        </span>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                        <div
-                            className="bg-maxim-yellow h-2.5 rounded-full transition-all duration-500 ease-out"
-                            style={{ width: `${progress}%` }}
-                        ></div>
+                    <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                        <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${Math.min(100, Math.max(0, metrics.efficiencyScore))}%` }}
+                            transition={{ duration: 1, ease: "easeOut" }}
+                            className={`h-full rounded-full ${metrics.efficiencyScore > 70 ? 'bg-green-500' : metrics.efficiencyScore > 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                        />
+                    </div>
+                </div>
+
+                {/* 3. Performance Chart */}
+                <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 h-64">
+                    <h3 className="text-sm font-bold text-gray-700 mb-4">Grafik 7 Hari Terakhir</h3>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData}>
+                            <XAxis
+                                dataKey="label"
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fontSize: 10, fill: '#9CA3AF' }}
+                                dy={10}
+                            />
+                            <Tooltip
+                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                cursor={{ fill: '#F3F4F6' }}
+                            />
+                            <Bar dataKey="net" radius={[4, 4, 0, 0]}>
+                                {chartData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.net >= 0 ? '#16A34A' : '#EF4444'} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+
+                {/* 4. Transactions List */}
+                <div className="pb-10">
+                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Riwayat Transaksi</h3>
+                    <div className="space-y-3">
+                        {transactions.length === 0 ? (
+                            <div className="text-center py-10 text-gray-400 text-sm">Belum ada data transaksi.</div>
+                        ) : (
+                            transactions.map((t) => (
+                                <div key={t.id} className="bg-white p-4 rounded-xl border border-gray-50 shadow-sm flex items-center justify-between">
+                                    <div className="flex items-center space-x-3">
+                                        <div className={`p-2 rounded-full ${t.type === 'income' ? 'bg-green-100' : 'bg-red-100'}`}>
+                                            {t.type === 'income' ? (
+                                                <Plus size={16} className="text-green-600" />
+                                            ) : (
+                                                <Minus size={16} className="text-red-600" />
+                                            )}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-gray-800">
+                                                {t.type === 'income' ? 'Maxim Order' : t.category}
+                                            </p>
+                                            <p className="text-xs text-gray-400">
+                                                {formatTime(t.created_at)} • {t.type === 'income' ? `${t.distance} km` : t.note || ''}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <span className={`font-bold ${t.type === 'income' ? 'text-green-600' : 'text-red-500'}`}>
+                                        {t.type === 'income' ? '+' : '-'} {formatCurrency(t.displayAmount)}
+                                    </span>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             </div>
 
-            {/* List Header */}
-            <div className="flex justify-between items-center px-2">
-                <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wide">Riwayat Order</h3>
-                {/* Clear History button removed as we are syncing with cloud DB now. Deleting would need DB delete. */}
-            </div>
+            {/* FAB - Floating Action Button */}
+            <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowExpenseModal(true)}
+                className="absolute bottom-24 right-6 w-14 h-14 bg-red-500 rounded-full shadow-xl shadow-red-200 flex items-center justify-center text-white z-20"
+            >
+                <Minus size={28} className="stroke-[3px]" />
+            </motion.button>
 
-            {/* Order List */}
-            <div className="space-y-3 flex-1 overflow-y-auto">
-                {orders.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 text-gray-400 space-y-3">
-                        <div className="bg-gray-100 p-4 rounded-full">
-                            <Coffee className="w-8 h-8 text-gray-300" />
-                        </div>
-                        <div className="text-center">
-                            <p className="font-medium">Belum ada tarikan hari ini.</p>
-                            <p className="text-xs text-gray-300 mt-1">Semangat cari cuan!</p>
-                        </div>
-                    </div>
-                ) : (
-                    orders.map((order) => (
-                        <div key={order.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-                            <div className="flex flex-col">
-                                <span className="text-xs text-gray-400 font-medium mb-0.5">{formatTime(order.created_at)}</span>
-                                <span className="text-xs font-medium text-gray-300">
-                                    {order.distance} km
-                                </span>
-                            </div>
-                            <div className={`text-base font-bold ${order.net_profit > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                                {order.net_profit > 0 ? '+' : ''}{formatCurrency(order.net_profit)}
-                            </div>
-                        </div>
-                    ))
-                )}
-            </div>
+            {/* Expenses Modal */}
+            <ExpenseModal
+                isOpen={showExpenseModal}
+                onClose={() => setShowExpenseModal(false)}
+                onExpenseAdded={fetchData}
+                session={session}
+            />
         </div>
     );
 }
