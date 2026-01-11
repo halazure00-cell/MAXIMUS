@@ -138,30 +138,43 @@ function SOPTimer() {
 export default function RealMap() {
     const [strategicSpots, setStrategicSpots] = useState([]);
     const [currentRecommendation, setCurrentRecommendation] = useState(null);
-    const [userPos, setUserPos] = useState(BANDUNG_CENTER);
+    const [userPos, setUserPos] = useState(null); // Initialize as null per request
+    const [isLoading, setIsLoading] = useState(true); // Loading state
 
     // 1. Fetch Data
     useEffect(() => {
         const fetchSpots = async () => {
-            const { data, error } = await supabase
-                .from('strategic_spots')
-                .select('*');
+            try {
+                const { data, error } = await supabase
+                    .from('strategic_spots')
+                    .select('*');
 
-            if (error) {
-                console.error('Error fetching spots:', error);
-            } else {
-                setStrategicSpots(data || []);
+                if (error) {
+                    console.error('Error fetching spots:', error);
+                } else {
+                    setStrategicSpots(data || []);
+                }
+            } catch (err) {
+                console.error("Unexpected error:", err);
+            } finally {
+                setIsLoading(false);
             }
         };
 
         fetchSpots();
 
         // Simulating user movement around center for "Real" feel
+        // In real app, this would be navigator.geolocation.watchPosition
+        setUserPos(BANDUNG_CENTER); // Set initial mock position
+
         const interval = setInterval(() => {
-            setUserPos(prev => [
-                prev[0] + (Math.random() - 0.5) * 0.0002,
-                prev[1] + (Math.random() - 0.5) * 0.0002
-            ]);
+            setUserPos(prev => {
+                if (!prev) return BANDUNG_CENTER;
+                return [
+                    prev[0] + (Math.random() - 0.5) * 0.0002,
+                    prev[1] + (Math.random() - 0.5) * 0.0002
+                ];
+            });
         }, 5000);
 
         return () => clearInterval(interval);
@@ -208,13 +221,24 @@ export default function RealMap() {
         return () => clearInterval(timer);
     }, [strategicSpots]);
 
+    if (isLoading) {
+        return (
+            <div className="w-full h-[calc(100vh-64px)] flex items-center justify-center bg-slate-900 text-white">
+                <div className="text-center">
+                    <div className="w-8 h-8 border-4 border-t-cyan-400 border-white/20 rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="font-outfit animate-pulse">Loading Live Map...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="w-full h-[calc(100vh-64px)] relative bg-slate-900">
             <StrategyCard recommendation={currentRecommendation} />
             <SOPTimer />
 
             <MapContainer
-                center={BANDUNG_CENTER}
+                center={BANDUNG_CENTER} // Static center to prevent crash if userPos is null
                 zoom={12}
                 zoomControl={false}
                 scrollWheelZoom={true}
@@ -225,15 +249,20 @@ export default function RealMap() {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
 
-                {/* User Position */}
-                <Marker position={userPos}>
-                    <Popup>
-                        <span className="font-bold text-gray-800">Posisi Anda</span>
-                    </Popup>
-                </Marker>
+                {/* User Position Guard */}
+                {userPos && (
+                    <Marker position={userPos}>
+                        <Popup>
+                            <span className="font-bold text-gray-800">Posisi Anda</span>
+                        </Popup>
+                    </Marker>
+                )}
 
-                {/* Strategic Spots */}
+                {/* Strategic Spots with Safety Guard */}
                 {strategicSpots.map((spot) => {
+                    // Safety Guard: Check if coordinates exist
+                    if (!spot.latitude || !spot.longitude) return null;
+
                     // Determine Color
                     // Strategy A (Timur) -> Blue
                     // Strategy B (Pusat-Utara) -> Red
