@@ -69,7 +69,7 @@ export const SettingsProvider = ({ children }) => {
                 .from('profiles')
                 .select('*')
                 .eq('id', session.user.id)
-                .single();
+                .maybeSingle();
 
             if (data && !error) {
                 // Merge Supabase data into settings, using fallback for missing fields

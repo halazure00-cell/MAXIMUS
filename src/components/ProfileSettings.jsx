@@ -28,7 +28,7 @@ export default function ProfileSettings({ session, showToast }) {
                     .from('profiles')
                     .select('*')
                     .eq('id', session.user.id)
-                    .single();
+                    .maybeSingle();
 
                 if (error && error.code !== 'PGRST116') { // PGRST116: JSON object requested, multiple (or no) rows returned
                     console.error('Error fetching profile:', error);
