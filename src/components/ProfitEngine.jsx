@@ -3,12 +3,15 @@ import { useSettings } from '../context/SettingsContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle } from 'lucide-react';
 
-export default function ProfitEngine({ onAccept }) {
+import { supabase } from '../lib/supabaseClient';
+
+export default function ProfitEngine({ showToast, session }) {
     const { settings } = useSettings();
     const [orderPrice, setOrderPrice] = useState('');
     const [distance, setDistance] = useState('');
     const [commissionRate, setCommissionRate] = useState(settings.defaultCommission);
     const [showSuccess, setShowSuccess] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Update local commission state if default changes in settings
     useEffect(() => {
@@ -25,32 +28,51 @@ export default function ProfitEngine({ onAccept }) {
 
     const formatCurrency = (value) => new Intl.NumberFormat('id-ID').format(value);
 
-    const handleAccept = () => {
-        if (!orderPrice || !distance) return;
+    const handleAccept = async () => {
+        if (!orderPrice || !distance || isSubmitting) return;
+
+        setIsSubmitting(true);
 
         // Haptic Feedback
         if (navigator.vibrate) {
             navigator.vibrate(50);
         }
 
-        setShowSuccess(true);
+        try {
+            const { error } = await supabase
+                .from('orders')
+                .insert([
+                    {
+                        user_id: session.user.id,
+                        price: gross,
+                        distance: dist,
+                        net_profit: netProfit,
+                        // created_at is default now() in DB
+                    },
+                ]);
 
-        const timestamp = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            if (error) throw error;
 
-        // Delay updating the list to show the success animation
-        setTimeout(() => {
-            onAccept({
-                time: timestamp,
-                price: parseFloat(orderPrice),
-                distance: parseFloat(distance),
-                netProfit: netProfit,
-                commissionRate: commissionRate
-            });
+            setShowSuccess(true);
 
-            setOrderPrice('');
-            setDistance('');
-            setShowSuccess(false);
-        }, 1500);
+            // Show toast using the prop passed from App
+            if (showToast) {
+                showToast(`Order Saved: +${formatCurrency(netProfit)}`);
+            }
+
+            // Delay clearing inputs to show the success animation
+            setTimeout(() => {
+                setOrderPrice('');
+                setDistance('');
+                setShowSuccess(false);
+                setIsSubmitting(false);
+            }, 1500);
+
+        } catch (error) {
+            console.error('Error saving order:', error);
+            alert('Gagal menyimpan order: ' + error.message);
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -164,7 +186,7 @@ export default function ProfitEngine({ onAccept }) {
                 <motion.button
                     whileTap={{ scale: 0.95 }}
                     onClick={handleAccept}
-                    disabled={!orderPrice || !distance}
+                    disabled={!orderPrice || !distance || isSubmitting}
                     className={`w-full py-4 mt-auto rounded-xl font-bold text-lg shadow-lg ${!orderPrice || !distance
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
                         : 'bg-maxim-yellow text-maxim-dark shadow-yellow-200'

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
+import { supabase } from './lib/supabaseClient';
+import Auth from './components/Auth';
 import ProfitEngine from './components/ProfitEngine';
 import RealMap from './components/RealMap';
 import DailyRecap from './components/DailyRecap';
@@ -9,7 +11,7 @@ import BottomNavigation from './components/BottomNavigation';
 import Toast from './components/Toast';
 import PageTransition from './components/PageTransition';
 
-function AnimatedRoutes({ onAddOrder, orders, onClearHistory }) {
+function AnimatedRoutes({ showToast, session }) {
     const location = useLocation();
 
     return (
@@ -19,7 +21,7 @@ function AnimatedRoutes({ onAddOrder, orders, onClearHistory }) {
                     path="/"
                     element={
                         <PageTransition>
-                            <ProfitEngine onAccept={onAddOrder} />
+                            <ProfitEngine showToast={showToast} session={session} />
                         </PageTransition>
                     }
                 />
@@ -35,7 +37,7 @@ function AnimatedRoutes({ onAddOrder, orders, onClearHistory }) {
                     path="/history"
                     element={
                         <PageTransition>
-                            <DailyRecap orders={orders} onClearHistory={onClearHistory} />
+                            <DailyRecap showToast={showToast} session={session} />
                         </PageTransition>
                     }
                 />
@@ -43,7 +45,7 @@ function AnimatedRoutes({ onAddOrder, orders, onClearHistory }) {
                     path="/profile"
                     element={
                         <PageTransition>
-                            <ProfileSettings />
+                            <ProfileSettings showToast={showToast} session={session} />
                         </PageTransition>
                     }
                 />
@@ -53,55 +55,52 @@ function AnimatedRoutes({ onAddOrder, orders, onClearHistory }) {
 }
 
 function App() {
-    // Order History State
-    const [orders, setOrders] = useState(() => {
-        const saved = localStorage.getItem('maximus_orders');
-        try {
-            return saved ? JSON.parse(saved) : [];
-        } catch (e) {
-            return [];
-        }
-    });
+    const [session, setSession] = useState(null)
+    const [loading, setLoading] = useState(true)
 
-    // Toast State
+    // Toast State (Global UI state)
     const [toast, setToast] = useState({ message: '', isVisible: false, type: 'success' });
 
     useEffect(() => {
-        localStorage.setItem('maximus_orders', JSON.stringify(orders));
-    }, [orders]);
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session)
+            setLoading(false)
+        })
 
-    const handleAddOrder = (order) => {
-        setOrders(prev => [order, ...prev]);
-        setToast({
-            message: `Order Saved: +${(order.netProfit).toLocaleString('id-ID')}`,
-            isVisible: true,
-            type: 'success'
-        });
-    };
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session)
+            setLoading(false)
+        })
 
-    const handleClearHistory = () => {
-        if (window.confirm('Hapus semua riwayat hari ini?')) {
-            setOrders([]);
-            setToast({
-                message: 'Riwayat dibersihkan',
-                isVisible: true,
-                type: 'success'
-            });
-        }
+        return () => subscription.unsubscribe()
+    }, [])
+
+    const showToast = (message, type = 'success') => {
+        setToast({ message, isVisible: true, type });
     };
 
     const handleToastClose = () => {
         setToast(prev => ({ ...prev, isVisible: false }));
     };
 
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-maxim-bg">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-maxim-dark"></div>
+            </div>
+        )
+    }
+
+    if (!session) {
+        return <Auth />
+    }
+
     return (
         <BrowserRouter>
             <div className="min-h-screen bg-maxim-bg text-maxim-dark font-sans pb-20">
-                <AnimatedRoutes
-                    onAddOrder={handleAddOrder}
-                    orders={orders}
-                    onClearHistory={handleClearHistory}
-                />
+                <AnimatedRoutes showToast={showToast} session={session} />
 
                 <BottomNavigation />
 

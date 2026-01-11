@@ -1,13 +1,62 @@
-import { Trash2, Coffee } from 'lucide-react';
-import { useSettings } from '../context/SettingsContext';
 
-export default function DailyRecap({ orders, onClearHistory }) {
+import { useState, useEffect } from 'react';
+import { Coffee } from 'lucide-react';
+import { useSettings } from '../context/SettingsContext';
+import { supabase } from '../lib/supabaseClient';
+
+export default function DailyRecap({ session }) {
     const { settings } = useSettings();
-    const totalProfit = orders.reduce((acc, order) => acc + order.netProfit, 0);
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetchDailyOrders();
+    }, [session]);
+
+    const fetchDailyOrders = async () => {
+        try {
+            setLoading(true);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            const { data, error } = await supabase
+                .from('orders')
+                .select('*')
+                .gte('created_at', today.toISOString())
+                .lt('created_at', tomorrow.toISOString())
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            setOrders(data || []);
+        } catch (error) {
+            console.error('Error fetching orders:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Calculate totals
+    const totalProfit = orders.reduce((acc, order) => acc + (order.net_profit || 0), 0);
     const totalOrders = orders.length;
     const progress = Math.min(100, Math.max(0, (totalProfit / settings.dailyTarget) * 100));
 
     const formatCurrency = (value) => new Intl.NumberFormat('id-ID').format(value);
+
+    // Helper to format time from ISO string
+    const formatTime = (isoString) => {
+        return new Date(isoString).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    };
+
+    if (loading) {
+        return (
+            <div className="flex flex-col h-full bg-maxim-bg p-4 space-y-4 pb-24 text-maxim-dark items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-maxim-dark"></div>
+            </div>
+        )
+    }
 
     return (
         <div className="flex flex-col h-full bg-maxim-bg p-4 space-y-4 pb-24 text-maxim-dark">
@@ -45,14 +94,7 @@ export default function DailyRecap({ orders, onClearHistory }) {
             {/* List Header */}
             <div className="flex justify-between items-center px-2">
                 <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wide">Riwayat Order</h3>
-                {orders.length > 0 && (
-                    <button
-                        onClick={onClearHistory}
-                        className="text-red-500 p-2 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                    </button>
-                )}
+                {/* Clear History button removed as we are syncing with cloud DB now. Deleting would need DB delete. */}
             </div>
 
             {/* Order List */}
@@ -68,16 +110,16 @@ export default function DailyRecap({ orders, onClearHistory }) {
                         </div>
                     </div>
                 ) : (
-                    orders.map((order, index) => (
-                        <div key={index} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+                    orders.map((order) => (
+                        <div key={order.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
                             <div className="flex flex-col">
-                                <span className="text-xs text-gray-400 font-medium mb-0.5">{order.time}</span>
+                                <span className="text-xs text-gray-400 font-medium mb-0.5">{formatTime(order.created_at)}</span>
                                 <span className="text-xs font-medium text-gray-300">
-                                    {order.distance} km • {order.commissionRate === 0.1 ? 'Prio' : 'Non-Prio'}
+                                    {order.distance} km
                                 </span>
                             </div>
-                            <div className={`text-base font-bold ${order.netProfit > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                                {order.netProfit > 0 ? '+' : ''}{formatCurrency(order.netProfit)}
+                            <div className={`text-base font-bold ${order.net_profit > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                {order.net_profit > 0 ? '+' : ''}{formatCurrency(order.net_profit)}
                             </div>
                         </div>
                     ))

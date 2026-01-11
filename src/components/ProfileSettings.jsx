@@ -1,9 +1,92 @@
-import React, { useEffect } from 'react';
-import { User, Car, Settings as SettingsIcon, Moon, Sun, ChevronDown } from 'lucide-react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { User, Car, Settings as SettingsIcon, Moon, Sun, ChevronDown, Cloud } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
+import { supabase } from '../lib/supabaseClient';
 
-export default function ProfileSettings() {
+// Simple debounce helper
+const debounce = (func, wait) => {
+    let timeout;
+    return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), wait);
+    };
+};
+
+export default function ProfileSettings({ session, showToast }) {
     const { settings, updateSettings } = useSettings();
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
+    // Fetch profile from Supabase on mount
+    useEffect(() => {
+        const fetchProfile = async () => {
+            if (!session?.user) return;
+
+            try {
+                setLoading(true);
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
+
+                if (error && error.code !== 'PGRST116') { // PGRST116: JSON object requested, multiple (or no) rows returned
+                    console.error('Error fetching profile:', error);
+                }
+
+                if (data) {
+                    // Update local context with cloud data
+                    updateSettings({
+                        vehicleType: data.vehicle_type || settings.vehicleType,
+                        dailyTarget: data.daily_target || settings.dailyTarget,
+                        driverName: data.full_name || settings.driverName,
+                        // Note: fuelEfficiency is derived from vehicleType usually, but we have a preset override.
+                        // We might want to save fuelEfficiency to DB too if we want it persistent custom.
+                        // For now sticking to requested fields.
+                    });
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProfile();
+    }, [session, updateSettings]); // Careful: updateSettings should be stable
+
+    // Debounced save to Supabase
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const saveToCloud = useCallback(
+        debounce(async (newSettings) => {
+            if (!session?.user) return;
+            setSaving(true);
+            try {
+                const { error } = await supabase.from('profiles').upsert({
+                    id: session.user.id,
+                    updated_at: new Date(),
+                    vehicle_type: newSettings.vehicleType,
+                    daily_target: newSettings.dailyTarget,
+                    full_name: newSettings.driverName,
+                    // username: '...', // We don't have username input yet
+                });
+
+                if (error) throw error;
+                if (showToast) showToast('Profil tersimpan di Cloud', 'success');
+            } catch (error) {
+                console.error('Error saving profile:', error);
+                if (showToast) showToast('Gagal menyimpan profil', 'error');
+            } finally {
+                setSaving(false);
+            }
+        }, 1000),
+        [session, showToast]
+    );
+
+    // Wrapper to update both Local Context and Cloud
+    const handleUpdate = (updates) => {
+        updateSettings(updates);
+        // Merge current settings with updates for the cloud save
+        saveToCloud({ ...settings, ...updates });
+    };
 
     // Vehicle presets to auto-fill efficiency
     const vehiclePresets = {
@@ -17,7 +100,8 @@ export default function ProfileSettings() {
     const handleVehicleChange = (e) => {
         const type = e.target.value;
         const preset = vehiclePresets[type];
-        updateSettings({
+
+        handleUpdate({
             vehicleType: type,
             fuelEfficiency: preset ? preset.efficiency : settings.fuelEfficiency
         });
@@ -28,11 +112,18 @@ export default function ProfileSettings() {
     return (
         <div className="flex flex-col h-full bg-maxim-bg p-4 space-y-4 pb-24 overflow-y-auto">
             {/* Header */}
-            <div className="flex items-center space-x-3 mb-2">
-                <div className="bg-maxim-yellow p-2 rounded-xl">
-                    <User className="w-6 h-6 text-maxim-dark" />
+            <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-3">
+                    <div className="bg-maxim-yellow p-2 rounded-xl">
+                        <User className="w-6 h-6 text-maxim-dark" />
+                    </div>
+                    <h1 className="text-2xl font-bold text-maxim-dark">Profil Saya</h1>
                 </div>
-                <h1 className="text-2xl font-bold text-maxim-dark">Profil Saya</h1>
+                {saving && (
+                    <span className="text-xs text-gray-400 flex items-center animate-pulse">
+                        <Cloud className="w-3 h-3 mr-1" /> Menyimpan...
+                    </span>
+                )}
             </div>
 
             {/* A. Driver Profile */}
@@ -46,7 +137,7 @@ export default function ProfileSettings() {
                     <input
                         type="text"
                         value={settings.driverName}
-                        onChange={(e) => updateSettings({ driverName: e.target.value })}
+                        onChange={(e) => handleUpdate({ driverName: e.target.value })}
                         placeholder="Contoh: Bang Jago"
                         className="w-full text-base p-3 rounded-xl border border-gray-200 focus:border-maxim-yellow focus:ring-1 focus:ring-maxim-yellow outline-none transition-all"
                     />
@@ -59,7 +150,7 @@ export default function ProfileSettings() {
                         <input
                             type="number"
                             value={settings.dailyTarget}
-                            onChange={(e) => updateSettings({ dailyTarget: parseInt(e.target.value) || 0 })}
+                            onChange={(e) => handleUpdate({ dailyTarget: parseInt(e.target.value) || 0 })}
                             placeholder="200000"
                             className="w-full text-base p-3 pl-10 rounded-xl border border-gray-200 focus:border-maxim-yellow focus:ring-1 focus:ring-maxim-yellow outline-none transition-all"
                         />
@@ -99,7 +190,7 @@ export default function ProfileSettings() {
                         <input
                             type="number"
                             value={settings.fuelEfficiency}
-                            onChange={(e) => updateSettings({ fuelEfficiency: parseInt(e.target.value) || 0 })}
+                            onChange={(e) => handleUpdate({ fuelEfficiency: parseInt(e.target.value) || 0 })}
                             placeholder="200"
                             className="w-full text-base p-3 pl-10 rounded-xl border border-gray-200 focus:border-maxim-yellow focus:ring-1 focus:ring-maxim-yellow outline-none transition-all"
                         />
@@ -152,7 +243,10 @@ export default function ProfileSettings() {
             </section>
 
             <div className="text-center mt-4">
-                <p className="text-[10px] text-gray-300">Maximus Driver Assistant v1.2</p>
+                <p className="text-[10px] text-gray-300">Maximus Driver (Cloud Sync) v1.3</p>
+                <button className="mt-2 text-xs text-red-400 hover:text-red-500" onClick={() => supabase.auth.signOut()}>
+                    Keluar (Sign Out)
+                </button>
             </div>
         </div>
     );
