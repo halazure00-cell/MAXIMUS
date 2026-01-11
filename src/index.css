@@ -19,3 +19,93 @@
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* --- Map Marker Animations --- */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.33);
+    opacity: 1;
+  }
+
+  80%,
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse-dot {
+  0% {
+    transform: scale(0.8);
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    transform: scale(0.8);
+  }
+}
+
+.marker-pin {
+  width: 30px;
+  height: 30px;
+  border-radius: 50% 50% 50% 0;
+  background: #c30b82;
+  position: absolute;
+  transform: rotate(-45deg);
+  left: 50%;
+  top: 50%;
+  margin: -15px 0 0 -15px;
+}
+
+/* User Location Marker */
+.user-marker-pulse {
+  background: rgba(59, 130, 246, 0.4);
+  border-radius: 50%;
+  height: 40px;
+  width: 40px;
+  position: absolute;
+  left: -14px;
+  top: -14px;
+  animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+.user-marker-dot {
+  background: #3B82F6;
+  border-radius: 50%;
+  height: 12px;
+  width: 12px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border: 2px solid white;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Active Strategy Marker */
+.active-strategy-ring {
+  border: 3px solid #FFD700;
+  border-radius: 50%;
+  height: 50px;
+  width: 50px;
+  position: absolute;
+  left: -17px;
+  top: -17px;
+  animation: pulse-ring 2.5s infinite;
+  opacity: 0.6;
+}
+
+.active-strategy-pin {
+  background-color: #FFD700;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  border: 2px solid white;
+  box-shadow: 0 0 10px #FFD700;
+}

@@ -4,131 +4,97 @@ import { useEffect, useState, useRef } from 'react';
 import L from 'leaflet';
 import { supabase } from '../lib/supabaseClient';
 
-// --- Custom Icons Setup ---
-// We'll use simple colored markers via DivIcon or basic Leaflet configuration.
-// For reliability without external assets, we define custom colored SVGs or similar.
+// --- Custom Icons ---
 
-const createCustomIcon = (color) => {
-    // Simple SVG marker string
-    const svg = `
-        <svg viewBox="0 0 24 24" width="30" height="42" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="${color}" stroke="white" stroke-width="2"/>
-            <circle cx="12" cy="9" r="3" fill="white"/>
-        </svg>
-    `;
-    return L.divIcon({
-        className: 'custom-pin', // Add empty class to reset default
-        html: svg,
-        iconSize: [30, 42],
-        iconAnchor: [15, 42],
-        popupAnchor: [0, -45]
-    });
-};
+// 1. User Position (Blue Pulse)
+const userIcon = L.divIcon({
+    className: 'custom-div-icon',
+    html: `<div class="user-marker-pulse"></div><div class="user-marker-dot"></div>`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -10]
+});
 
-const BlueIcon = createCustomIcon('#3B82F6'); // Timur
-const RedIcon = createCustomIcon('#EF4444');  // Pusat-Utara / Other
+// 2. Active Strategy Spot (Yellow Pulse + Glow)
+const activeStrategyIcon = L.divIcon({
+    className: 'custom-div-icon',
+    html: `<div class="active-strategy-ring"></div><div class="active-strategy-pin"></div>`,
+    iconSize: [50, 50],
+    iconAnchor: [25, 25],
+    popupAnchor: [0, -10]
+});
+
+// 3. Inactive/Normal Spot (Small Gray Dot)
+const inactiveStrategyIcon = L.divIcon({
+    className: 'custom-div-icon',
+    html: `<div style="background-color: #94a3b8; width: 12px; height: 12px; border-radius: 50%; opacity: 0.6; border: 1px solid white;"></div>`,
+    iconSize: [12, 12],
+    iconAnchor: [6, 6],
+    popupAnchor: [0, -5]
+});
+
 
 const BANDUNG_CENTER = [-6.9175, 107.6191];
 
 // --- Sub-components for Overlay UI ---
 
+function RecenterFab({ userPos }) {
+    const map = useMap();
+
+    const handleRecenter = () => {
+        if (userPos) {
+            map.flyTo(userPos, 15, {
+                animate: true,
+                duration: 1.5
+            });
+        }
+    };
+
+    return (
+        <button
+            onClick={handleRecenter}
+            className="absolute bottom-28 right-4 z-[400] w-12 h-12 bg-white text-slate-900 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+        </button>
+    );
+}
+
 function StrategyCard({ recommendation }) {
     if (!recommendation) return null;
 
+    const navUrl = recommendation.lat && recommendation.lng
+        ? `https://www.google.com/maps/dir/?api=1&destination=${recommendation.lat},${recommendation.lng}`
+        : '#';
+
     return (
-        <div className="absolute top-4 left-4 right-4 z-[400] mx-auto max-w-sm">
-            <div className={`
-                backdrop-blur-md border border-white/20 shadow-xl rounded-2xl p-4
-                ${recommendation.isFree ? 'bg-gradient-to-r from-emerald-500/90 to-teal-500/90' : 'bg-gradient-to-r from-slate-900/90 to-slate-800/90'}
-                 text-white transition-all duration-500
-            `}>
-                <div className="flex items-start gap-3">
-                    <div className="text-3xl animate-pulse">
-                        {recommendation.isFree ? '🦅' : '🎯'}
-                    </div>
+        <div className="absolute bottom-6 left-4 right-20 z-[400] mx-auto max-w-sm">
+            <div className="backdrop-blur-md bg-white/95 shadow-2xl rounded-2xl p-4 border-l-4 border-l-yellow-400">
+                <div className="flex items-start justify-between">
                     <div>
-                        <h3 className="font-bold text-lg leading-tight mb-1 font-outfit">
+                        <h3 className="font-bold text-slate-900 text-lg leading-tight mb-1 font-outfit">
                             {recommendation.title}
                         </h3>
-                        <p className="text-sm font-light opacity-90 leading-snug">
+                        <p className="text-sm text-slate-600 font-medium leading-snug">
                             {recommendation.subtitle}
                         </p>
                     </div>
                 </div>
-            </div>
-        </div>
-    );
-}
 
-function SOPTimer() {
-    const [timeLeft, setTimeLeft] = useState(null); // null = not started
-    const [isActive, setIsActive] = useState(false);
-    const audioRef = useRef(null);
-
-    const START_TIME = 12 * 60; // 12 minutes in seconds
-
-    useEffect(() => {
-        let interval;
-        if (isActive && timeLeft > 0) {
-            interval = setInterval(() => {
-                setTimeLeft((prev) => prev - 1);
-            }, 1000);
-        } else if (timeLeft === 0) {
-            // Timer finished
-            setIsActive(false);
-            if (audioRef.current) {
-                audioRef.current.play().catch(e => console.log("Audio play failed", e));
-                if (navigator.vibrate) navigator.vibrate([500, 200, 500]); // Vibrate pattern
-            }
-            alert("⏰ WAKTU HABIS! SOP: PINDAH SPOT SEKARANG (1-2KM)!");
-            setTimeLeft(null); // Reset
-        }
-        return () => clearInterval(interval);
-    }, [isActive, timeLeft]);
-
-    const toggleTimer = () => {
-        if (isActive) {
-            setIsActive(false);
-            setTimeLeft(null);
-        } else {
-            setTimeLeft(START_TIME);
-            setIsActive(true);
-        }
-    };
-
-    const formatTime = (seconds) => {
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
-        return `${m}:${s < 10 ? '0' : ''}${s}`;
-    };
-
-    return (
-        <div className="absolute bottom-6 right-4 z-[400]">
-            {/* Hidden Audio Element for Alert */}
-            <audio ref={audioRef} src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3" />
-
-            <button
-                onClick={toggleTimer}
-                className={`
-                    flex flex-col items-center justify-center w-20 h-20 rounded-full shadow-2xl border-4
-                    transition-all duration-300 active:scale-95
-                    ${isActive
-                        ? 'bg-red-600 border-red-400 animate-pulse'
-                        : 'bg-slate-900 border-cyan-400 hover:border-cyan-300'}
-                `}
-            >
-                {isActive ? (
-                    <>
-                        <span className="text-xl font-bold text-white font-mono">{formatTime(timeLeft)}</span>
-                        <span className="text-[10px] text-white/80 font-bold">STOP</span>
-                    </>
-                ) : (
-                    <>
-                        <span className="text-2xl">⏱️</span>
-                        <span className="text-[10px] font-bold text-cyan-400 mt-1">SOP 12'</span>
-                    </>
+                {!recommendation.isFree && (
+                    <a
+                        href={navUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 block w-full bg-slate-900 text-white text-center py-2 rounded-lg font-bold text-sm active:scale-95 transition-transform"
+                    >
+                        🚀 NAVIGASI
+                    </a>
                 )}
-            </button>
+            </div>
         </div>
     );
 }
@@ -138,8 +104,8 @@ function SOPTimer() {
 export default function RealMap() {
     const [strategicSpots, setStrategicSpots] = useState([]);
     const [currentRecommendation, setCurrentRecommendation] = useState(null);
-    const [userPos, setUserPos] = useState(null); // Initialize as null per request
-    const [isLoading, setIsLoading] = useState(true); // Loading state
+    const [userPos, setUserPos] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     // 1. Fetch Data
     useEffect(() => {
@@ -163,10 +129,8 @@ export default function RealMap() {
 
         fetchSpots();
 
-        // Simulating user movement around center for "Real" feel
-        // In real app, this would be navigator.geolocation.watchPosition
-        setUserPos(BANDUNG_CENTER); // Set initial mock position
-
+        // Mock User Position (Simulating Movement)
+        setUserPos(BANDUNG_CENTER);
         const interval = setInterval(() => {
             setUserPos(prev => {
                 if (!prev) return BANDUNG_CENTER;
@@ -182,113 +146,121 @@ export default function RealMap() {
 
     // 2. "The Brain" - Live Recommendation Logic
     useEffect(() => {
+        // Run logic immediately when spots change or periodically
         const updateRecommendation = () => {
-            if (!strategicSpots.length) return;
+            // if (!strategicSpots.length) return; // Allow running even if empty to show "Free Mode"
 
             const currentHour = new Date().getHours();
 
-            // Find ALL matching spots for current hour
+            // Filter for ACTIVE spots
             const activeSpots = strategicSpots.filter(spot => {
-                // Handle cases where time might span midnight (e.g. 22 to 02) if logic needed, 
-                // but simple start <= curr < end is verified per request.
-                // Assuming standard "start_hour" and "end_hour" integers.
+                // Safety check for hours
+                if (spot.start_hour === undefined || spot.end_hour === undefined) return false;
                 return spot.start_hour <= currentHour && spot.end_hour > currentHour;
             });
 
             if (activeSpots.length > 0) {
-                // Pick the best one? Or just the first one. 
-                // Let's pick based on Strategy priority if multiple? 
-                // For now, take the first one or a random one to rotate if many match.
+                // Priority: Pick the closest one? Or just the first for now.
                 const spot = activeSpots[0];
+
+                // robustly get lat/lng
+                const lat = spot.latitude || spot.lat;
+                const lng = spot.longitude || spot.lng;
 
                 setCurrentRecommendation({
                     isFree: false,
-                    title: `JAM ${currentHour}:00 - Geser ke ${spot.name}!`,
-                    subtitle: `Strategi: ${spot.notes || 'Standby di area ini.'}`
+                    title: `🔥 HOT SPOT JAM ${currentHour}:00`,
+                    subtitle: `Geser ke ${spot.name}. Strategi: ${spot.notes || 'Standby.'}`,
+                    lat,
+                    lng
                 });
             } else {
                 setCurrentRecommendation({
                     isFree: true,
-                    title: `JAM ${currentHour}:00 - ZONA BEBAS`,
-                    subtitle: "Ikuti Insting / Cek Cluster Driver Terdekat"
+                    title: `☕ Mode Bebas / Ngetem Santai`,
+                    subtitle: "Belum ada rotasi terjadwal. Cek area perumahan."
                 });
             }
         };
 
-        const timer = setInterval(updateRecommendation, 60000); // Check every minute
-        updateRecommendation(); // Initial check after data load (needs strategicSpots dependency)
+        const timer = setInterval(updateRecommendation, 60000);
+        if (!isLoading) updateRecommendation();
 
         return () => clearInterval(timer);
-    }, [strategicSpots]);
+    }, [strategicSpots, isLoading]);
 
     if (isLoading) {
         return (
-            <div className="w-full h-[calc(100vh-64px)] flex items-center justify-center bg-slate-900 text-white">
+            <div className="w-full h-[calc(100vh-64px)] flex items-center justify-center bg-slate-50">
                 <div className="text-center">
-                    <div className="w-8 h-8 border-4 border-t-cyan-400 border-white/20 rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="font-outfit animate-pulse">Loading Live Map...</p>
+                    <div className="w-10 h-10 border-4 border-t-blue-600 border-slate-200 rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="font-outfit text-slate-600 font-bold animate-pulse">Memuat Peta Strategis...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="w-full h-[calc(100vh-64px)] relative bg-slate-900">
+        <div className="w-full h-[calc(100vh-64px)] relative z-0">
             <StrategyCard recommendation={currentRecommendation} />
-            <SOPTimer />
 
             <MapContainer
-                center={BANDUNG_CENTER} // Static center to prevent crash if userPos is null
-                zoom={12}
+                center={BANDUNG_CENTER}
+                zoom={13}
                 zoomControl={false}
                 scrollWheelZoom={true}
-                className="w-full h-full z-0"
+                className="w-full h-full"
             >
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
                 />
 
-                {/* User Position Guard */}
+                <RecenterFab userPos={userPos} />
+
+                {/* User Position */}
                 {userPos && (
-                    <Marker position={userPos}>
+                    <Marker position={userPos} icon={userIcon}>
                         <Popup>
-                            <span className="font-bold text-gray-800">Posisi Anda</span>
+                            <span className="font-bold text-blue-600">Posisi Anda</span>
                         </Popup>
                     </Marker>
                 )}
 
-                {/* Strategic Spots with Safety Guard */}
+                {/* Strategic Spots */}
                 {strategicSpots.map((spot) => {
-                    // Safety Guard: Check if coordinates exist
-                    if (!spot.latitude || !spot.longitude) return null;
+                    // 1. Safety Guard
+                    const lat = spot.latitude || spot.lat;
+                    const lng = spot.longitude || spot.lng;
 
-                    // Determine Color
-                    // Strategy A (Timur) -> Blue
-                    // Strategy B (Pusat-Utara) -> Red
-                    // Fallback -> Red
-                    const isTimur = spot.strategy && spot.strategy.toLowerCase().includes('timur');
-                    const icon = isTimur ? BlueIcon : RedIcon;
+                    if (!lat || !lng) return null;
 
-                    // Parse coords if text, or assume columns latitude/longitude
-                    // Assuming table has latitude and longitude columns.
-                    // If they are in a 'coords' array column, adjust accordingly.
-                    // Safest: check if latitude/longitude exist, else try coords.
-                    const position = [spot.latitude, spot.longitude];
+                    // 2. Determine State (Active vs Inactive)
+                    const currentHour = new Date().getHours();
+                    const isActive = (spot.start_hour !== undefined && spot.end_hour !== undefined)
+                        && (spot.start_hour <= currentHour && spot.end_hour > currentHour);
+
+                    const icon = isActive ? activeStrategyIcon : inactiveStrategyIcon;
 
                     return (
                         <Marker
                             key={spot.id}
-                            position={position}
+                            position={[lat, lng]}
                             icon={icon}
+                            zIndexOffset={isActive ? 1000 : 0} // Active always on top
                         >
-                            <Popup className="custom-popup">
-                                <div className="p-1">
-                                    <h3 className="font-bold text-sm text-gray-900 mb-1">{spot.name}</h3>
-                                    <div className="px-2 py-1 bg-gray-100 rounded text-xs font-mono text-gray-600 mb-2">
-                                        ⏰ {spot.start_hour}:00 - {spot.end_hour}:00
+                            <Popup className="custom-popup" closeButton={false}>
+                                <div className="p-1 min-w-[200px]">
+                                    <div className={`text-xs font-bold uppercase tracking-wider mb-1 ${isActive ? 'text-yellow-600' : 'text-slate-400'}`}>
+                                        {isActive ? '🔥 ACTIVE NOW' : 'INACTIVE'}
                                     </div>
-                                    <p className="text-xs text-gray-700 italic">
+                                    <h3 className="font-bold text-lg text-slate-900 mb-1">{spot.name}</h3>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <span className="px-2 py-0.5 bg-slate-100 rounded text-xs font-mono font-bold text-slate-600 border border-slate-200">
+                                            {spot.start_hour}:00 - {spot.end_hour}:00
+                                        </span>
+                                    </div>
+                                    <p className="text-sm text-slate-600 leading-snug bg-slate-50 p-2 rounded border border-slate-100 italic">
                                         "{spot.notes}"
                                     </p>
                                 </div>
