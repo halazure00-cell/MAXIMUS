@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import ProfitEngine from './components/ProfitEngine';
 import RealMap from './components/RealMap';
 import DailyRecap from './components/DailyRecap';
+import ProfileSettings from './components/ProfileSettings';
 import BottomNavigation from './components/BottomNavigation';
 import Toast from './components/Toast';
 
@@ -63,6 +64,10 @@ function App() {
                     <Route
                         path="/history"
                         element={<DailyRecap orders={orders} onClearHistory={handleClearHistory} />}
+                    />
+                    <Route
+                        path="/profile"
+                        element={<ProfileSettings />}
                     />
                 </Routes>
 

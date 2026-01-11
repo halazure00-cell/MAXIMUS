@@ -1,21 +1,22 @@
 import { useState, useEffect } from 'react';
+import { useSettings } from '../context/SettingsContext';
 
 export default function ProfitEngine({ onAccept }) {
+    const { settings } = useSettings();
     const [orderPrice, setOrderPrice] = useState('');
     const [distance, setDistance] = useState('');
-    const [commissionRate, setCommissionRate] = useState(() => {
-        const saved = localStorage.getItem('profit_engine_commission');
-        return saved ? parseFloat(saved) : 0.15;
-    });
+    const [commissionRate, setCommissionRate] = useState(settings.defaultCommission);
 
+    // Update local commission state if default changes in settings
     useEffect(() => {
-        localStorage.setItem('profit_engine_commission', commissionRate);
-    }, [commissionRate]);
+        setCommissionRate(settings.defaultCommission);
+    }, [settings.defaultCommission]);
 
     const gross = parseFloat(orderPrice) || 0;
     const dist = parseFloat(distance) || 0;
     const appFee = gross * commissionRate;
-    const fuelCost = dist * 300;
+    // Use fuel efficiency from settings
+    const fuelCost = dist * settings.fuelEfficiency;
     const maintenance = 500;
     const netProfit = gross - appFee - fuelCost - maintenance;
 
@@ -120,8 +121,8 @@ export default function ProfitEngine({ onAccept }) {
                 onClick={handleAccept}
                 disabled={!orderPrice || !distance}
                 className={`w-full py-4 mt-auto rounded-xl font-bold text-lg shadow-lg transform active:scale-95 transition-all ${!orderPrice || !distance
-                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
-                        : 'bg-maxim-yellow text-maxim-dark shadow-yellow-200'
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                    : 'bg-maxim-yellow text-maxim-dark shadow-yellow-200'
                     }`}
             >
                 TERIMA ORDER

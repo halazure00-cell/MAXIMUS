@@ -1,12 +1,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Calculator, Map, History } from 'lucide-react';
+import { Calculator, Map, History, User } from 'lucide-react';
 
 const BottomNavigation = () => {
     const navItems = [
         { path: '/', label: 'Hitung', icon: Calculator },
         { path: '/map', label: 'Peta', icon: Map },
         { path: '/history', label: 'Riwayat', icon: History },
+        { path: '/profile', label: 'Profil', icon: User },
     ];
 
     return (
