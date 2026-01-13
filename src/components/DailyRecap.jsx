@@ -9,7 +9,7 @@ import {
     ResponsiveContainer,
     Cell
 } from 'recharts';
-import { format, subDays, startOfMonth, endOfMonth, isSameDay, parseISO } from 'date-fns';
+import { format, subDays, startOfMonth, endOfMonth, isSameDay, parseISO, isValid } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Plus, Minus, TrendingUp, TrendingDown, Wallet, AlertCircle } from 'lucide-react';
 import ExpenseModal from './ExpenseModal';
@@ -115,11 +115,23 @@ export default function DailyRecap({ session }) {
             };
         });
 
+        const parseDate = (value) => {
+            if (!value) return null;
+            const parsed = parseISO(value);
+            return isValid(parsed) ? parsed : null;
+        };
+
         const chart = last7Days.map(day => {
-            const dayOrders = orders.filter(o => isSameDay(parseISO(o.created_at), day.date));
-            const dayExpenses = expenses.filter(e => isSameDay(parseISO(e.created_at), day.date));
-            const dailyIncome = dayOrders.reduce((s, o) => s + (o.price || 0), 0);
-            const dailyExpense = dayExpenses.reduce((s, e) => s + (e.amount || 0), 0);
+            const dayOrders = orders.filter((o) => {
+                const orderDate = parseDate(o.created_at);
+                return orderDate ? isSameDay(orderDate, day.date) : false;
+            });
+            const dayExpenses = expenses.filter((e) => {
+                const expenseDate = parseDate(e.created_at);
+                return expenseDate ? isSameDay(expenseDate, day.date) : false;
+            });
+            const dailyIncome = dayOrders.reduce((s, o) => s + (parseFloat(o.price) || 0), 0);
+            const dailyExpense = dayExpenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
             return { ...day, net: dailyIncome - dailyExpense };
         });
         setChartData(chart);
@@ -127,13 +139,21 @@ export default function DailyRecap({ session }) {
         const combined = [
             ...orders.map(o => ({ ...o, type: 'income', displayAmount: o.price })),
             ...expenses.map(e => ({ ...e, type: 'expense', displayAmount: e.amount }))
-        ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        ].sort((a, b) => {
+            const dateA = parseDate(a.created_at);
+            const dateB = parseDate(b.created_at);
+            return (dateB?.getTime() || 0) - (dateA?.getTime() || 0);
+        });
 
         setTransactions(combined);
     };
 
     const formatCurrency = (val) => new Intl.NumberFormat('id-ID').format(val);
-    const formatTime = (iso) => format(parseISO(iso), 'HH:mm');
+    const formatTime = (iso) => {
+        const parsed = iso ? parseISO(iso) : null;
+        if (!parsed || !isValid(parsed)) return '--:--';
+        return format(parsed, 'HH:mm');
+    };
 
     const getInsight = () => {
         const score = metrics.efficiencyScore;
