@@ -67,7 +67,7 @@ function RecenterFab({ userPos }) {
 function StrategyCard({ recommendation }) {
     if (!recommendation) return null;
 
-    const navUrl = recommendation.lat && recommendation.lng
+    const navUrl = recommendation.lat != null && recommendation.lng != null
         ? `https://www.google.com/maps/dir/?api=1&destination=${recommendation.lat},${recommendation.lng}`
         : '#';
 
@@ -221,9 +221,9 @@ export default function RealMap() {
             if (activeSpots.length > 0) {
                 const spot = activeSpots
                     .map((candidate) => {
-                        const lat = candidate.latitude || candidate.lat;
-                        const lng = candidate.longitude || candidate.lng;
-                        if (!lat || !lng || !userPos) return null;
+                        const lat = candidate.latitude ?? candidate.lat;
+                        const lng = candidate.longitude ?? candidate.lng;
+                        if (lat == null || lng == null || !userPos) return null;
                         return {
                             spot: candidate,
                             distanceKm: getDistanceKm(userPos, [lat, lng])
@@ -233,8 +233,8 @@ export default function RealMap() {
                     .sort((a, b) => a.distanceKm - b.distanceKm)[0]?.spot || activeSpots[0];
 
                 // robustly get lat/lng
-                const lat = spot.latitude || spot.lat;
-                const lng = spot.longitude || spot.lng;
+                const lat = spot.latitude ?? spot.lat;
+                const lng = spot.longitude ?? spot.lng;
 
                 setCurrentRecommendation({
                     isFree: false,
@@ -305,10 +305,10 @@ export default function RealMap() {
                 {/* Strategic Spots */}
                 {strategicSpots.map((spot) => {
                     // 1. Safety Guard
-                    const lat = spot.latitude || spot.lat;
-                    const lng = spot.longitude || spot.lng;
+                    const lat = spot.latitude ?? spot.lat;
+                    const lng = spot.longitude ?? spot.lng;
 
-                    if (!lat || !lng) return null;
+                    if (lat == null || lng == null) return null;
 
                     // 2. Determine State (Active vs Inactive)
                     const currentHour = new Date().getHours();

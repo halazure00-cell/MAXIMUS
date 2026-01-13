@@ -30,7 +30,7 @@ export default function ProfitEngine({ showToast, session }) {
     // Financial Breakdown
     const appFee = gross * currentCommissionRate;
     const fuelCost = dist * settings.fuelEfficiency;
-    const maintenance = settings.maintenanceFee || 500;
+    const maintenance = settings.maintenanceFee ?? 500;
     const estimatedNetProfit = realNet - fuelCost - maintenance;
 
     const formatCurrency = (value) => new Intl.NumberFormat('id-ID').format(value);

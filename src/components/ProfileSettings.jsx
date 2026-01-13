@@ -210,7 +210,7 @@ export default function ProfileSettings({ session, showToast }) {
                         <span className="absolute left-3 top-3 text-gray-400">Rp</span>
                         <input
                             type="number"
-                            value={settings.maintenanceFee || 500}
+                            value={settings.maintenanceFee ?? 500}
                             onChange={(e) => handleUpdate({ maintenanceFee: parseInt(e.target.value) || 0 })}
                             placeholder="500"
                             className="w-full text-base p-3 pl-10 rounded-xl border border-gray-200 focus:border-maxim-yellow focus:ring-1 focus:ring-maxim-yellow outline-none transition-all"
