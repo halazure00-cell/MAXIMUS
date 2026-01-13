@@ -54,7 +54,7 @@ function RecenterFab({ userPos }) {
     return (
         <button
             onClick={handleRecenter}
-            className="absolute bottom-28 right-4 z-[400] w-12 h-12 bg-white text-slate-900 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+            className="absolute bottom-28 right-4 w-12 h-12 bg-white text-slate-900 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform pointer-events-auto"
         >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -72,7 +72,7 @@ function StrategyCard({ recommendation }) {
         : '#';
 
     return (
-        <div className="absolute bottom-6 left-4 right-20 z-[400] mx-auto max-w-sm">
+        <div className="absolute bottom-6 left-4 right-20 mx-auto max-w-sm pointer-events-auto">
             <div className="backdrop-blur-md bg-white/95 shadow-2xl rounded-2xl p-4 border-l-4 border-l-yellow-400">
                 <div className="flex items-start justify-between">
                     <div>
@@ -109,6 +109,32 @@ export default function RealMap() {
     const [userPos, setUserPos] = useState(null);
     const [geoStatus, setGeoStatus] = useState('idle');
     const [isLoading, setIsLoading] = useState(true);
+    const simulationIntervalRef = useRef(null);
+    const watchIdRef = useRef(null);
+    const hasRealPositionRef = useRef(false);
+
+    const stopSimulation = () => {
+        if (simulationIntervalRef.current) {
+            clearInterval(simulationIntervalRef.current);
+            simulationIntervalRef.current = null;
+        }
+    };
+
+    const startSimulation = () => {
+        if (simulationIntervalRef.current) return;
+
+        setUserPos(prev => prev || BANDUNG_CENTER);
+
+        simulationIntervalRef.current = setInterval(() => {
+            setUserPos(prev => {
+                if (!prev) return BANDUNG_CENTER;
+                return [
+                    prev[0] + (Math.random() - 0.5) * 0.0002,
+                    prev[1] + (Math.random() - 0.5) * 0.0002
+                ];
+            });
+        }, 5000);
+    };
 
     // 1. Fetch Data
     useEffect(() => {
@@ -247,14 +273,17 @@ export default function RealMap() {
 
     return (
         <div className="w-full h-[calc(100vh-64px)] relative z-0">
-            <StrategyCard recommendation={currentRecommendation} />
+            <div className="absolute inset-0 z-[1000] pointer-events-none">
+                <StrategyCard recommendation={currentRecommendation} />
+                <RecenterFab userPos={userPos} />
+            </div>
 
             <MapContainer
                 center={BANDUNG_CENTER}
                 zoom={13}
                 zoomControl={false}
                 scrollWheelZoom={true}
-                className="w-full h-full"
+                className="w-full h-full z-0"
             >
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -263,8 +292,6 @@ export default function RealMap() {
                         : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
                     }
                 />
-
-                <RecenterFab userPos={userPos} />
 
                 {/* User Position */}
                 {userPos && (
