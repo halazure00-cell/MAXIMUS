@@ -1,9 +1,17 @@
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { useEffect, useState, useRef } from 'react';
 import L from 'leaflet';
 import { supabase } from '../lib/supabaseClient';
 import { useSettings } from '../context/SettingsContext';
+
+// --- Leaflet Icon Fix ---
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
+});
 
 // --- Custom Icons ---
 
@@ -262,7 +270,7 @@ export default function RealMap() {
 
     if (isLoading) {
         return (
-            <div className="w-full h-[calc(100vh-64px)] flex items-center justify-center bg-slate-50">
+            <div className="w-full h-[calc(100vh-80px)] flex items-center justify-center bg-slate-50">
                 <div className="text-center">
                     <div className="w-10 h-10 border-4 border-t-blue-600 border-slate-200 rounded-full animate-spin mx-auto mb-4"></div>
                     <p className="font-outfit text-slate-600 font-bold animate-pulse">Memuat Peta Strategis...</p>
@@ -272,7 +280,7 @@ export default function RealMap() {
     }
 
     return (
-        <div className="w-full h-[calc(100vh-64px)] relative z-0">
+        <div className="w-full h-[calc(100vh-80px)] relative z-0">
             <div className="absolute inset-0 z-[1000] pointer-events-none">
                 <StrategyCard recommendation={currentRecommendation} />
                 <RecenterFab userPos={userPos} />
@@ -283,7 +291,7 @@ export default function RealMap() {
                 zoom={13}
                 zoomControl={false}
                 scrollWheelZoom={true}
-                className="w-full h-full z-0"
+                className="w-full h-full z-[1]"
             >
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
