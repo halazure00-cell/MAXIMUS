@@ -53,7 +53,7 @@ export default function ExpenseModal({ isOpen, onClose, onExpenseAdded, session 
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
+                <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center pointer-events-none">
                     {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
@@ -69,7 +69,7 @@ export default function ExpenseModal({ isOpen, onClose, onExpenseAdded, session 
                         animate={{ y: 0 }}
                         exit={{ y: "100%" }}
                         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                        className="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6 shadow-xl pointer-events-auto relative z-10"
+                        className="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6 shadow-xl pointer-events-auto relative z-10 max-h-[80vh] overflow-y-auto pb-32"
                     >
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-gray-800">Catat Pengeluaran</h2>
