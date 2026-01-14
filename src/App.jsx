@@ -8,8 +8,9 @@ import RealMap from './components/RealMap';
 import Riwayat from './pages/Riwayat';
 import ProfileSettings from './components/ProfileSettings';
 import BottomNavigation from './components/BottomNavigation';
-import Toast from './components/Toast';
 import PageTransition from './components/PageTransition';
+import ToastContainer from './components/ToastContainer';
+import { ToastProvider, useToast } from './context/ToastContext';
 
 function AnimatedRoutes({ showToast, session }) {
     const location = useLocation();
@@ -54,12 +55,35 @@ function AnimatedRoutes({ showToast, session }) {
     );
 }
 
-function App() {
-    const [session, setSession] = useState(null)
-    const [loading, setLoading] = useState(true)
+function AppContent({ session, loading }) {
+    const { showToast } = useToast();
 
-    // Toast State (Global UI state)
-    const [toast, setToast] = useState({ message: '', isVisible: false, type: 'success' });
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-maxim-bg">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-maxim-dark"></div>
+            </div>
+        );
+    }
+
+    if (!session) {
+        return <Auth />;
+    }
+
+    return (
+        <BrowserRouter>
+            <div className="min-h-screen bg-maxim-bg text-maxim-dark font-sans pb-20">
+                <AnimatedRoutes showToast={showToast} session={session} />
+
+                <BottomNavigation />
+            </div>
+        </BrowserRouter>
+    );
+}
+
+function App() {
+    const [session, setSession] = useState(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -77,41 +101,11 @@ function App() {
         return () => subscription.unsubscribe()
     }, [])
 
-    const showToast = (message, type = 'success') => {
-        setToast({ message, isVisible: true, type });
-    };
-
-    const handleToastClose = () => {
-        setToast(prev => ({ ...prev, isVisible: false }));
-    };
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-maxim-bg">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-maxim-dark"></div>
-            </div>
-        )
-    }
-
-    if (!session) {
-        return <Auth />
-    }
-
     return (
-        <BrowserRouter>
-            <div className="min-h-screen bg-maxim-bg text-maxim-dark font-sans pb-20">
-                <AnimatedRoutes showToast={showToast} session={session} />
-
-                <BottomNavigation />
-
-                <Toast
-                    message={toast.message}
-                    isVisible={toast.isVisible}
-                    type={toast.type}
-                    onClose={handleToastClose}
-                />
-            </div>
-        </BrowserRouter>
+        <ToastProvider>
+            <ToastContainer />
+            <AppContent session={session} loading={loading} />
+        </ToastProvider>
     );
 }
 
