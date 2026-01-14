@@ -88,19 +88,15 @@ export default function Riwayat({ session }) {
     };
 
     const calculateFinancials = (orders, expenses) => {
-        const { startToday, endToday, startMonth, endMonth } = getLocalDateRanges();
+        const { startToday, endToday } = getLocalDateRanges();
         const todayOrders = orders.filter((order) =>
             isWithinLocalRange(order.created_at, startToday, endToday)
         );
         const todayExpenses = expenses.filter((expense) =>
             isWithinLocalRange(expense.created_at, startToday, endToday)
         );
-        const monthOrders = orders.filter((order) =>
-            isWithinLocalRange(order.created_at, startMonth, endMonth)
-        );
-        const monthExpenses = expenses.filter((expense) =>
-            isWithinLocalRange(expense.created_at, startMonth, endMonth)
-        );
+        const monthOrders = orders;
+        const monthExpenses = expenses;
 
         const sumValues = (items, key) =>
             items.reduce((sum, item) => sum + (parseFloat(item[key]) || 0), 0);
@@ -132,24 +128,23 @@ export default function Riwayat({ session }) {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const { startMonth, endMonth } = getLocalDateRanges();
+            const { startMonth } = getLocalDateRanges();
             const startMonthIso = startMonth.toISOString();
-            const endMonthIso = endMonth.toISOString();
 
             const { data: ordersData, error: ordersError } = await supabase
                 .from('orders')
                 .select('*')
                 .gte('created_at', startMonthIso)
-                .lte('created_at', endMonthIso)
                 .order('created_at', { ascending: false });
 
             if (ordersError) throw ordersError;
+
+            console.log('Total Orders Fetched:', ordersData?.length ?? 0);
 
             const { data: expensesData, error: expensesError } = await supabase
                 .from('expenses')
                 .select('*')
                 .gte('created_at', startMonthIso)
-                .lte('created_at', endMonthIso)
                 .order('created_at', { ascending: false });
 
             if (expensesError) throw expensesError;
@@ -238,7 +233,7 @@ export default function Riwayat({ session }) {
             return (dateB?.getTime() || 0) - (dateA?.getTime() || 0);
         });
 
-        setTransactions(combined);
+        setTransactions(combined.slice(0, 50));
     };
 
     const formatCurrency = (val) => new Intl.NumberFormat('id-ID').format(val);
