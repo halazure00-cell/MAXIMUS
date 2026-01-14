@@ -25,9 +25,11 @@ import { Plus, Minus, TrendingUp, TrendingDown, Wallet, AlertCircle, Trash2, Edi
 import ExpenseModal from '../components/ExpenseModal';
 import EditOrderModal from '../components/EditOrderModal';
 import { motion } from 'framer-motion';
+import { useToast } from '../context/ToastContext';
 
 export default function Riwayat({ session }) {
     const { settings } = useSettings();
+    const { showToast } = useToast();
     const user = session?.user;
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -242,13 +244,13 @@ export default function Riwayat({ session }) {
             fetchTodayRecap(); // Refresh juga rekap harian
         } catch (error) {
             console.error('Error deleting transaction:', error);
-            alert('Gagal menghapus transaksi.');
+            showToast('Terjadi kesalahan: ' + (error.message || 'Gagal menghapus transaksi.'), 'error');
         }
     };
 
     const handleUpdateOrder = async (updatedOrder) => {
         if (!updatedOrder.id) {
-            alert("Error: ID Order tidak ditemukan.");
+            showToast('Terjadi kesalahan: ID Order tidak ditemukan.', 'error');
             return;
         }
 
@@ -271,16 +273,16 @@ export default function Riwayat({ session }) {
             await fetchTodayRecap();
 
             setEditingOrder(null);
-            alert('✅ Data berhasil diperbarui!');
+            showToast('Data berhasil disimpan!', 'success');
         } catch (error) {
             console.error('Gagal update:', error);
-            alert('Gagal update: ' + (error.message || "Terjadi kesalahan sistem"));
+            showToast('Terjadi kesalahan: ' + (error.message || 'Terjadi kesalahan sistem'), 'error');
         }
     };
 
     const handleSaveExpense = async (expenseData) => {
         if (!user) {
-            alert("Sesi habis. Silakan login ulang.");
+            showToast('Terjadi kesalahan: Sesi habis. Silakan login ulang.', 'error');
             return;
         }
 
@@ -303,10 +305,10 @@ export default function Riwayat({ session }) {
             await fetchTodayRecap();
 
             setShowExpenseModal(false);
-            alert('✅ Pengeluaran berhasil disimpan!');
+            showToast('Data berhasil disimpan!', 'success');
         } catch (error) {
             console.error('Gagal simpan pengeluaran:', error);
-            alert('Gagal menyimpan: ' + (error.message || JSON.stringify(error)));
+            showToast('Terjadi kesalahan: ' + (error.message || JSON.stringify(error)), 'error');
         }
     };
 
