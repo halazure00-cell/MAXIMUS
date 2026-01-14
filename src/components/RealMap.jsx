@@ -97,7 +97,16 @@ export default function RealMap() {
         ? strategicSpots.filter((spot) => {
             if (!spot) return false;
             if (spot.start_hour === undefined || spot.end_hour === undefined) return false;
-            const isWithinTime = spot.start_hour <= currentHour && spot.end_hour > currentHour;
+
+            const startHour = Number.parseInt(spot.start_hour, 10);
+            const endHour = Number.parseInt(spot.end_hour, 10);
+
+            if (Number.isNaN(startHour) || Number.isNaN(endHour)) return false;
+
+            const isWithinTime = startHour <= endHour
+                ? currentHour >= startHour && currentHour < endHour
+                : currentHour >= startHour || currentHour < endHour;
+
             if (!isWithinTime) return false;
             if (spot.is_weekend_only && !isWeekend) return false;
             return true;
