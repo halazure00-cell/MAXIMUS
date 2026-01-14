@@ -246,7 +246,11 @@ export default function Riwayat({ session }) {
     };
 
     const handleUpdateOrder = async (updatedOrder) => {
-        if (!updatedOrder?.id) return;
+        if (!updatedOrder.id) {
+            alert("Error: ID Order tidak ditemukan.");
+            return;
+        }
+
         try {
             const { error } = await supabase
                 .from('orders')
@@ -257,17 +261,19 @@ export default function Riwayat({ session }) {
                     destination: updatedOrder.destination,
                     created_at: updatedOrder.created_at
                 })
-                .eq('id', updatedOrder.id);
+                .eq('id', updatedOrder.id)
+                .select();
 
             if (error) throw error;
 
-            fetchData();
-            fetchTodayRecap();
+            await fetchData();
+            await fetchTodayRecap();
+
             setEditingOrder(null);
-            alert('Order berhasil diperbarui.');
+            alert('✅ Data berhasil diperbarui!');
         } catch (error) {
-            console.error('Error updating order:', error);
-            alert('Gagal memperbarui order.');
+            console.error('Gagal update:', error);
+            alert('Gagal update: ' + (error.message || "Terjadi kesalahan sistem"));
         }
     };
 
