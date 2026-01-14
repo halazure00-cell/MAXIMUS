@@ -21,8 +21,9 @@ import {
     endOfDay
 } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Plus, Minus, TrendingUp, TrendingDown, Wallet, AlertCircle, Trash2 } from 'lucide-react';
+import { Plus, Minus, TrendingUp, TrendingDown, Wallet, AlertCircle, Trash2, Edit2 } from 'lucide-react';
 import ExpenseModal from '../components/ExpenseModal';
+import EditOrderModal from '../components/EditOrderModal';
 import { motion } from 'framer-motion';
 
 export default function Riwayat({ session }) {
@@ -32,6 +33,7 @@ export default function Riwayat({ session }) {
     const [showExpenseModal, setShowExpenseModal] = useState(false);
     const [chartData, setChartData] = useState([]);
     const [activeRecap, setActiveRecap] = useState('omzet');
+    const [editingOrder, setEditingOrder] = useState(null);
     
     // State untuk Rekap Harian (Setoran)
     const [todayRecap, setTodayRecap] = useState({
@@ -240,6 +242,32 @@ export default function Riwayat({ session }) {
         } catch (error) {
             console.error('Error deleting transaction:', error);
             alert('Gagal menghapus transaksi.');
+        }
+    };
+
+    const handleUpdateOrder = async (updatedOrder) => {
+        if (!updatedOrder?.id) return;
+        try {
+            const { error } = await supabase
+                .from('orders')
+                .update({
+                    price: updatedOrder.price,
+                    distance: updatedOrder.distance,
+                    origin: updatedOrder.origin,
+                    destination: updatedOrder.destination,
+                    created_at: updatedOrder.created_at
+                })
+                .eq('id', updatedOrder.id);
+
+            if (error) throw error;
+
+            fetchData();
+            fetchTodayRecap();
+            setEditingOrder(null);
+            alert('Order berhasil diperbarui.');
+        } catch (error) {
+            console.error('Error updating order:', error);
+            alert('Gagal memperbarui order.');
         }
     };
 
@@ -478,12 +506,24 @@ export default function Riwayat({ session }) {
                                         <p className={`font-bold text-sm ${t.type === 'income' ? 'text-green-600' : 'text-red-500'}`}>
                                             {t.type === 'income' ? '+' : '-'}{formatCurrency(t.displayAmount)}
                                         </p>
-                                        <button 
-                                            onClick={() => handleDelete(t.id, t.type)}
-                                            className="text-xs text-gray-300 hover:text-red-400 mt-1 flex items-center justify-end gap-1 ml-auto"
-                                        >
-                                           <Trash2 size={12} /> Hapus
-                                        </button>
+                                        <div className="mt-1 flex items-center justify-end gap-2">
+                                            {t.type === 'income' && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setEditingOrder(t)}
+                                                    className="text-xs text-gray-300 hover:text-maxim-yellow flex items-center gap-1"
+                                                >
+                                                    <Edit2 size={12} /> Edit
+                                                </button>
+                                            )}
+                                            <button 
+                                                type="button"
+                                                onClick={() => handleDelete(t.id, t.type)}
+                                                className="text-xs text-gray-300 hover:text-red-400 flex items-center gap-1"
+                                            >
+                                               <Trash2 size={12} /> Hapus
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             ))
@@ -509,6 +549,13 @@ export default function Riwayat({ session }) {
                     fetchData();
                     fetchTodayRecap(); // Update saldo bersih setelah nambah pengeluaran
                 }}
+            />
+
+            <EditOrderModal
+                isOpen={Boolean(editingOrder)}
+                onClose={() => setEditingOrder(null)}
+                order={editingOrder}
+                onSave={handleUpdateOrder}
             />
         </div>
     );
