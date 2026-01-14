@@ -21,7 +21,7 @@ import {
     endOfDay
 } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Plus, Minus, TrendingUp, TrendingDown, Wallet, AlertCircle } from 'lucide-react';
+import { Plus, Minus, TrendingUp, TrendingDown, Wallet, AlertCircle, Trash2 } from 'lucide-react';
 import ExpenseModal from '../components/ExpenseModal';
 import { motion } from 'framer-motion';
 
@@ -32,6 +32,8 @@ export default function Riwayat({ session }) {
     const [showExpenseModal, setShowExpenseModal] = useState(false);
     const [chartData, setChartData] = useState([]);
     const [activeRecap, setActiveRecap] = useState('omzet');
+    
+    // State untuk Rekap Harian (Setoran)
     const [todayRecap, setTodayRecap] = useState({
         income: 0,
         expense: 0,
@@ -50,24 +52,26 @@ export default function Riwayat({ session }) {
     });
 
     useEffect(() => {
-        fetchData();
+        if(session) fetchData();
     }, [session, settings.defaultCommission, settings.fuelEfficiency]);
 
     useEffect(() => {
-        fetchTodayRecap();
+        if(session) fetchTodayRecap();
     }, [session]);
 
+    // --- FITUR BARU: Hitung Setoran Hari Ini ---
     const fetchTodayRecap = async () => {
         try {
             const now = new Date();
             const startToday = startOfDay(now).toISOString();
             const endToday = endOfDay(now).toISOString();
 
+            // FIX: Menggunakan 'created_at' bukan 'date' agar aman
             const { data: expensesData, error: expensesError } = await supabase
                 .from('expenses')
                 .select('*')
-                .gte('date', startToday)
-                .lte('date', endToday);
+                .gte('created_at', startToday)
+                .lte('created_at', endToday);
 
             if (expensesError) throw expensesError;
 
@@ -101,6 +105,7 @@ export default function Riwayat({ session }) {
         try {
             setLoading(true);
             const now = new Date();
+            // Mengambil range bulan ini untuk statistik
             const startMonth = startOfMonth(now).toISOString();
             const endMonth = endOfMonth(now).toISOString();
 
@@ -135,15 +140,16 @@ export default function Riwayat({ session }) {
         const totalIncome = orders.reduce((sum, o) => sum + (parseFloat(o.price) || 0), 0);
         const totalExpenses = expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
         const cashBalance = totalIncome - totalExpenses;
+        
+        // Kalkulasi Estimasi (Bensin & Potongan)
         const commissionRate = settings.defaultCommission ?? 0;
         const totalAppFee = orders.reduce((sum, order) => {
             const netValue = parseFloat(order.price) || 0;
-            if (commissionRate <= 0 || commissionRate >= 1) {
-                return sum;
-            }
+            if (commissionRate <= 0 || commissionRate >= 1) return sum;
             const estimatedGross = netValue / (1 - commissionRate);
             return sum + (estimatedGross - netValue);
         }, 0);
+        
         const totalFuelCost = orders.reduce((sum, order) => {
             const distance = parseFloat(order.distance) || 0;
             return sum + distance * (settings.fuelEfficiency || 0);
@@ -165,6 +171,7 @@ export default function Riwayat({ session }) {
             expensesCount: expenses.length
         });
 
+        // Data Chart 7 Hari Terakhir
         const last7Days = Array.from({ length: 7 }, (_, i) => {
             const d = subDays(new Date(), 6 - i);
             return {
@@ -229,6 +236,7 @@ export default function Riwayat({ session }) {
             const { error } = await supabase.from(table).delete().eq('id', id);
             if (error) throw error;
             fetchData();
+            fetchTodayRecap(); // Refresh juga rekap harian
         } catch (error) {
             console.error('Error deleting transaction:', error);
             alert('Gagal menghapus transaksi.');
@@ -252,6 +260,7 @@ export default function Riwayat({ session }) {
                 <p className="text-xs text-gray-400">Liputan Keuangan Bulan Ini</p>
             </div>
 
+            {/* Insight Harian */}
             <div className={`mx-5 mb-4 p-3 rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm flex items-center space-x-3`}>
                 <div className={`p-2 rounded-full bg-opacity-10 ${insight.color.replace('text', 'bg')}`}>
                     <AlertCircle className={`w-5 h-5 ${insight.color}`} />
@@ -262,6 +271,8 @@ export default function Riwayat({ session }) {
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 space-y-6">
+                
+                {/* --- KARTU REKAP HARIAN (SETORAN) --- */}
                 <div className="bg-gradient-to-br from-emerald-500 via-green-500 to-teal-500 p-5 rounded-2xl shadow-lg border border-emerald-400/40 text-white">
                     <div className="flex flex-col gap-3">
                         <div className="flex flex-wrap justify-between gap-4 text-sm font-semibold">
@@ -273,17 +284,20 @@ export default function Riwayat({ session }) {
                             </span>
                         </div>
                         <div className="flex flex-col gap-1">
-                            <span className="text-xs uppercase tracking-wide text-emerald-100">Siap Setor / Sisa</span>
-                            <span className="text-2xl font-extrabold">
+                            <span className="text-xs uppercase tracking-wide text-emerald-100">Siap Setor / Sisa Hari Ini</span>
+                            <span className="text-3xl font-extrabold tracking-tight">
                                 Rp {formatCurrency(todayRecap.net)}
                             </span>
                             {todayRecap.net < 0 && (
-                                <span className="text-xs font-semibold text-yellow-100">⚠️ Minus (Pakai Modal)</span>
+                                <span className="inline-block bg-red-600/30 px-2 py-1 rounded text-xs font-bold text-white border border-red-400/50 w-fit">
+                                    ⚠️ Minus (Pakai Modal)
+                                </span>
                             )}
                         </div>
                     </div>
                 </div>
 
+                {/* --- TOMBOL TAB STATISTIK --- */}
                 <div className="grid grid-cols-3 gap-3">
                     <button
                         type="button"
@@ -338,7 +352,7 @@ export default function Riwayat({ session }) {
                             <Wallet size={16} className="text-maxim-yellow" />
                         </div>
                         <div>
-                            <p className="text-[10px] text-gray-400 font-semibold uppercase">Rekap Potongan</p>
+                            <p className="text-[10px] text-gray-400 font-semibold uppercase">Potongan</p>
                             <p className="text-sm font-bold text-maxim-yellow truncate">
                                 {formatCurrency(metrics.appFeeTotal + metrics.fuelCostTotal)}
                             </p>
@@ -346,11 +360,12 @@ export default function Riwayat({ session }) {
                     </button>
                 </div>
 
+                {/* --- DETAIL STATISTIK --- */}
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
                     {activeRecap === 'omzet' && (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500">Total Omzet</span>
+                                <span className="text-gray-500">Total Omzet Bulan Ini</span>
                                 <span className="font-bold text-gray-800 dark:text-gray-100">
                                     {formatCurrency(metrics.grossIncome)}
                                 </span>
@@ -361,9 +376,9 @@ export default function Riwayat({ session }) {
                                     {metrics.ordersCount} trip
                                 </span>
                             </div>
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500">Sisa Uang</span>
-                                <span className="font-semibold text-green-600">
+                            <div className="flex items-center justify-between text-sm border-t pt-2 dark:border-gray-700">
+                                <span className="text-gray-500">Sisa Uang (Cashflow)</span>
+                                <span className="font-bold text-green-600">
                                     {formatCurrency(metrics.netCash)}
                                 </span>
                             </div>
@@ -390,140 +405,33 @@ export default function Riwayat({ session }) {
                     {activeRecap === 'potongan' && (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500">Potongan Aplikasi</span>
+                                <span className="text-gray-500">Estimasi Potongan Aplikasi</span>
                                 <span className="font-semibold text-red-500">
                                     -{formatCurrency(metrics.appFeeTotal)}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500">Potongan Bensin</span>
+                                <span className="text-gray-500">Estimasi Bensin</span>
                                 <span className="font-semibold text-red-500">
                                     -{formatCurrency(metrics.fuelCostTotal)}
-                                </span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500">Total Potongan</span>
-                                <span className="font-bold text-gray-800 dark:text-gray-100">
-                                    {formatCurrency(metrics.appFeeTotal + metrics.fuelCostTotal)}
                                 </span>
                             </div>
                         </div>
                     )}
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                    <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-bold text-gray-400 uppercase">Skor Efisiensi</span>
-                        <span className={`text-lg font-bold ${metrics.efficiencyScore > 70 ? 'text-green-500' : metrics.efficiencyScore > 50 ? 'text-yellow-500' : 'text-red-500'}`}>
-                            {Math.round(metrics.efficiencyScore)}%
-                        </span>
-                    </div>
-                    <div className="w-full bg-gray-100 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
-                        <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${Math.min(100, Math.max(0, metrics.efficiencyScore))}%` }}
-                            transition={{ duration: 1, ease: "easeOut" }}
-                            className={`h-full rounded-full ${metrics.efficiencyScore > 70 ? 'bg-green-500' : metrics.efficiencyScore > 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                        />
-                    </div>
-                </div>
-
-                <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 h-64">
-                    <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4">Grafik 7 Hari Terakhir</h3>
-                    <ResponsiveContainer width="100%" height="100%">
+                {/* --- CHART 7 HARI --- */}
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                   <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4">Tren 7 Hari Terakhir</h3>
+                   <div className="h-40 w-full">
+                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={chartData}>
-                            <XAxis
-                                dataKey="label"
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fontSize: 10, fill: '#9CA3AF' }}
-                                dy={10}
-                            />
-                            <Tooltip
-                                contentStyle={{
-                                    borderRadius: '12px',
-                                    border: 'none',
-                                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-                                    backgroundColor: settings.darkMode ? '#1F2937' : '#FFFFFF',
-                                    color: settings.darkMode ? '#F3F4F6' : '#374151'
-                                }}
-                                cursor={{ fill: settings.darkMode ? '#374151' : '#F3F4F6' }}
-                            />
-                            <Bar dataKey="net" radius={[4, 4, 0, 0]}>
-                                {chartData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.net >= 0 ? '#16A34A' : '#EF4444'} />
-                                ))}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-
-                <div className="pb-10">
-                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Riwayat Transaksi</h3>
-                    <div className="space-y-3">
-                        {transactions.length === 0 ? (
-                            <div className="text-center py-10 text-gray-400 text-sm">Belum ada data transaksi.</div>
-                        ) : (
-                            transactions.map((t) => (
-                                <motion.div
-                                    key={`${t.type}-${t.id}`}
-                                    whileTap={{ scale: 0.98 }}
-                                    onContextMenu={(e) => {
-                                        e.preventDefault();
-                                        handleDelete(t.id, t.type);
-                                    }}
-                                    className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-50 dark:border-gray-700 shadow-sm flex items-center justify-between group relative overflow-hidden"
-                                >
-                                    <div className="flex items-center space-x-3">
-                                        <div className={`p-2 rounded-full ${t.type === 'income' ? 'bg-green-100 dark:bg-green-900/20' : 'bg-red-100 dark:bg-red-900/20'}`}>
-                                            {t.type === 'income' ? (
-                                                <Plus size={16} className="text-green-600" />
-                                            ) : (
-                                                <Minus size={16} className="text-red-600" />
-                                            )}
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-bold text-gray-800 dark:text-gray-100">
-                                                {t.type === 'income' ? 'Maxim Order' : t.category}
-                                            </p>
-                                            <p className="text-xs text-gray-400">
-                                                {formatTime(t.created_at)} • {t.type === 'income' ? `${t.distance} km` : t.note || ''}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center space-x-3">
-                                        <span className={`font-bold ${t.type === 'income' ? 'text-green-600' : 'text-red-500'}`}>
-                                            {t.type === 'income' ? '+' : '-'} {formatCurrency(t.displayAmount)}
-                                        </span>
-                                        <button
-                                            onClick={() => handleDelete(t.id, t.type)}
-                                            className="p-2 text-gray-300 hover:text-red-500 transition-colors"
-                                        >
-                                            <Minus size={14} className="rotate-45" />
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            ))
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setShowExpenseModal(true)}
-                className="absolute bottom-24 right-6 w-14 h-14 bg-red-500 rounded-full shadow-xl shadow-red-200 flex items-center justify-center text-white z-20"
-            >
-                <Minus size={28} className="stroke-[3px]" />
-            </motion.button>
-
-            <ExpenseModal
-                isOpen={showExpenseModal}
-                onClose={() => setShowExpenseModal(false)}
-                onExpenseAdded={fetchData}
-                session={session}
-            />
-        </div>
-    );
-}
+                           <XAxis 
+                              dataKey="label" 
+                              axisLine={false} 
+                              tickLine={false} 
+                              tick={{fontSize: 10, fill: '#9ca3af'}} 
+                           />
+                           <Tooltip 
+                              cursor={{fill: 'transparent'}}
+                              contentStyle={{borderRadi
