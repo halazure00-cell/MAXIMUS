@@ -69,6 +69,12 @@ export default function Riwayat({ session }) {
         return isValid(parsed) ? parsed : null;
     };
 
+    const toUtcIsoString = (date) => {
+        if (!date) return null;
+        const utcTime = date.getTime() - date.getTimezoneOffset() * 60000;
+        return new Date(utcTime).toISOString();
+    };
+
     const getLocalDateRanges = (date = new Date()) => {
         const startToday = startOfDay(date);
         const endToday = endOfDay(date);
@@ -133,14 +139,16 @@ export default function Riwayat({ session }) {
                 return;
             }
             const userIdColumn = 'user_id';
-            const { startMonth } = getLocalDateRanges();
-            const startMonthIso = startMonth.toISOString();
+            const { startMonth, endMonth } = getLocalDateRanges();
+            const startMonthIso = toUtcIsoString(startMonth);
+            const endMonthIso = toUtcIsoString(endMonth);
 
             const { data: ordersData, error: ordersError } = await supabase
                 .from('orders')
                 .select('*')
                 .eq(userIdColumn, session.user.id)
                 .gte('created_at', startMonthIso)
+                .lte('created_at', endMonthIso)
                 .order('created_at', { ascending: false });
 
             if (ordersError) throw ordersError;
@@ -152,6 +160,7 @@ export default function Riwayat({ session }) {
                 .select('*')
                 .eq(userIdColumn, session.user.id)
                 .gte('created_at', startMonthIso)
+                .lte('created_at', endMonthIso)
                 .order('created_at', { ascending: false });
 
             if (expensesError) throw expensesError;
