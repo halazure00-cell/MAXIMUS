@@ -192,19 +192,35 @@ export default function RealMap() {
             setTimeTick(Date.now());
 
             if (filteredSpots.length > 0) {
-                const spot = filteredSpots
-                    .map((candidate) => {
-                        const lat = candidate.latitude ?? candidate.lat;
-                        const lng = candidate.longitude ?? candidate.lng;
-                        if (lat == null || lng == null || !userPos) return null;
-                        return {
-                            spot: candidate,
-                            distanceKm: getDistanceKm(userPos, [lat, lng])
-                        };
-                    })
-                    .filter(Boolean)
-                    .sort((a, b) => a.distanceKm - b.distanceKm)[0]?.spot || filteredSpots[0];
+                const spotsWithCoords = filteredSpots.filter((spot) => {
+                    const lat = spot.latitude ?? spot.lat;
+                    const lng = spot.longitude ?? spot.lng;
+                    return lat != null && lng != null;
+                });
 
+                if (spotsWithCoords.length === 0) {
+                    setCurrentRecommendation({
+                        isFree: true,
+                        title: '☕ Mode Bebas / Ngetem Santai',
+                        subtitle: 'Tidak ada spot dengan koordinat valid.'
+                    });
+                    return;
+                }
+
+                const nearestSpot = userPos
+                    ? spotsWithCoords
+                        .map((candidate) => {
+                            const lat = candidate.latitude ?? candidate.lat;
+                            const lng = candidate.longitude ?? candidate.lng;
+                            return {
+                                spot: candidate,
+                                distanceKm: getDistanceKm(userPos, [lat, lng])
+                            };
+                        })
+                        .sort((a, b) => a.distanceKm - b.distanceKm)[0]?.spot
+                    : null;
+
+                const spot = nearestSpot || spotsWithCoords[0];
                 const lat = spot.latitude ?? spot.lat;
                 const lng = spot.longitude ?? spot.lng;
 
