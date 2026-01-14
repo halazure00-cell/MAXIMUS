@@ -1,25 +1,28 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Clock, MapPin, Navigation2, Save, X } from 'lucide-react';
+import { format } from 'date-fns';
+
+const parseLocalDateTime = (value) => {
+    if (!value) return null;
+    const [datePart, timePart] = value.split('T');
+    if (!datePart || !timePart) return null;
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hour, minute] = timePart.split(':').map(Number);
+    if ([year, month, day, hour, minute].some((part) => Number.isNaN(part))) return null;
+    return new Date(year, month - 1, day, hour, minute);
+};
 
 const formatLocalDateTime = (value) => {
     if (!value) return '';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '';
-
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
+    return format(date, "yyyy-MM-dd'T'HH:mm");
 };
 
 const formatUtcDateTime = (value) => {
-    if (!value) return '';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
+    const date = parseLocalDateTime(value);
+    if (!date || Number.isNaN(date.getTime())) return '';
     return date.toISOString();
 };
 
