@@ -434,4 +434,82 @@ export default function Riwayat({ session }) {
                            />
                            <Tooltip 
                               cursor={{fill: 'transparent'}}
-                              contentStyle={{borderRadi
+                              contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
+                           />
+                           <Bar dataKey="net" radius={[4, 4, 0, 0]}>
+                              {chartData.map((entry, index) => (
+                                 <Cell key={`cell-${index}`} fill={entry.net >= 0 ? '#10b981' : '#ef4444'} />
+                              ))}
+                           </Bar>
+                        </BarChart>
+                     </ResponsiveContainer>
+                   </div>
+                </div>
+
+                {/* --- DAFTAR TRANSAKSI --- */}
+                <div className="pb-10">
+                    <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 px-1">Riwayat Transaksi</h3>
+                    <div className="space-y-3">
+                        {transactions.length === 0 ? (
+                            <div className="text-center py-8 text-gray-400 text-sm">
+                                Belum ada data hari ini.
+                            </div>
+                        ) : (
+                            transactions.map((t) => (
+                                <div key={`${t.type}-${t.id}`} className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-2 rounded-full ${
+                                            t.type === 'income' 
+                                            ? 'bg-green-100 text-green-600 dark:bg-green-900/30' 
+                                            : 'bg-red-100 text-red-600 dark:bg-red-900/30'
+                                        }`}>
+                                            {t.type === 'income' ? <Plus size={18} /> : <Minus size={18} />}
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-gray-800 dark:text-gray-100 text-sm">
+                                                {t.type === 'income' ? 'Order Masuk' : (t.category || 'Pengeluaran')}
+                                            </p>
+                                            <p className="text-xs text-gray-400">
+                                                {formatTime(t.created_at)} • {t.type === 'income' ? `${t.distance || 0} km` : t.description || '-'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className={`font-bold text-sm ${t.type === 'income' ? 'text-green-600' : 'text-red-500'}`}>
+                                            {t.type === 'income' ? '+' : '-'}{formatCurrency(t.displayAmount)}
+                                        </p>
+                                        <button 
+                                            onClick={() => handleDelete(t.id, t.type)}
+                                            className="text-xs text-gray-300 hover:text-red-400 mt-1 flex items-center justify-end gap-1 ml-auto"
+                                        >
+                                           <Trash2 size={12} /> Hapus
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Tombol Tambah Pengeluaran */}
+            <div className="absolute bottom-6 right-5 z-20">
+                <button
+                    onClick={() => setShowExpenseModal(true)}
+                    className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full shadow-lg shadow-red-500/30 transition-all active:scale-95 flex items-center gap-2"
+                >
+                    <Minus size={24} />
+                </button>
+            </div>
+
+            <ExpenseModal
+                isOpen={showExpenseModal}
+                onClose={() => setShowExpenseModal(false)}
+                onSave={() => {
+                    fetchData();
+                    fetchTodayRecap(); // Update saldo bersih setelah nambah pengeluaran
+                }}
+            />
+        </div>
+    );
+}
