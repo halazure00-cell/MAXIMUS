@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle } from 'lucide-react';
@@ -12,6 +12,18 @@ export default function ProfitEngine({ showToast, session }) {
     const [isPriority, setIsPriority] = useState(settings.defaultCommission === 0.10);
     const [showSuccess, setShowSuccess] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const timeoutRef = useRef(null);
+    const isMountedRef = useRef(false);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+            }
+        };
+    }, []);
 
     // Update local priority state if default changes in settings
     useEffect(() => {
@@ -55,7 +67,9 @@ export default function ProfitEngine({ showToast, session }) {
             return;
         }
 
-        setIsSubmitting(true);
+        if (isMountedRef.current) {
+            setIsSubmitting(true);
+        }
 
         // Haptic Feedback
         if (navigator.vibrate) {
@@ -77,7 +91,9 @@ export default function ProfitEngine({ showToast, session }) {
 
             if (error) throw error;
 
-            setShowSuccess(true);
+            if (isMountedRef.current) {
+                setShowSuccess(true);
+            }
 
             // Show toast using the prop passed from App
             if (showToast) {
@@ -85,7 +101,10 @@ export default function ProfitEngine({ showToast, session }) {
             }
 
             // Delay clearing inputs to show the success animation
-            setTimeout(() => {
+            timeoutRef.current = setTimeout(() => {
+                if (!isMountedRef.current) {
+                    return;
+                }
                 setOrderPrice('');
                 setDistance('');
                 setShowSuccess(false);
@@ -97,7 +116,9 @@ export default function ProfitEngine({ showToast, session }) {
             if (showToast) {
                 showToast(`Gagal menyimpan order: ${error.message}`, 'error');
             }
-            setIsSubmitting(false);
+            if (isMountedRef.current) {
+                setIsSubmitting(false);
+            }
         }
     };
 
