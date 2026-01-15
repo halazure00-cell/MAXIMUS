@@ -3,7 +3,7 @@ import { AnimatePresence } from 'framer-motion';
 import { isSupabaseConfigured, supabaseConfigError } from './lib/supabaseClient';
 import Auth from './components/Auth';
 import ProfitEngine from './components/ProfitEngine';
-import RealMap from './components/RealMap';
+import Insight from './components/Insight';
 import Riwayat from './pages/Riwayat';
 import ProfileSettings from './components/ProfileSettings';
 import BottomNavigation from './components/BottomNavigation';
@@ -27,10 +27,10 @@ function AnimatedRoutes({ showToast }) {
                     }
                 />
                 <Route
-                    path="/map"
+                    path="/insight"
                     element={
                         <PageTransition>
-                            <RealMap />
+                            <Insight showToast={showToast} />
                         </PageTransition>
                     }
                 />

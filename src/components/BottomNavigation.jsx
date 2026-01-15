@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Calculator, Map, History, User } from 'lucide-react';
+import { Calculator, Lightbulb, History, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 /**
@@ -10,7 +10,7 @@ import { motion } from 'framer-motion';
 
 const NAV_ITEMS = [
     { path: '/', label: 'Hitung', icon: Calculator },
-    { path: '/map', label: 'Peta', icon: Map },
+    { path: '/insight', label: 'Insight', icon: Lightbulb },
     { path: '/history', label: 'Riwayat', icon: History },
     { path: '/profile', label: 'Profil', icon: User },
 ];
