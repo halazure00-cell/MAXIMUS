@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useToast } from '../context/ToastContext'
 import { supabase } from '../lib/supabaseClient'
 
 export default function Auth() {
@@ -9,17 +10,28 @@ export default function Auth() {
     //   Actually, "Magic Link" is simpler for users (no password management), but testing can be tricky without a real email.
     //   Let's implements standard Magic Link first.
     const [message, setMessage] = useState('')
+    const [errorMessage, setErrorMessage] = useState('')
+    const { showToast } = useToast()
 
     const handleLogin = async (event) => {
         event.preventDefault()
 
         setLoading(true)
-        const { error } = await supabase.auth.signInWithOtp({ email })
+        setErrorMessage('')
+        const { error } = await supabase.auth.signInWithOtp({
+            email,
+            options: {
+                emailRedirectTo: window.location.origin
+            }
+        })
 
         if (error) {
-            alert(error.error_description || error.message)
+            const errorText = error.error_description || error.message
+            setErrorMessage(errorText)
+            showToast(errorText, 'error')
         } else {
             setMessage('Check your email for the login link!')
+            setErrorMessage('')
         }
         setLoading(false)
     }
@@ -43,6 +55,11 @@ export default function Auth() {
                     </div>
                 ) : (
                     <form onSubmit={handleLogin} className="space-y-4">
+                        {errorMessage ? (
+                            <div className="bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+                                <span className="block sm:inline">{errorMessage}</span>
+                            </div>
+                        ) : null}
                         <div>
                             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                             <input
