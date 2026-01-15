@@ -265,7 +265,7 @@ export default function RealMap() {
     };
 
     return (
-        <div className="relative z-0 w-full h-[calc(100dvh-var(--bottom-nav-height))] pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom))]">
+        <div className="relative z-0 w-full h-[calc(100dvh-var(--bottom-nav-offset))]">
             <div className="absolute inset-0 z-[1000] pointer-events-none">
                 <div className="absolute left-4 top-4 pointer-events-auto">
                     <button
