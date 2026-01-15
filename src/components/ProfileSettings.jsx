@@ -6,8 +6,8 @@ import Card from './Card';
 import PrimaryButton from './PrimaryButton';
 import SectionTitle from './SectionTitle';
 
-export default function ProfileSettings({ session, showToast }) {
-    const { settings, updateSettings } = useSettings();
+export default function ProfileSettings({ showToast }) {
+    const { settings, updateSettings, session } = useSettings();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [syncPending, setSyncPending] = useState(false);
