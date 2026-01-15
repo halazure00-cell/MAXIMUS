@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import { supabase, isSupabaseConfigured, supabaseConfigError } from './lib/supabaseClient';
+import { isSupabaseConfigured, supabaseConfigError } from './lib/supabaseClient';
 import Auth from './components/Auth';
 import ProfitEngine from './components/ProfitEngine';
 import RealMap from './components/RealMap';
@@ -11,8 +10,9 @@ import BottomNavigation from './components/BottomNavigation';
 import PageTransition from './components/PageTransition';
 import ToastContainer from './components/ToastContainer';
 import { ToastProvider, useToast } from './context/ToastContext';
+import { useSettings } from './context/SettingsContext';
 
-function AnimatedRoutes({ showToast, session }) {
+function AnimatedRoutes({ showToast }) {
     const location = useLocation();
 
     return (
@@ -22,7 +22,7 @@ function AnimatedRoutes({ showToast, session }) {
                     path="/"
                     element={
                         <PageTransition>
-                            <ProfitEngine showToast={showToast} session={session} />
+                            <ProfitEngine showToast={showToast} />
                         </PageTransition>
                     }
                 />
@@ -38,7 +38,7 @@ function AnimatedRoutes({ showToast, session }) {
                     path="/history"
                     element={
                         <PageTransition>
-                            <Riwayat showToast={showToast} session={session} />
+                            <Riwayat showToast={showToast} />
                         </PageTransition>
                     }
                 />
@@ -46,7 +46,7 @@ function AnimatedRoutes({ showToast, session }) {
                     path="/profile"
                     element={
                         <PageTransition>
-                            <ProfileSettings showToast={showToast} session={session} />
+                            <ProfileSettings showToast={showToast} />
                         </PageTransition>
                     }
                 />
@@ -55,7 +55,7 @@ function AnimatedRoutes({ showToast, session }) {
     );
 }
 
-function AppShell({ showToast, session }) {
+function AppShell({ showToast }) {
     return (
         <div
             className="bg-ui-background text-ui-text font-sans"
@@ -67,7 +67,7 @@ function AppShell({ showToast, session }) {
             }}
         >
             <main className="relative z-0 min-h-[calc(100dvh-var(--bottom-nav-offset))]">
-                <AnimatedRoutes showToast={showToast} session={session} />
+                <AnimatedRoutes showToast={showToast} />
             </main>
 
             <BottomNavigation />
@@ -106,30 +106,13 @@ function AppContent({ session, loading }) {
 
     return (
         <BrowserRouter>
-            <AppShell showToast={showToast} session={session} />
+            <AppShell showToast={showToast} />
         </BrowserRouter>
     );
 }
 
 function App() {
-    const [session, setSession] = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session)
-            setLoading(false)
-        })
-
-        const {
-            data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
-            setSession(session)
-            setLoading(false)
-        })
-
-        return () => subscription.unsubscribe()
-    }, [])
+    const { session, loading } = useSettings();
 
     return (
         <ToastProvider>

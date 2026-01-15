@@ -10,8 +10,8 @@ import SectionTitle from './SectionTitle';
 
 const MotionPrimaryButton = motion(PrimaryButton);
 
-export default function ProfitEngine({ showToast, session }) {
-    const { settings } = useSettings();
+export default function ProfitEngine({ showToast }) {
+    const { settings, session } = useSettings();
     const [orderPrice, setOrderPrice] = useState('');
     const [distance, setDistance] = useState('');
     const [isPriority, setIsPriority] = useState(settings.defaultCommission === 0.10);

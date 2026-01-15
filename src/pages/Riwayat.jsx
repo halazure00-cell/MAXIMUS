@@ -31,10 +31,9 @@ import Card from '../components/Card';
 import PrimaryButton from '../components/PrimaryButton';
 import SectionTitle from '../components/SectionTitle';
 
-export default function Riwayat({ session }) {
-    const { settings } = useSettings();
+export default function Riwayat() {
+    const { settings, session } = useSettings();
     const { showToast } = useToast();
-    const user = session?.user;
     const [transactions, setTransactions] = useState([]);
     const [visibleCount, setVisibleCount] = useState(20);
     const [loading, setLoading] = useState(true);
