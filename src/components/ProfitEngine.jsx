@@ -82,9 +82,12 @@ export default function ProfitEngine({ showToast, session }) {
                 .insert([
                     {
                         user_id: session.user.id,
-                        price: realNet, // Gap Fix 1: Save Real Net, not raw price
-                        distance: dist,
+                        price: estimatedNetProfit,
+                        gross_price: priceValue,
+                        commission_rate: currentCommissionRate,
+                        app_fee: appFee,
                         net_profit: estimatedNetProfit,
+                        distance: distanceValue,
                         // created_at is default now() in DB
                     },
                 ]);
