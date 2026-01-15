@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Clock, Save, X } from 'lucide-react';
 import { format } from 'date-fns';
+import { useSettings } from '../context/SettingsContext';
 
 const parseLocalDateTime = (value) => {
     if (!value) return null;
@@ -27,21 +28,43 @@ const formatUtcDateTime = (value) => {
 };
 
 export default function EditOrderModal({ isOpen, onClose, order, onSave, showToast }) {
+    const { settings } = useSettings();
     const [price, setPrice] = useState('');
     const [distance, setDistance] = useState('');
     const [createdAt, setCreatedAt] = useState('');
+    const [commissionRate, setCommissionRate] = useState('');
     const [createdAtError, setCreatedAtError] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const title = useMemo(() => (order ? `Edit Order #${order.id}` : 'Edit Order'), [order]);
 
+    const getInitialGrossPrice = () => {
+        if (!order) return '';
+        const grossValue = parseFloat(order.gross_price);
+        if (Number.isFinite(grossValue)) return grossValue.toString();
+        const rateValue = parseFloat(order.commission_rate);
+        const fallbackRate = Number.isFinite(rateValue)
+            ? rateValue
+            : parseFloat(settings.defaultCommission) || 0;
+        const netValue = parseFloat(order.net_profit ?? order.price);
+        if (!Number.isFinite(netValue)) return '';
+        if (fallbackRate >= 0 && fallbackRate < 1) {
+            return (netValue / (1 - fallbackRate)).toString();
+        }
+        return netValue.toString();
+    };
+
     useEffect(() => {
         if (!isOpen || !order) return;
-        setPrice(order.net_profit?.toString() ?? order.price?.toString() ?? '');
+        setPrice(getInitialGrossPrice());
         setDistance(order.distance?.toString() ?? '');
         setCreatedAt(formatLocalDateTime(order.created_at));
+        const initialCommission = Number.isFinite(parseFloat(order.commission_rate))
+            ? parseFloat(order.commission_rate)
+            : parseFloat(settings.defaultCommission) || 0;
+        setCommissionRate(initialCommission.toString());
         setCreatedAtError(false);
-    }, [isOpen, order]);
+    }, [isOpen, order, settings.defaultCommission]);
 
     const handleCreatedAtChange = (event) => {
         const { value } = event.target;
@@ -66,10 +89,17 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
 
         setIsSubmitting(true);
         try {
+            const grossPrice = price ? parseFloat(price) : 0;
+            const commissionValue = commissionRate ? parseFloat(commissionRate) : 0;
+            const appFee = grossPrice * commissionValue;
+            const netProfit = grossPrice - appFee;
             const updatedOrder = {
                 ...order,
-                price: price ? parseFloat(price) : 0,
-                net_profit: price ? parseFloat(price) : 0,
+                price: grossPrice,
+                gross_price: grossPrice,
+                commission_rate: commissionValue,
+                app_fee: appFee,
+                net_profit: netProfit,
                 distance: distance ? parseFloat(distance) : 0,
                 created_at: formattedCreatedAt
             };
@@ -120,15 +150,32 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
 
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Harga (Rp)</label>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Omzet (Rp)</label>
                                 <input
                                     type="number"
                                     value={price}
                                     onChange={(event) => setPrice(event.target.value)}
-                                    className="w-full p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 focus:border-maxim-yellow focus:ring-1 focus:ring-maxim-yellow outline-none text-sm dark:text-gray-100"
+                                    className="w-full p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 focus:border-ui-primary focus:ring-1 focus:ring-ui-primary outline-none text-sm dark:text-gray-100"
                                     placeholder="Masukkan nominal"
                                     required
                                 />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Komisi</label>
+                                <select
+                                    value={commissionRate}
+                                    onChange={(event) => setCommissionRate(event.target.value)}
+                                    className="w-full p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 focus:border-ui-primary focus:ring-1 focus:ring-ui-primary outline-none text-sm dark:text-gray-100"
+                                >
+                                    <option value="0.1">Prioritas (10%)</option>
+                                    <option value="0.15">Reguler (15%)</option>
+                                    {![0.1, 0.15].includes(parseFloat(settings.defaultCommission)) && (
+                                        <option value={settings.defaultCommission}>
+                                            Default Profil ({Math.round(settings.defaultCommission * 100)}%)
+                                        </option>
+                                    )}
+                                </select>
                             </div>
 
                             <div>
@@ -138,7 +185,7 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                                     step="0.1"
                                     value={distance}
                                     onChange={(event) => setDistance(event.target.value)}
-                                    className="w-full p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 focus:border-maxim-yellow focus:ring-1 focus:ring-maxim-yellow outline-none text-sm dark:text-gray-100"
+                                    className="w-full p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 focus:border-ui-primary focus:ring-1 focus:ring-ui-primary outline-none text-sm dark:text-gray-100"
                                     placeholder="0"
                                 />
                             </div>
@@ -154,7 +201,7 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                                         className={`w-full pl-9 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border outline-none text-sm dark:text-gray-100 ${
                                             createdAtError
                                                 ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-400'
-                                                : 'border-gray-200 dark:border-gray-700 focus:border-maxim-yellow focus:ring-1 focus:ring-maxim-yellow'
+                                                : 'border-gray-200 dark:border-gray-700 focus:border-ui-primary focus:ring-1 focus:ring-ui-primary'
                                         }`}
                                         required
                                     />
@@ -167,7 +214,7 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                                 className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center space-x-2 transition-all ${
                                     isSubmitting
                                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
-                                        : 'bg-maxim-dark text-maxim-yellow shadow-maxim-dark/20 hover:bg-black active:scale-95'
+                                        : 'bg-ui-inverse text-ui-primary shadow-ui-md hover:bg-ui-inverse/90 active:scale-95'
                                 }`}
                             >
                                 {isSubmitting ? (

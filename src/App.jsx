@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import { supabase, isSupabaseConfigured, supabaseConfigError } from './lib/supabaseClient';
+import { isSupabaseConfigured, supabaseConfigError } from './lib/supabaseClient';
 import Auth from './components/Auth';
 import ProfitEngine from './components/ProfitEngine';
 import RealMap from './components/RealMap';
@@ -11,8 +10,9 @@ import BottomNavigation from './components/BottomNavigation';
 import PageTransition from './components/PageTransition';
 import ToastContainer from './components/ToastContainer';
 import { ToastProvider, useToast } from './context/ToastContext';
+import { useSettings } from './context/SettingsContext';
 
-function AnimatedRoutes({ showToast, session }) {
+function AnimatedRoutes({ showToast }) {
     const location = useLocation();
 
     return (
@@ -22,7 +22,7 @@ function AnimatedRoutes({ showToast, session }) {
                     path="/"
                     element={
                         <PageTransition>
-                            <ProfitEngine showToast={showToast} session={session} />
+                            <ProfitEngine showToast={showToast} />
                         </PageTransition>
                     }
                 />
@@ -38,7 +38,7 @@ function AnimatedRoutes({ showToast, session }) {
                     path="/history"
                     element={
                         <PageTransition>
-                            <Riwayat showToast={showToast} session={session} />
+                            <Riwayat showToast={showToast} />
                         </PageTransition>
                     }
                 />
@@ -46,7 +46,7 @@ function AnimatedRoutes({ showToast, session }) {
                     path="/profile"
                     element={
                         <PageTransition>
-                            <ProfileSettings showToast={showToast} session={session} />
+                            <ProfileSettings showToast={showToast} />
                         </PageTransition>
                     }
                 />
@@ -55,23 +55,43 @@ function AnimatedRoutes({ showToast, session }) {
     );
 }
 
+function AppShell({ showToast }) {
+    return (
+        <div
+            className="bg-ui-background text-ui-text font-sans"
+            style={{
+                '--bottom-nav-height': '64px',
+                '--bottom-nav-offset': 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))',
+                minHeight: 'calc(100dvh - var(--bottom-nav-offset))',
+                paddingBottom: 'var(--bottom-nav-offset)'
+            }}
+        >
+            <main className="relative z-0 min-h-[calc(100dvh-var(--bottom-nav-offset))]">
+                <AnimatedRoutes showToast={showToast} />
+            </main>
+
+            <BottomNavigation />
+        </div>
+    );
+}
+
 function AppContent({ session, loading }) {
     const { showToast } = useToast();
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-maxim-bg">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-maxim-dark"></div>
+            <div className="flex items-center justify-center min-h-screen bg-ui-background">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ui-text"></div>
             </div>
         );
     }
 
     if (!isSupabaseConfigured) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-maxim-bg p-6">
-                <div className="w-full max-w-lg rounded-2xl border border-yellow-200 bg-yellow-50 p-6 text-center text-yellow-900 shadow-sm">
-                    <h1 className="text-xl font-semibold mb-2">Konfigurasi Supabase belum lengkap</h1>
-                    <p className="text-sm text-yellow-800">
+            <div className="flex items-center justify-center min-h-screen bg-ui-background p-6">
+                <div className="w-full max-w-lg rounded-ui-xl border border-ui-warning/40 bg-ui-warning/10 p-6 text-center text-ui-warning shadow-ui-sm">
+                    <h1 className="text-xl font-semibold mb-2 text-ui-text">Konfigurasi Supabase belum lengkap</h1>
+                    <p className="text-sm text-ui-warning">
                         {supabaseConfigError ||
                             'Tambahkan VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY di file .env agar autentikasi aktif.'}
                     </p>
@@ -86,40 +106,13 @@ function AppContent({ session, loading }) {
 
     return (
         <BrowserRouter>
-            <div
-                className="min-h-screen bg-maxim-bg text-maxim-dark font-sans"
-                style={{
-                    '--bottom-nav-height': '64px',
-                    paddingBottom: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))'
-                }}
-            >
-                <AnimatedRoutes showToast={showToast} session={session} />
-
-                <BottomNavigation />
-            </div>
+            <AppShell showToast={showToast} />
         </BrowserRouter>
     );
 }
 
 function App() {
-    const [session, setSession] = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session)
-            setLoading(false)
-        })
-
-        const {
-            data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
-            setSession(session)
-            setLoading(false)
-        })
-
-        return () => subscription.unsubscribe()
-    }, [])
+    const { session, loading } = useSettings();
 
     return (
         <ToastProvider>

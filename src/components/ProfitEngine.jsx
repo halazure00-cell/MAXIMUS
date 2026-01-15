@@ -4,9 +4,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle } from 'lucide-react';
 
 import { supabase } from '../lib/supabaseClient';
+import Card from './Card';
+import PrimaryButton from './PrimaryButton';
+import SectionTitle from './SectionTitle';
 
-export default function ProfitEngine({ showToast, session }) {
-    const { settings } = useSettings();
+const MotionPrimaryButton = motion(PrimaryButton);
+
+export default function ProfitEngine({ showToast }) {
+    const { settings, session } = useSettings();
     const [orderPrice, setOrderPrice] = useState('');
     const [distance, setDistance] = useState('');
     const [isPriority, setIsPriority] = useState(settings.defaultCommission === 0.10);
@@ -88,6 +93,9 @@ export default function ProfitEngine({ showToast, session }) {
                         app_fee: appFee,
                         net_profit: estimatedNetProfit,
                         distance: distanceValue,
+                        fuel_cost: fuelCost,
+                        maintenance_fee: maintenance,
+                        fuel_efficiency_at_time: settings.fuelEfficiency,
                         // created_at is default now() in DB
                     },
                 ]);
@@ -134,7 +142,7 @@ export default function ProfitEngine({ showToast, session }) {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={() => setShowSuccess(false)}
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-pointer"
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-ui-overlay backdrop-blur-sm cursor-pointer"
                     >
                         <div className="text-center">
                             <motion.div
@@ -142,13 +150,13 @@ export default function ProfitEngine({ showToast, session }) {
                                 animate={{ scale: 1, rotate: 0 }}
                                 transition={{ type: "spring", stiffness: 200, damping: 15 }}
                             >
-                                <CheckCircle className="w-24 h-24 text-maxim-yellow mx-auto mb-4" />
+                            <CheckCircle className="w-24 h-24 text-ui-primary mx-auto mb-4" />
                             </motion.div>
                             <motion.h2
                                 initial={{ y: 20, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}
                                 transition={{ delay: 0.1 }}
-                                className="text-3xl font-bold text-maxim-yellow"
+                                className="text-3xl font-bold text-ui-primary font-display"
                             >
                                 ORDER MASUK!
                             </motion.h2>
@@ -157,23 +165,23 @@ export default function ProfitEngine({ showToast, session }) {
                 )}
             </AnimatePresence>
 
-            <div className="flex flex-col h-full bg-maxim-bg p-4 space-y-4">
+            <div className="flex flex-col h-full bg-ui-background p-4 space-y-4">
                 {/* Header Card */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center justify-center space-y-2">
-                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Estimasi Bersih</span>
-                    <div className={`text-4xl font-bold ${estimatedNetProfit > 0 ? 'text-maxim-dark' : 'text-red-500'}`}>
-                        <span className="text-lg text-gray-400 font-normal mr-1">Rp</span>
+                <Card className="p-6 flex flex-col items-center justify-center space-y-2 text-center">
+                    <SectionTitle>Estimasi Bersih</SectionTitle>
+                    <div className={`text-4xl font-bold ${estimatedNetProfit > 0 ? 'text-ui-text' : 'text-ui-danger'}`}>
+                        <span className="text-lg text-ui-muted font-normal mr-1">Rp</span>
                         {formatCurrency(Math.max(0, estimatedNetProfit))}
                     </div>
-                </div>
+                </Card>
 
                 {/* Input Section */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
+                <Card className="p-6 space-y-4">
                     <div>
                         <div className="flex justify-between items-end mb-1">
-                            <label className="block text-xs font-medium text-gray-500 uppercase">Omzet Order (Rp)</label>
+                            <SectionTitle className="text-[10px] tracking-[0.3em]">Omzet Order (Rp)</SectionTitle>
                             {orderPrice && (
-                                <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                                <span className="text-[10px] font-bold text-ui-success bg-ui-success/10 px-2 py-0.5 rounded-ui-sm">
                                     Bersih: Rp {formatCurrency(realNet)}
                                 </span>
                             )}
@@ -185,7 +193,7 @@ export default function ProfitEngine({ showToast, session }) {
                             placeholder="0"
                             min="0"
                             step="1000"
-                            className="w-full text-lg p-3 rounded-xl border border-gray-200 focus:border-maxim-yellow focus:ring-1 focus:ring-maxim-yellow outline-none transition-all"
+                            className="w-full text-lg p-3 rounded-ui-lg border border-ui-border focus:border-ui-primary focus:ring-1 focus:ring-ui-primary outline-none transition-all bg-ui-surface text-ui-text"
                             inputMode="numeric"
                         />
 
@@ -195,7 +203,7 @@ export default function ProfitEngine({ showToast, session }) {
                                 <button
                                     key={val}
                                     onClick={() => setOrderPrice(val.toString())}
-                                    className="px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-lg text-xs font-bold text-gray-600 active:bg-maxim-yellow active:text-maxim-dark transition-colors"
+                                    className="px-3 py-1.5 bg-ui-surface-muted border border-ui-border rounded-ui-sm text-xs font-bold text-ui-muted active:bg-ui-primary active:text-ui-text transition-colors"
                                 >
                                     {val / 1000}k
                                 </button>
@@ -204,7 +212,7 @@ export default function ProfitEngine({ showToast, session }) {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1 uppercase">Jarak (KM)</label>
+                        <SectionTitle className="text-[10px] tracking-[0.3em] mb-1">Jarak (KM)</SectionTitle>
                         <input
                             type="number"
                             value={distance}
@@ -212,54 +220,51 @@ export default function ProfitEngine({ showToast, session }) {
                             placeholder="0"
                             min="0"
                             step="0.1"
-                            className="w-full text-lg p-3 rounded-xl border border-gray-200 focus:border-maxim-yellow focus:ring-1 focus:ring-maxim-yellow outline-none transition-all"
+                            className="w-full text-lg p-3 rounded-ui-lg border border-ui-border focus:border-ui-primary focus:ring-1 focus:ring-ui-primary outline-none transition-all bg-ui-surface text-ui-text"
                             inputMode="decimal"
                         />
                     </div>
 
                     {/* Gap Fix 1: Toggle Switch "Prioritas?" */}
-                    <div className="flex items-center justify-between pt-2 border-t border-gray-50">
+                    <div className="flex items-center justify-between pt-2 border-t border-ui-border/60">
                         <div>
-                            <span className="text-sm font-bold text-gray-700">Prioritas?</span>
-                            <p className="text-[10px] text-gray-400">{isPriority ? 'Potongan 10%' : 'Potongan 15%'}</p>
+                            <span className="text-sm font-bold text-ui-text">Prioritas?</span>
+                            <p className="text-[10px] text-ui-muted">{isPriority ? 'Potongan 10%' : 'Potongan 15%'}</p>
                         </div>
                         <button
                             onClick={() => setIsPriority(!isPriority)}
-                            className={`w-12 h-6 rounded-full transition-colors relative ${isPriority ? 'bg-maxim-yellow' : 'bg-gray-200'}`}
+                            className={`w-12 h-6 rounded-full transition-colors relative ${isPriority ? 'bg-ui-primary' : 'bg-ui-surface-muted'}`}
                         >
-                            <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform transform ${isPriority ? 'translate-x-7' : 'translate-x-1'}`} />
+                            <div className={`w-4 h-4 rounded-full bg-ui-surface absolute top-1 transition-transform transform ${isPriority ? 'translate-x-7' : 'translate-x-1'}`} />
                         </button>
                     </div>
-                </div>
+                </Card>
 
                 {/* Detailed Breakdown */}
                 <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-white p-3 rounded-xl border border-gray-100 text-center">
-                        <div className="text-[10px] text-gray-400 uppercase">Potongan</div>
-                        <div className="text-sm font-semibold text-red-500">-{formatCurrency(appFee)}</div>
-                    </div>
-                    <div className="bg-white p-3 rounded-xl border border-gray-100 text-center">
-                        <div className="text-[10px] text-gray-400 uppercase">Bensin</div>
-                        <div className="text-sm font-semibold text-red-500">-{formatCurrency(fuelCost)}</div>
-                    </div>
-                    <div className="bg-white p-3 rounded-xl border border-gray-100 text-center">
-                        <div className="text-[10px] text-gray-400 uppercase">Servis</div>
-                        <div className="text-sm font-semibold text-red-500">-{formatCurrency(maintenance)}</div>
-                    </div>
+                    <Card className="p-3 text-center">
+                        <SectionTitle className="text-[9px]">Potongan</SectionTitle>
+                        <div className="text-sm font-semibold text-ui-danger">-{formatCurrency(appFee)}</div>
+                    </Card>
+                    <Card className="p-3 text-center">
+                        <SectionTitle className="text-[9px]">Bensin</SectionTitle>
+                        <div className="text-sm font-semibold text-ui-danger">-{formatCurrency(fuelCost)}</div>
+                    </Card>
+                    <Card className="p-3 text-center">
+                        <SectionTitle className="text-[9px]">Servis</SectionTitle>
+                        <div className="text-sm font-semibold text-ui-danger">-{formatCurrency(maintenance)}</div>
+                    </Card>
                 </div>
 
                 {/* Action Button */}
-                <motion.button
+                <MotionPrimaryButton
                     whileTap={{ scale: 0.95 }}
                     onClick={handleAccept}
                     disabled={!orderPrice || !distance || isSubmitting}
-                    className={`w-full py-4 mt-auto rounded-xl font-bold text-lg shadow-lg ${!orderPrice || !distance
-                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
-                        : 'bg-maxim-yellow text-maxim-dark shadow-yellow-200'
-                        }`}
+                    className="w-full py-4 mt-auto text-lg font-bold shadow-ui-md disabled:bg-ui-surface-muted disabled:text-ui-muted"
                 >
                     TERIMA ORDER
-                </motion.button>
+                </MotionPrimaryButton>
             </div>
         </>
 
