@@ -1,21 +1,30 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { User, Car, Settings as SettingsIcon, Moon, Sun, ChevronDown, Cloud } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../lib/supabaseClient';
-
-// Simple debounce helper
-const debounce = (func, wait) => {
-    let timeout;
-    return (...args) => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func(...args), wait);
-    };
-};
 
 export default function ProfileSettings({ session, showToast }) {
     const { settings, updateSettings } = useSettings();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [syncPending, setSyncPending] = useState(false);
+    const settingsRef = useRef(settings);
+    const saveTimeoutRef = useRef(null);
+    const pendingSettingsRef = useRef(null);
+    const inFlightRef = useRef(false);
+    const syncToastShownRef = useRef(false);
+
+    useEffect(() => {
+        settingsRef.current = settings;
+    }, [settings]);
+
+    useEffect(() => {
+        return () => {
+            if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+            }
+        };
+    }, []);
 
     // Fetch profile from Supabase on mount
     useEffect(() => {
@@ -31,18 +40,21 @@ export default function ProfileSettings({ session, showToast }) {
                     .maybeSingle();
 
                 if (error && error.code !== 'PGRST116') { // PGRST116: JSON object requested, multiple (or no) rows returned
-                    console.error('Error fetching profile:', error);
+                    if (showToast) {
+                        showToast(`Gagal memuat profil: ${error.message}`, 'error');
+                    }
                 }
 
                 if (data) {
                     // Update local context with cloud data
                     updateSettings({
-                        vehicleType: data.vehicle_type || settings.vehicleType,
-                        dailyTarget: data.daily_target || settings.dailyTarget,
-                        driverName: data.full_name || settings.driverName,
-                        // Note: fuelEfficiency is derived from vehicleType usually, but we have a preset override.
-                        // We might want to save fuelEfficiency to DB too if we want it persistent custom.
-                        // For now sticking to requested fields.
+                        vehicleType: data.vehicle_type ?? settings.vehicleType,
+                        dailyTarget: data.daily_target ?? settings.dailyTarget,
+                        driverName: data.full_name ?? settings.driverName,
+                        defaultCommission: data.default_commission ?? settings.defaultCommission,
+                        fuelEfficiency: data.fuel_efficiency ?? settings.fuelEfficiency,
+                        maintenanceFee: data.maintenance_fee ?? settings.maintenanceFee,
+                        darkMode: data.dark_mode ?? settings.darkMode,
                     });
                 }
             } finally {
@@ -53,39 +65,94 @@ export default function ProfileSettings({ session, showToast }) {
         fetchProfile();
     }, [session, updateSettings]); // Careful: updateSettings should be stable
 
-    // Debounced save to Supabase
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const saveToCloud = useCallback(
-        debounce(async (newSettings) => {
-            if (!session?.user) return;
-            setSaving(true);
-            try {
-                const { error } = await supabase.from('profiles').upsert({
-                    id: session.user.id,
-                    updated_at: new Date(),
-                    vehicle_type: newSettings.vehicleType,
-                    daily_target: newSettings.dailyTarget,
-                    full_name: newSettings.driverName,
-                    // username: '...', // We don't have username input yet
-                });
-
-                if (error) throw error;
-                if (showToast) showToast('Profil tersimpan di Cloud', 'success');
-            } catch (error) {
-                console.error('Error saving profile:', error);
-                if (showToast) showToast('Gagal menyimpan profil', 'error');
-            } finally {
-                setSaving(false);
+    const flushSave = useCallback(async () => {
+        if (!session || !session.user) {
+            if (showToast) {
+                showToast('Sesi tidak ditemukan. Silakan login ulang.', 'error');
             }
-        }, 1000),
-        [session, showToast]
-    );
+            pendingSettingsRef.current = null;
+            setSyncPending(false);
+            syncToastShownRef.current = false;
+            return;
+        }
+        if (inFlightRef.current) return;
+        const nextSettings = pendingSettingsRef.current;
+        if (!nextSettings) {
+            setSyncPending(false);
+            syncToastShownRef.current = false;
+            return;
+        }
+        inFlightRef.current = true;
+        pendingSettingsRef.current = null;
+        setSaving(true);
+        const username = nextSettings.username ?? '';
+        const full_name = nextSettings.driverName ?? '';
+        const website = nextSettings.website ?? '';
+        const updates = {
+            id: session.user.id,
+            username,
+            full_name,
+            website,
+            updated_at: new Date().toISOString(),
+            vehicle_type: nextSettings.vehicleType,
+            daily_target: nextSettings.dailyTarget,
+            default_commission: nextSettings.defaultCommission,
+            fuel_efficiency: nextSettings.fuelEfficiency,
+            maintenance_fee: nextSettings.maintenanceFee,
+            dark_mode: nextSettings.darkMode
+        };
+
+        try {
+            const { error } = await supabase.from('profiles').upsert(updates);
+
+            if (error) {
+                if (showToast) {
+                    showToast(`Gagal menyimpan profil: ${error.message}`, 'error');
+                }
+                return;
+            }
+            if (showToast) showToast('Profil tersimpan di Cloud', 'success');
+        } catch (error) {
+            if (showToast) {
+                showToast('Gagal menyimpan profil', 'error');
+            }
+        } finally {
+            inFlightRef.current = false;
+            setSaving(false);
+            if (pendingSettingsRef.current) {
+                setSyncPending(true);
+                saveTimeoutRef.current = setTimeout(() => {
+                    flushSave();
+                }, 0);
+            } else {
+                setSyncPending(false);
+                syncToastShownRef.current = false;
+            }
+        }
+    }, [session, showToast]);
+
+    // Debounced save to Supabase
+    const saveToCloud = useCallback((newSettings) => {
+        pendingSettingsRef.current = newSettings;
+        setSyncPending(true);
+        if (inFlightRef.current && showToast && !syncToastShownRef.current) {
+            showToast('Perubahan terakhir sedang disinkronkan', 'info');
+            syncToastShownRef.current = true;
+        }
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+        }
+        saveTimeoutRef.current = setTimeout(() => {
+            flushSave();
+        }, 1000);
+    }, [flushSave, showToast]);
 
     // Wrapper to update both Local Context and Cloud
     const handleUpdate = (updates) => {
+        const nextSettings = { ...settingsRef.current, ...updates };
         updateSettings(updates);
         // Merge current settings with updates for the cloud save
-        saveToCloud({ ...settings, ...updates });
+        saveToCloud(nextSettings);
     };
 
     // Vehicle presets to auto-fill efficiency
@@ -119,9 +186,10 @@ export default function ProfileSettings({ session, showToast }) {
                     </div>
                     <h1 className="text-2xl font-bold text-maxim-dark">Profil Saya</h1>
                 </div>
-                {saving && (
+                {(saving || syncPending) && (
                     <span className="text-xs text-gray-400 flex items-center animate-pulse">
-                        <Cloud className="w-3 h-3 mr-1" /> Menyimpan...
+                        <Cloud className="w-3 h-3 mr-1" />
+                        {saving && !syncPending ? 'Menyimpan...' : 'Perubahan terakhir sedang disinkronkan'}
                     </span>
                 )}
             </div>
@@ -204,7 +272,7 @@ export default function ProfileSettings({ session, showToast }) {
                         <span className="absolute left-3 top-3 text-gray-400">Rp</span>
                         <input
                             type="number"
-                            value={settings.maintenanceFee || 500}
+                            value={settings.maintenanceFee ?? 500}
                             onChange={(e) => handleUpdate({ maintenanceFee: parseInt(e.target.value) || 0 })}
                             placeholder="500"
                             className="w-full text-base p-3 pl-10 rounded-xl border border-gray-200 focus:border-maxim-yellow focus:ring-1 focus:ring-maxim-yellow outline-none transition-all"
@@ -227,13 +295,13 @@ export default function ProfileSettings({ session, showToast }) {
                     </div>
                     <div className="flex bg-gray-100 rounded-lg p-1">
                         <button
-                            onClick={() => updateSettings({ defaultCommission: 0.10 })}
+                            onClick={() => handleUpdate({ defaultCommission: 0.10 })}
                             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${settings.defaultCommission === 0.10 ? 'bg-white shadow-sm text-maxim-dark' : 'text-gray-400'}`}
                         >
                             10%
                         </button>
                         <button
-                            onClick={() => updateSettings({ defaultCommission: 0.15 })}
+                            onClick={() => handleUpdate({ defaultCommission: 0.15 })}
                             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${settings.defaultCommission === 0.15 ? 'bg-white shadow-sm text-maxim-dark' : 'text-gray-400'}`}
                         >
                             15%
@@ -247,7 +315,7 @@ export default function ProfileSettings({ session, showToast }) {
                         <div className="text-xs text-gray-400">Tampilan ramah mata malam hari</div>
                     </div>
                     <button
-                        onClick={() => updateSettings({ darkMode: !settings.darkMode })}
+                        onClick={() => handleUpdate({ darkMode: !settings.darkMode })}
                         className={`w-12 h-7 rounded-full transition-colors relative ${settings.darkMode ? 'bg-maxim-dark' : 'bg-gray-200'}`}
                     >
                         <div className={`w-5 h-5 rounded-full bg-white absolute top-1 transition-transform transform flex items-center justify-center ${settings.darkMode ? 'translate-x-6' : 'translate-x-1'}`}>

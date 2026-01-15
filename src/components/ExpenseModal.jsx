@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, DollarSign } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
+import { X, Save } from 'lucide-react';
 
-export default function ExpenseModal({ isOpen, onClose, onExpenseAdded, session }) {
+export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
     const [amount, setAmount] = useState('');
     const [category, setCategory] = useState('Bensin');
     const [note, setNote] = useState('');
@@ -20,31 +19,31 @@ export default function ExpenseModal({ isOpen, onClose, onExpenseAdded, session 
         e.preventDefault();
         if (!amount || isSubmitting) return;
 
+        const amountValue = parseFloat(amount);
+        if (Number.isNaN(amountValue) || amountValue < 0) {
+            if (showToast) {
+                showToast('Jumlah pengeluaran tidak valid.', 'error');
+            }
+            return;
+        }
+
         setIsSubmitting(true);
         try {
-            const { error } = await supabase
-                .from('expenses')
-                .insert([
-                    {
-                        user_id: session.user.id,
-                        amount: parseFloat(amount),
-                        category,
-                        note,
-                        created_at: new Date().toISOString()
-                    }
-                ]);
-
-            if (error) throw error;
-
+            await onSave({
+                amount,
+                category,
+                note
+            });
             setAmount('');
             setNote('');
             setCategory('Bensin');
-            onExpenseAdded(); // Refresh parent data
             onClose();
 
         } catch (error) {
             console.error('Error saving expense:', error);
-            alert('Gagal menyimpan pengeluaran.');
+            if (showToast) {
+                showToast('Gagal menyimpan pengeluaran.', 'error');
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -53,7 +52,7 @@ export default function ExpenseModal({ isOpen, onClose, onExpenseAdded, session 
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center pointer-events-none">
+                <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center pointer-events-none">
                     {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
@@ -69,7 +68,7 @@ export default function ExpenseModal({ isOpen, onClose, onExpenseAdded, session 
                         animate={{ y: 0 }}
                         exit={{ y: "100%" }}
                         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                        className="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6 shadow-xl pointer-events-auto relative z-10"
+                        className="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6 shadow-xl pointer-events-auto relative z-10 max-h-[80vh] overflow-y-auto pb-32"
                     >
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-gray-800">Catat Pengeluaran</h2>
@@ -92,6 +91,8 @@ export default function ExpenseModal({ isOpen, onClose, onExpenseAdded, session 
                                         onChange={(e) => setAmount(e.target.value)}
                                         className="pl-10 w-full p-4 text-2xl font-bold bg-gray-50 rounded-xl border border-gray-200 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all placeholder-gray-300"
                                         placeholder="0"
+                                        min="0"
+                                        step="1000"
                                         autoFocus
                                         required
                                     />

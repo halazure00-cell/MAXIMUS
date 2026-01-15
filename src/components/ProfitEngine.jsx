@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle } from 'lucide-react';
@@ -12,6 +12,18 @@ export default function ProfitEngine({ showToast, session }) {
     const [isPriority, setIsPriority] = useState(settings.defaultCommission === 0.10);
     const [showSuccess, setShowSuccess] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const timeoutRef = useRef(null);
+    const isMountedRef = useRef(false);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+            }
+        };
+    }, []);
 
     // Update local priority state if default changes in settings
     useEffect(() => {
@@ -30,7 +42,7 @@ export default function ProfitEngine({ showToast, session }) {
     // Financial Breakdown
     const appFee = gross * currentCommissionRate;
     const fuelCost = dist * settings.fuelEfficiency;
-    const maintenance = settings.maintenanceFee || 500;
+    const maintenance = settings.maintenanceFee ?? 500;
     const estimatedNetProfit = realNet - fuelCost - maintenance;
 
     const formatCurrency = (value) => new Intl.NumberFormat('id-ID').format(value);
@@ -38,7 +50,26 @@ export default function ProfitEngine({ showToast, session }) {
     const handleAccept = async () => {
         if (!orderPrice || !distance || isSubmitting) return;
 
-        setIsSubmitting(true);
+        const priceValue = parseFloat(orderPrice);
+        const distanceValue = parseFloat(distance);
+
+        if (Number.isNaN(priceValue) || priceValue < 0) {
+            if (showToast) {
+                showToast('Harga order tidak valid.', 'error');
+            }
+            return;
+        }
+
+        if (Number.isNaN(distanceValue) || distanceValue < 0) {
+            if (showToast) {
+                showToast('Jarak tidak valid.', 'error');
+            }
+            return;
+        }
+
+        if (isMountedRef.current) {
+            setIsSubmitting(true);
+        }
 
         // Haptic Feedback
         if (navigator.vibrate) {
@@ -51,16 +82,21 @@ export default function ProfitEngine({ showToast, session }) {
                 .insert([
                     {
                         user_id: session.user.id,
-                        price: realNet, // Gap Fix 1: Save Real Net, not raw price
-                        distance: dist,
+                        price: estimatedNetProfit,
+                        gross_price: priceValue,
+                        commission_rate: currentCommissionRate,
+                        app_fee: appFee,
                         net_profit: estimatedNetProfit,
+                        distance: distanceValue,
                         // created_at is default now() in DB
                     },
                 ]);
 
             if (error) throw error;
 
-            setShowSuccess(true);
+            if (isMountedRef.current) {
+                setShowSuccess(true);
+            }
 
             // Show toast using the prop passed from App
             if (showToast) {
@@ -68,7 +104,10 @@ export default function ProfitEngine({ showToast, session }) {
             }
 
             // Delay clearing inputs to show the success animation
-            setTimeout(() => {
+            timeoutRef.current = setTimeout(() => {
+                if (!isMountedRef.current) {
+                    return;
+                }
                 setOrderPrice('');
                 setDistance('');
                 setShowSuccess(false);
@@ -77,8 +116,12 @@ export default function ProfitEngine({ showToast, session }) {
 
         } catch (error) {
             console.error('Error saving order:', error);
-            alert('Gagal menyimpan order: ' + error.message);
-            setIsSubmitting(false);
+            if (showToast) {
+                showToast(`Gagal menyimpan order: ${error.message}`, 'error');
+            }
+            if (isMountedRef.current) {
+                setIsSubmitting(false);
+            }
         }
     };
 
@@ -128,7 +171,7 @@ export default function ProfitEngine({ showToast, session }) {
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 space-y-4">
                     <div>
                         <div className="flex justify-between items-end mb-1">
-                            <label className="block text-xs font-medium text-gray-500 uppercase">Harga Order (Rp)</label>
+                            <label className="block text-xs font-medium text-gray-500 uppercase">Omzet Order (Rp)</label>
                             {orderPrice && (
                                 <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">
                                     Bersih: Rp {formatCurrency(realNet)}
@@ -140,6 +183,8 @@ export default function ProfitEngine({ showToast, session }) {
                             value={orderPrice}
                             onChange={(e) => setOrderPrice(e.target.value)}
                             placeholder="0"
+                            min="0"
+                            step="1000"
                             className="w-full text-lg p-3 rounded-xl border border-gray-200 focus:border-maxim-yellow focus:ring-1 focus:ring-maxim-yellow outline-none transition-all"
                             inputMode="numeric"
                         />
@@ -165,6 +210,8 @@ export default function ProfitEngine({ showToast, session }) {
                             value={distance}
                             onChange={(e) => setDistance(e.target.value)}
                             placeholder="0"
+                            min="0"
+                            step="0.1"
                             className="w-full text-lg p-3 rounded-xl border border-gray-200 focus:border-maxim-yellow focus:ring-1 focus:ring-maxim-yellow outline-none transition-all"
                             inputMode="decimal"
                         />
@@ -197,7 +244,7 @@ export default function ProfitEngine({ showToast, session }) {
                     </div>
                     <div className="bg-white p-3 rounded-xl border border-gray-100 text-center">
                         <div className="text-[10px] text-gray-400 uppercase">Servis</div>
-                        <div className="text-sm font-semibold text-red-500">-{maintenance}</div>
+                        <div className="text-sm font-semibold text-red-500">-{formatCurrency(maintenance)}</div>
                     </div>
                 </div>
 

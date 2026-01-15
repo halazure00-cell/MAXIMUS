@@ -1,117 +1,125 @@
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
+import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { supabase } from '../lib/supabaseClient';
+
 import { useSettings } from '../context/SettingsContext';
+import { supabase } from '../lib/supabaseClient';
+
+// --- Leaflet Icon Fix ---
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
+});
 
 // --- Custom Icons ---
-
-// 1. User Position (Blue Pulse)
 const userIcon = L.divIcon({
     className: 'custom-div-icon',
-    html: `<div class="user-marker-pulse"></div><div class="user-marker-dot"></div>`,
+    html: '<div class="user-marker-pulse"></div><div class="user-marker-dot"></div>',
     iconSize: [40, 40],
     iconAnchor: [20, 20],
     popupAnchor: [0, -10]
 });
 
-// 2. Active Strategy Spot (Yellow Pulse + Glow)
 const activeStrategyIcon = L.divIcon({
     className: 'custom-div-icon',
-    html: `<div class="active-strategy-ring"></div><div class="active-strategy-pin"></div>`,
+    html: '<div class="active-strategy-ring"></div><div class="active-strategy-pin"></div>',
     iconSize: [50, 50],
     iconAnchor: [25, 25],
     popupAnchor: [0, -10]
 });
 
-// 3. Inactive/Normal Spot (Small Gray Dot)
-const inactiveStrategyIcon = L.divIcon({
+const createCategoryIcon = (color) => L.divIcon({
     className: 'custom-div-icon',
-    html: `<div style="background-color: #94a3b8; width: 12px; height: 12px; border-radius: 50%; opacity: 0.6; border: 1px solid white;"></div>`,
-    iconSize: [12, 12],
-    iconAnchor: [6, 6],
-    popupAnchor: [0, -5]
+    html: `<div style="background-color: ${color}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 6px rgba(0, 0, 0, 0.25);"></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+    popupAnchor: [0, -6]
 });
 
+const categoryIcons = {
+    Bike: createCategoryIcon('#2563eb'),
+    Food: createCategoryIcon('#f97316'),
+    Wisata: createCategoryIcon('#16a34a')
+};
 
 const BANDUNG_CENTER = [-6.9175, 107.6191];
 
-// --- Sub-components for Overlay UI ---
-
-function RecenterFab({ userPos }) {
-    const map = useMap();
-
-    const handleRecenter = () => {
-        if (userPos) {
-            map.flyTo(userPos, 15, {
-                animate: true,
-                duration: 1.5
-            });
-        }
-    };
-
-    return (
-        <button
-            onClick={handleRecenter}
-            className="absolute bottom-28 right-4 z-[400] w-12 h-12 bg-white text-slate-900 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform"
-        >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-        </button>
-    );
-}
-
-function StrategyCard({ recommendation }) {
+const StrategyCard = ({ recommendation }) => {
     if (!recommendation) return null;
 
-    const navUrl = recommendation.lat && recommendation.lng
-        ? `https://www.google.com/maps/dir/?api=1&destination=${recommendation.lat},${recommendation.lng}`
-        : '#';
-
     return (
-        <div className="absolute bottom-6 left-4 right-20 z-[400] mx-auto max-w-sm">
-            <div className="backdrop-blur-md bg-white/95 shadow-2xl rounded-2xl p-4 border-l-4 border-l-yellow-400">
-                <div className="flex items-start justify-between">
-                    <div>
-                        <h3 className="font-bold text-slate-900 text-lg leading-tight mb-1 font-outfit">
-                            {recommendation.title}
-                        </h3>
-                        <p className="text-sm text-slate-600 font-medium leading-snug">
-                            {recommendation.subtitle}
-                        </p>
-                    </div>
-                </div>
-
-                {!recommendation.isFree && (
-                    <a
-                        href={navUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-3 block w-full bg-slate-900 text-white text-center py-2 rounded-lg font-bold text-sm active:scale-95 transition-transform"
-                    >
-                        🚀 NAVIGASI
-                    </a>
-                )}
+        <div className="absolute left-4 right-4 top-4 pointer-events-auto">
+            <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-lg">
+                <div className="text-sm font-semibold text-slate-600">{recommendation.title}</div>
+                <div className="mt-1 text-xs text-slate-500">{recommendation.subtitle}</div>
             </div>
         </div>
     );
-}
+};
 
-// --- Main Map Component ---
+const RecenterFab = ({ userPos }) => {
+    const map = useMap();
+
+    const handleClick = () => {
+        const target = userPos ?? BANDUNG_CENTER;
+        map.setView(target, map.getZoom(), { animate: true });
+    };
+
+    return (
+        <div className="leaflet-top leaflet-right">
+            <div className="leaflet-control">
+                <button
+                    type="button"
+                    onClick={handleClick}
+                    className="rounded-full bg-white/90 px-3 py-2 text-xs font-semibold text-slate-700 shadow-md transition hover:bg-white"
+                >
+                    Recenter
+                </button>
+            </div>
+        </div>
+    );
+};
 
 export default function RealMap() {
     const { settings } = useSettings();
     const [strategicSpots, setStrategicSpots] = useState([]);
     const [currentRecommendation, setCurrentRecommendation] = useState(null);
     const [userPos, setUserPos] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [timeTick, setTimeTick] = useState(Date.now());
+    const [spotsLoading, setSpotsLoading] = useState(true);
+    const [spotsError, setSpotsError] = useState(false);
+    const [geoError, setGeoError] = useState(false);
 
-    // 1. Fetch Data
+    const currentDate = new Date(timeTick);
+    const currentHour = currentDate.getHours();
+    const isWeekend = [0, 6].includes(currentDate.getDay());
+
+    const filteredSpots = Array.isArray(strategicSpots)
+        ? strategicSpots.filter((spot) => {
+            if (!spot) return false;
+            if (spot.start_hour === undefined || spot.end_hour === undefined) return false;
+
+            const startHour = Number.parseInt(spot.start_hour, 10);
+            const endHour = Number.parseInt(spot.end_hour, 10);
+
+            if (Number.isNaN(startHour) || Number.isNaN(endHour)) return false;
+
+            const isWithinTime = startHour <= endHour
+                ? currentHour >= startHour && currentHour < endHour
+                : currentHour >= startHour || currentHour < endHour;
+
+            if (!isWithinTime) return false;
+            if (spot.is_weekend_only && !isWeekend) return false;
+            return true;
+        })
+        : [];
+
     useEffect(() => {
         const fetchSpots = async () => {
+            setSpotsLoading(true);
+            setSpotsError(false);
             try {
                 const { data, error } = await supabase
                     .from('strategic_spots')
@@ -119,111 +127,177 @@ export default function RealMap() {
 
                 if (error) {
                     console.error('Error fetching spots:', error);
-                } else {
-                    setStrategicSpots(data || []);
+                    setStrategicSpots([]);
+                    setSpotsError(true);
+                    return;
                 }
+
+                setStrategicSpots(data || []);
             } catch (err) {
-                console.error("Unexpected error:", err);
+                console.error('Unexpected error:', err);
+                setStrategicSpots([]);
+                setSpotsError(true);
             } finally {
-                setIsLoading(false);
+                setSpotsLoading(false);
             }
         };
 
         fetchSpots();
 
-        // Mock User Position (Simulating Movement)
-        setUserPos(BANDUNG_CENTER);
-        const interval = setInterval(() => {
-            setUserPos(prev => {
-                if (!prev) return BANDUNG_CENTER;
-                return [
-                    prev[0] + (Math.random() - 0.5) * 0.0002,
-                    prev[1] + (Math.random() - 0.5) * 0.0002
-                ];
-            });
-        }, 5000);
+        const pollInterval = setInterval(fetchSpots, 300000);
 
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(pollInterval);
+        };
     }, []);
 
-    // 2. "The Brain" - Live Recommendation Logic
     useEffect(() => {
-        // Run logic immediately when spots change or periodically
+        if (!navigator.geolocation) {
+            setUserPos(BANDUNG_CENTER);
+            setGeoError(true);
+            return;
+        }
+
+        const watchId = navigator.geolocation.watchPosition(
+            (position) => {
+                setUserPos([position.coords.latitude, position.coords.longitude]);
+                setGeoError(false);
+            },
+            (error) => {
+                console.error('Geolocation error:', error);
+                setUserPos(BANDUNG_CENTER);
+                setGeoError(true);
+            },
+            {
+                enableHighAccuracy: true,
+                maximumAge: 10000,
+                timeout: 10000
+            }
+        );
+
+        return () => {
+            navigator.geolocation.clearWatch(watchId);
+        };
+    }, []);
+
+    const toRad = (value) => (value * Math.PI) / 180;
+
+    const getDistanceKm = (from, to) => {
+        const [lat1, lng1] = from;
+        const [lat2, lng2] = to;
+        const dLat = toRad(lat2 - lat1);
+        const dLng = toRad(lng2 - lng1);
+        const a = Math.sin(dLat / 2) ** 2
+            + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return 6371 * c;
+    };
+
+    useEffect(() => {
         const updateRecommendation = () => {
-            // if (!strategicSpots.length) return; // Allow running even if empty to show "Free Mode"
+            setTimeTick(Date.now());
 
-            const currentHour = new Date().getHours();
+            if (filteredSpots.length > 0) {
+                const spotsWithCoords = filteredSpots.filter((spot) => {
+                    const lat = spot.latitude ?? spot.lat;
+                    const lng = spot.longitude ?? spot.lng;
+                    return lat != null && lng != null;
+                });
 
-            // Filter for ACTIVE spots
-            const activeSpots = strategicSpots.filter(spot => {
-                // Safety check for hours
-                if (spot.start_hour === undefined || spot.end_hour === undefined) return false;
-                return spot.start_hour <= currentHour && spot.end_hour > currentHour;
-            });
+                if (spotsWithCoords.length === 0) {
+                    setCurrentRecommendation({
+                        isFree: true,
+                        title: '☕ Mode Bebas / Ngetem Santai',
+                        subtitle: 'Tidak ada spot dengan koordinat valid.'
+                    });
+                    return;
+                }
 
-            if (activeSpots.length > 0) {
-                // Priority: Pick the closest one? Or just the first for now.
-                const spot = activeSpots[0];
+                const nearestSpot = userPos
+                    ? spotsWithCoords
+                        .map((candidate) => {
+                            const lat = candidate.latitude ?? candidate.lat;
+                            const lng = candidate.longitude ?? candidate.lng;
+                            return {
+                                spot: candidate,
+                                distanceKm: getDistanceKm(userPos, [lat, lng])
+                            };
+                        })
+                        .sort((a, b) => a.distanceKm - b.distanceKm)[0]?.spot
+                    : null;
 
-                // robustly get lat/lng
-                const lat = spot.latitude || spot.lat;
-                const lng = spot.longitude || spot.lng;
+                const spot = nearestSpot || spotsWithCoords[0];
+                const lat = spot.latitude ?? spot.lat;
+                const lng = spot.longitude ?? spot.lng;
 
                 setCurrentRecommendation({
                     isFree: false,
                     title: `🔥 HOT SPOT JAM ${currentHour}:00`,
-                    subtitle: `Geser ke ${spot.name}. Strategi: ${spot.notes || 'Standby.'}`,
+                    subtitle: userPos
+                        ? `Geser ke ${spot.name}. Strategi: ${spot.notes || 'Standby.'}`
+                        : 'Rekomendasi terdekat menunggu lokasi aktif.',
                     lat,
                     lng
                 });
             } else {
                 setCurrentRecommendation({
                     isFree: true,
-                    title: `☕ Mode Bebas / Ngetem Santai`,
-                    subtitle: "Belum ada rotasi terjadwal. Cek area perumahan."
+                    title: '☕ Mode Bebas / Ngetem Santai',
+                    subtitle: 'Belum ada rotasi terjadwal. Cek area perumahan.'
                 });
             }
         };
 
         const timer = setInterval(updateRecommendation, 60000);
-        if (!isLoading) updateRecommendation();
+        updateRecommendation();
 
         return () => clearInterval(timer);
-    }, [strategicSpots, isLoading]);
-
-    if (isLoading) {
-        return (
-            <div className="w-full h-[calc(100vh-64px)] flex items-center justify-center bg-slate-50">
-                <div className="text-center">
-                    <div className="w-10 h-10 border-4 border-t-blue-600 border-slate-200 rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="font-outfit text-slate-600 font-bold animate-pulse">Memuat Peta Strategis...</p>
-                </div>
-            </div>
-        );
-    }
+    }, [filteredSpots, userPos, currentHour]);
 
     return (
-        <div className="w-full h-[calc(100vh-64px)] relative z-0">
-            <StrategyCard recommendation={currentRecommendation} />
+        <div
+            className="z-0 relative w-full h-[calc(100dvh-var(--bottom-nav-height))] pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom))]"
+            style={{ zIndex: 0 }}
+        >
+            <div className="absolute inset-0 z-[1000] pointer-events-none">
+                <StrategyCard recommendation={currentRecommendation} />
+                <div className="absolute left-4 right-4 top-20 space-y-2 text-xs text-slate-600">
+                    {spotsLoading && (
+                        <div className="rounded-full bg-white/90 px-3 py-1 shadow-md">
+                            Memuat lokasi strategis…
+                        </div>
+                    )}
+                    {spotsError && (
+                        <div className="rounded-full bg-white/90 px-3 py-1 shadow-md">
+                            Gagal memuat lokasi strategis.
+                        </div>
+                    )}
+                    {geoError && (
+                        <div className="rounded-full bg-white/90 px-3 py-1 shadow-md">
+                            Lokasi tidak tersedia, menampilkan titik default.
+                        </div>
+                    )}
+                </div>
+            </div>
 
             <MapContainer
                 center={BANDUNG_CENTER}
                 zoom={13}
                 zoomControl={false}
                 scrollWheelZoom={true}
-                className="w-full h-full"
+                className="z-[1]"
+                style={{ height: '100%', width: '100%' }}
             >
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url={settings.darkMode
-                        ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                        : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                    url={settings?.darkMode
+                        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
                     }
                 />
 
                 <RecenterFab userPos={userPos} />
 
-                {/* User Position */}
                 {userPos && (
                     <Marker position={userPos} icon={userIcon}>
                         <Popup>
@@ -232,48 +306,35 @@ export default function RealMap() {
                     </Marker>
                 )}
 
-                {/* Strategic Spots */}
-                {strategicSpots.map((spot) => {
-                    // 1. Safety Guard
-                    const lat = spot.latitude || spot.lat;
-                    const lng = spot.longitude || spot.lng;
+                {filteredSpots.map((spot) => {
+                    const lat = spot.latitude ?? spot.lat;
+                    const lng = spot.longitude ?? spot.lng;
 
-                    if (!lat || !lng) return null;
+                    if (lat == null || lng == null) return null;
 
-                    // 2. Determine State (Active vs Inactive)
-                    const currentHour = new Date().getHours();
-                    const isActive = (spot.start_hour !== undefined && spot.end_hour !== undefined)
-                        && (spot.start_hour <= currentHour && spot.end_hour > currentHour);
-
-                    const icon = isActive ? activeStrategyIcon : inactiveStrategyIcon;
+                    const categoryIcon = categoryIcons[spot.category] || activeStrategyIcon;
 
                     return (
                         <Marker
                             key={spot.id}
                             position={[lat, lng]}
-                            icon={icon}
-                            zIndexOffset={isActive ? 1000 : 0} // Active always on top
+                            icon={categoryIcon}
+                            zIndexOffset={1000}
                         >
                             <Popup className="custom-popup" closeButton={false}>
                                 <div className="p-1 min-w-[200px]">
-                                    <div className={`text-xs font-bold uppercase tracking-wider mb-1 ${isActive ? 'text-yellow-600' : 'text-slate-400'}`}>
-                                        {isActive ? '🔥 ACTIVE NOW' : 'INACTIVE'}
+                                    <div className="text-xs font-bold uppercase tracking-wider mb-1 text-emerald-600">
+                                        REKOMENDASI JAM INI
                                     </div>
                                     <h3 className="font-bold text-lg text-slate-900 mb-1">{spot.name}</h3>
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <span className="px-2 py-0.5 bg-slate-100 rounded text-xs font-mono font-bold text-slate-600 border border-slate-200">
-                                            {spot.start_hour}:00 - {spot.end_hour}:00
-                                        </span>
-                                    </div>
                                     <p className="text-sm text-slate-600 leading-snug bg-slate-50 p-2 rounded border border-slate-100 italic">
-                                        "{spot.notes}"
+                                        "{spot.notes ?? 'Tidak ada catatan.'}"
                                     </p>
                                 </div>
                             </Popup>
                         </Marker>
                     );
                 })}
-
             </MapContainer>
         </div>
     );

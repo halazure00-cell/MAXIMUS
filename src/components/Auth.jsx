@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { supabase, isSupabaseConfigured, supabaseConfigError } from '../lib/supabaseClient'
+import { useToast } from '../context/ToastContext'
 
 export default function Auth() {
     const [loading, setLoading] = useState(false)
@@ -9,17 +10,28 @@ export default function Auth() {
     //   Actually, "Magic Link" is simpler for users (no password management), but testing can be tricky without a real email.
     //   Let's implements standard Magic Link first.
     const [message, setMessage] = useState('')
+    const [errorMessage, setErrorMessage] = useState('')
+    const { showToast } = useToast()
 
     const handleLogin = async (event) => {
         event.preventDefault()
 
         setLoading(true)
-        const { error } = await supabase.auth.signInWithOtp({ email })
+        setErrorMessage('')
+        const { error } = await supabase.auth.signInWithOtp({
+            email,
+            options: {
+                emailRedirectTo: window.location.origin
+            }
+        })
 
         if (error) {
-            alert(error.error_description || error.message)
+            const errorText = error.error_description || error.message
+            setErrorMessage(errorText)
+            showToast(errorText, 'error')
         } else {
             setMessage('Check your email for the login link!')
+            setErrorMessage('')
         }
         setLoading(false)
     }
@@ -37,12 +49,27 @@ export default function Auth() {
                     <p className="text-gray-500 text-sm">Masuk untuk menyimpan riwayat order</p>
                 </div>
 
+                {!isSupabaseConfigured && (
+                    <div className="bg-yellow-100 border border-yellow-200 text-yellow-800 px-4 py-3 rounded relative mb-4" role="alert">
+                        <p className="text-sm font-semibold">Konfigurasi Supabase belum lengkap.</p>
+                        <p className="text-sm">
+                            {supabaseConfigError ||
+                                'Lengkapi VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY di file .env untuk melanjutkan.'}
+                        </p>
+                    </div>
+                )}
+
                 {message ? (
                     <div className="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
                         <span className="block sm:inline">{message}</span>
                     </div>
                 ) : (
                     <form onSubmit={handleLogin} className="space-y-4">
+                        {errorMessage ? (
+                            <div className="bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
+                                <span className="block sm:inline">{errorMessage}</span>
+                            </div>
+                        ) : null}
                         <div>
                             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                             <input
@@ -58,7 +85,7 @@ export default function Auth() {
 
                         <button
                             className="w-full bg-maxim-primary hover:bg-yellow-400 text-maxim-dark font-bold py-3 px-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
-                            disabled={loading}
+                            disabled={loading || !isSupabaseConfigured}
                         >
                             {loading ? (
                                 <span className="flex items-center justify-center">

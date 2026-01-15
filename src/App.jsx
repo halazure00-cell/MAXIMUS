@@ -1,21 +1,22 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import { supabase } from './lib/supabaseClient';
+import { supabase, isSupabaseConfigured, supabaseConfigError } from './lib/supabaseClient';
 import Auth from './components/Auth';
 import ProfitEngine from './components/ProfitEngine';
 import RealMap from './components/RealMap';
-import DailyRecap from './components/DailyRecap';
+import Riwayat from './pages/Riwayat';
 import ProfileSettings from './components/ProfileSettings';
 import BottomNavigation from './components/BottomNavigation';
-import Toast from './components/Toast';
 import PageTransition from './components/PageTransition';
+import ToastContainer from './components/ToastContainer';
+import { ToastProvider, useToast } from './context/ToastContext';
 
 function AnimatedRoutes({ showToast, session }) {
     const location = useLocation();
 
     return (
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="sync">
             <Routes location={location} key={location.pathname}>
                 <Route
                     path="/"
@@ -37,7 +38,7 @@ function AnimatedRoutes({ showToast, session }) {
                     path="/history"
                     element={
                         <PageTransition>
-                            <DailyRecap showToast={showToast} session={session} />
+                            <Riwayat showToast={showToast} session={session} />
                         </PageTransition>
                     }
                 />
@@ -54,12 +55,55 @@ function AnimatedRoutes({ showToast, session }) {
     );
 }
 
-function App() {
-    const [session, setSession] = useState(null)
-    const [loading, setLoading] = useState(true)
+function AppContent({ session, loading }) {
+    const { showToast } = useToast();
 
-    // Toast State (Global UI state)
-    const [toast, setToast] = useState({ message: '', isVisible: false, type: 'success' });
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-maxim-bg">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-maxim-dark"></div>
+            </div>
+        );
+    }
+
+    if (!isSupabaseConfigured) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-maxim-bg p-6">
+                <div className="w-full max-w-lg rounded-2xl border border-yellow-200 bg-yellow-50 p-6 text-center text-yellow-900 shadow-sm">
+                    <h1 className="text-xl font-semibold mb-2">Konfigurasi Supabase belum lengkap</h1>
+                    <p className="text-sm text-yellow-800">
+                        {supabaseConfigError ||
+                            'Tambahkan VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY di file .env agar autentikasi aktif.'}
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!session) {
+        return <Auth />;
+    }
+
+    return (
+        <BrowserRouter>
+            <div
+                className="min-h-screen bg-maxim-bg text-maxim-dark font-sans"
+                style={{
+                    '--bottom-nav-height': '64px',
+                    paddingBottom: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))'
+                }}
+            >
+                <AnimatedRoutes showToast={showToast} session={session} />
+
+                <BottomNavigation />
+            </div>
+        </BrowserRouter>
+    );
+}
+
+function App() {
+    const [session, setSession] = useState(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -77,41 +121,11 @@ function App() {
         return () => subscription.unsubscribe()
     }, [])
 
-    const showToast = (message, type = 'success') => {
-        setToast({ message, isVisible: true, type });
-    };
-
-    const handleToastClose = () => {
-        setToast(prev => ({ ...prev, isVisible: false }));
-    };
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-maxim-bg">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-maxim-dark"></div>
-            </div>
-        )
-    }
-
-    if (!session) {
-        return <Auth />
-    }
-
     return (
-        <BrowserRouter>
-            <div className="min-h-screen bg-maxim-bg text-maxim-dark font-sans pb-20">
-                <AnimatedRoutes showToast={showToast} session={session} />
-
-                <BottomNavigation />
-
-                <Toast
-                    message={toast.message}
-                    isVisible={toast.isVisible}
-                    type={toast.type}
-                    onClose={handleToastClose}
-                />
-            </div>
-        </BrowserRouter>
+        <ToastProvider>
+            <ToastContainer />
+            <AppContent session={session} loading={loading} />
+        </ToastProvider>
     );
 }
 
