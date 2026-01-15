@@ -162,39 +162,39 @@
   box-shadow: 0 0 12px rgba(255, 215, 0, 0.7);
 }
 
-/* Leaflet map pointer events fix for navigation */
-.leaflet-container {
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  z-index: 1 !important;
-  height: 100% !important;
-  width: 100% !important;
-}
-
-/* Ensure bottom navigation is always interactive */
-nav[class*="fixed"][class*="bottom"] {
+/* Bottom Navigation Portal Styles */
+#bottom-nav-portal {
   position: fixed !important;
   bottom: 0 !important;
   left: 0 !important;
   right: 0 !important;
-  z-index: 9999 !important;
+  z-index: 99999 !important;
   pointer-events: auto !important;
 }
 
-nav[class*="fixed"][class*="bottom"] > * {
+#bottom-nav-portal nav {
   pointer-events: auto !important;
 }
 
-nav[class*="fixed"][class*="bottom"] a {
+#bottom-nav-portal button {
   pointer-events: auto !important;
+  cursor: pointer !important;
 }
 
-/* Block leaflet from intercepting navigation clicks */
-.leaflet-top {
+/* Leaflet z-index overrides */
+.leaflet-container {
+  z-index: 1 !important;
+}
+
+.leaflet-pane {
+  z-index: 1 !important;
+}
+
+.leaflet-top,
+.leaflet-bottom {
   z-index: 400 !important;
 }
 
-.leaflet-bottom {
+.leaflet-control {
   z-index: 400 !important;
 }

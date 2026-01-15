@@ -86,22 +86,6 @@ const RecenterFab = ({ userPos }) => {
     );
 };
 
-// Komponen untuk mengelola leaflet events agar tidak menghalangi navigasi
-const MapEventHandler = () => {
-    const map = useMap();
-    
-    useEffect(() => {
-        // Disable leaflet's default behavior yang menghalangi click events
-        const container = map.getContainer();
-        if (container) {
-            // Ensure pointer events work on the map
-            container.style.zIndex = '1';
-        }
-    }, [map]);
-    
-    return null;
-};
-
 export default function RealMap() {
     const navigate = useNavigate();
     const { settings } = useSettings();
@@ -284,7 +268,7 @@ export default function RealMap() {
     };
 
     return (
-        <div className="relative z-0 w-full h-[calc(100dvh-var(--bottom-nav-offset))] overflow-hidden">
+        <div className="relative z-0 w-full overflow-hidden" style={{ height: 'calc(100dvh - 64px - env(safe-area-inset-bottom, 0px))' }}>
             <div className="absolute inset-0 z-[1000] pointer-events-none">
                 <div className="absolute left-4 top-4 pointer-events-auto">
                     <PrimaryButton
@@ -315,14 +299,14 @@ export default function RealMap() {
                 </div>
             </div>
 
-            <div className="relative h-full w-full" style={{height: 'calc(100vh - var(--bottom-nav-offset))'}}>
+            <div className="w-full h-full">
                 <MapContainer
                     center={BANDUNG_CENTER}
                     zoom={13}
                     zoomControl={false}
                     scrollWheelZoom={true}
-                    className="z-[1] w-full h-full"
-                    style={{ height: '100%', width: '100%', position: 'absolute', top: 0, left: 0 }}
+                    className="z-[1]"
+                    style={{ height: '100%', width: '100%' }}
                 >
                     <TileLayer
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -332,7 +316,6 @@ export default function RealMap() {
                         }
                     />
 
-                    <MapEventHandler />
                     <RecenterFab userPos={userPos} />
 
                     {userPos && (
