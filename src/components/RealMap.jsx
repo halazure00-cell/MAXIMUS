@@ -5,6 +5,9 @@ import L from 'leaflet';
 
 import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../lib/supabaseClient';
+import Card from './Card';
+import PrimaryButton from './PrimaryButton';
+import SectionTitle from './SectionTitle';
 
 // --- Leaflet Icon Fix ---
 delete L.Icon.Default.prototype._getIconUrl;
@@ -40,9 +43,9 @@ const createCategoryIcon = (color) => L.divIcon({
 });
 
 const categoryIcons = {
-    Bike: createCategoryIcon('#2563eb'),
-    Food: createCategoryIcon('#f97316'),
-    Wisata: createCategoryIcon('#16a34a')
+    Bike: createCategoryIcon('var(--ui-color-info)'),
+    Food: createCategoryIcon('var(--ui-color-warning)'),
+    Wisata: createCategoryIcon('var(--ui-color-success)')
 };
 
 const BANDUNG_CENTER = [-6.9175, 107.6191];
@@ -52,10 +55,10 @@ const StrategyCard = ({ recommendation }) => {
 
     return (
         <div className="absolute left-4 right-4 top-4 pointer-events-auto">
-            <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-lg">
-                <div className="text-sm font-semibold text-slate-600">{recommendation.title}</div>
-                <div className="mt-1 text-xs text-slate-500">{recommendation.subtitle}</div>
-            </div>
+            <Card className="bg-ui-surface/95 p-4 shadow-ui-md backdrop-blur">
+                <SectionTitle className="text-[10px] tracking-[0.3em]">{recommendation.title}</SectionTitle>
+                <div className="mt-1 text-xs text-ui-muted">{recommendation.subtitle}</div>
+            </Card>
         </div>
     );
 };
@@ -71,13 +74,13 @@ const RecenterFab = ({ userPos }) => {
     return (
         <div className="leaflet-top leaflet-right">
             <div className="leaflet-control">
-                <button
+                <PrimaryButton
                     type="button"
                     onClick={handleClick}
-                    className="rounded-full bg-white/90 px-3 py-2 text-xs font-semibold text-slate-700 shadow-md transition hover:bg-white"
+                    className="rounded-full bg-ui-surface/90 px-3 py-2 text-xs text-ui-text shadow-ui-sm hover:bg-ui-surface"
                 >
                     Recenter
-                </button>
+                </PrimaryButton>
             </div>
         </div>
     );
@@ -268,28 +271,28 @@ export default function RealMap() {
         <div className="relative z-0 w-full h-[calc(100dvh-var(--bottom-nav-offset))]">
             <div className="absolute inset-0 z-[1000] pointer-events-none">
                 <div className="absolute left-4 top-4 pointer-events-auto">
-                    <button
+                    <PrimaryButton
                         type="button"
                         onClick={handleBack}
-                        className="inline-flex items-center gap-2 rounded-full bg-white/95 px-4 py-2 text-xs font-semibold text-slate-700 shadow-lg transition hover:bg-white"
+                        className="inline-flex items-center gap-2 rounded-full bg-ui-surface/95 px-4 py-2 text-xs text-ui-text shadow-ui-md hover:bg-ui-surface"
                     >
                         Kembali
-                    </button>
+                    </PrimaryButton>
                 </div>
                 <StrategyCard recommendation={currentRecommendation} />
-                <div className="absolute left-4 right-4 top-20 space-y-2 text-xs text-slate-600">
+                <div className="absolute left-4 right-4 top-20 space-y-2 text-xs text-ui-muted">
                     {spotsLoading && (
-                        <div className="rounded-full bg-white/90 px-3 py-1 shadow-md">
+                        <div className="rounded-full bg-ui-surface/90 px-3 py-1 shadow-ui-sm">
                             Memuat lokasi strategis…
                         </div>
                     )}
                     {spotsError && (
-                        <div className="rounded-full bg-white/90 px-3 py-1 shadow-md">
+                        <div className="rounded-full bg-ui-surface/90 px-3 py-1 shadow-ui-sm">
                             Gagal memuat lokasi strategis.
                         </div>
                     )}
                     {geoError && (
-                        <div className="rounded-full bg-white/90 px-3 py-1 shadow-md">
+                        <div className="rounded-full bg-ui-surface/90 px-3 py-1 shadow-ui-sm">
                             Lokasi tidak tersedia, menampilkan titik default.
                         </div>
                     )}
@@ -322,7 +325,7 @@ export default function RealMap() {
                     {userPos && (
                         <Marker position={userPos} icon={userIcon}>
                             <Popup>
-                                <span className="font-bold text-blue-600">Posisi Anda</span>
+                                <span className="font-bold text-ui-info">Posisi Anda</span>
                             </Popup>
                         </Marker>
                     )}
@@ -342,17 +345,17 @@ export default function RealMap() {
                                 icon={categoryIcon}
                                 zIndexOffset={1000}
                             >
-                                <Popup className="custom-popup" closeButton={false}>
-                                    <div className="p-1 min-w-[200px]">
-                                        <div className="text-xs font-bold uppercase tracking-wider mb-1 text-emerald-600">
+                            <Popup className="custom-popup" closeButton={false}>
+                                <div className="p-1 min-w-[200px]">
+                                        <div className="text-xs font-bold uppercase tracking-wider mb-1 text-ui-success">
                                             REKOMENDASI JAM INI
                                         </div>
-                                        <h3 className="font-bold text-lg text-slate-900 mb-1">{spot.name}</h3>
-                                        <p className="text-sm text-slate-600 leading-snug bg-slate-50 p-2 rounded border border-slate-100 italic">
+                                        <h3 className="font-bold text-lg text-ui-text mb-1">{spot.name}</h3>
+                                        <p className="text-sm text-ui-muted leading-snug bg-ui-surface-muted p-2 rounded-ui-md border border-ui-border italic">
                                             "{spot.notes ?? 'Tidak ada catatan.'}"
                                         </p>
-                                    </div>
-                                </Popup>
+                                </div>
+                            </Popup>
                             </Marker>
                         );
                     })}

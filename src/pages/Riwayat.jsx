@@ -27,6 +27,9 @@ import ConfirmationModal from '../components/ConfirmationModal';
 import EditOrderModal from '../components/EditOrderModal';
 import { motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
+import Card from '../components/Card';
+import PrimaryButton from '../components/PrimaryButton';
+import SectionTitle from '../components/SectionTitle';
 
 export default function Riwayat({ session }) {
     const { settings } = useSettings();
@@ -379,10 +382,10 @@ export default function Riwayat({ session }) {
 
     const getInsight = () => {
         const score = metrics.efficiencyScore;
-        if (metrics.grossIncome === 0) return { text: "Belum ada tarikan. Gas cari orderan!", color: "text-gray-500" };
-        if (score >= 70) return { text: "Mantap! Efisiensi keuangan sangat bagus.", color: "text-green-600" };
-        if (score >= 50) return { text: "Not bad. Coba kurangi pengeluaran kecil.", color: "text-yellow-600" };
-        return { text: "Boros banget hari ini! Kurangi jajan kopi.", color: "text-red-500" };
+        if (metrics.grossIncome === 0) return { text: "Belum ada tarikan. Gas cari orderan!", color: "text-ui-muted" };
+        if (score >= 70) return { text: "Mantap! Efisiensi keuangan sangat bagus.", color: "text-ui-success" };
+        if (score >= 50) return { text: "Not bad. Coba kurangi pengeluaran kecil.", color: "text-ui-warning" };
+        return { text: "Boros banget hari ini! Kurangi jajan kopi.", color: "text-ui-danger" };
     };
 
     const requestDelete = (id, type) => {
@@ -491,33 +494,33 @@ export default function Riwayat({ session }) {
 
     if (loading) {
         return (
-            <div className="flex h-full items-center justify-center bg-gray-50 dark:bg-maxim-bg pb-24">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-maxim-dark dark:border-maxim-yellow"></div>
+            <div className="flex h-full items-center justify-center bg-ui-background pb-24">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ui-text"></div>
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col h-full bg-gray-50 dark:bg-maxim-bg pb-24 relative">
+        <div className="flex flex-col h-full bg-ui-background pb-24 relative">
             <div className="px-5 pt-6 pb-2">
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Financial Board</h1>
-                <p className="text-xs text-gray-400">Liputan Keuangan Bulan Ini</p>
+                <h1 className="text-2xl font-bold text-ui-text font-display">Financial Board</h1>
+                <p className="text-xs text-ui-muted">Liputan Keuangan Bulan Ini</p>
             </div>
 
             {/* Insight Harian */}
-            <div className={`mx-5 mb-4 p-3 rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm flex items-center space-x-3`}>
+            <Card className="mx-5 mb-4 p-3 flex items-center space-x-3">
                 <div className={`p-2 rounded-full bg-opacity-10 ${insight.color.replace('text', 'bg')}`}>
                     <AlertCircle className={`w-5 h-5 ${insight.color}`} />
                 </div>
                 <p className={`text-sm font-medium ${insight.color}`}>
                     "{insight.text}"
                 </p>
-            </div>
+            </Card>
 
             <div className="flex-1 overflow-y-auto px-5 space-y-6">
                 
                 {/* --- KARTU REKAP HARIAN (SETORAN) --- */}
-                <div className="bg-gradient-to-br from-emerald-500 via-green-500 to-teal-500 p-5 rounded-2xl shadow-lg border border-emerald-400/40 text-white">
+                <div className="bg-gradient-to-br from-emerald-500 via-green-500 to-teal-500 p-5 rounded-ui-xl shadow-ui-lg border border-emerald-400/40 text-white">
                     <div className="flex flex-col gap-3">
                         <div className="flex flex-wrap justify-between gap-4 text-sm font-semibold">
                             <span className="text-green-100">
@@ -546,18 +549,18 @@ export default function Riwayat({ session }) {
                     <button
                         type="button"
                         onClick={() => setActiveRecap('omzet')}
-                        className={`bg-white dark:bg-gray-800 p-3 rounded-2xl shadow-sm border flex flex-col justify-between h-24 text-left transition ${
+                        className={`bg-ui-surface p-3 rounded-ui-xl shadow-ui-sm border flex flex-col justify-between h-24 text-left transition ${
                             activeRecap === 'omzet'
                                 ? 'border-green-400 ring-1 ring-green-200 dark:ring-green-500/40'
-                                : 'border-gray-100 dark:border-gray-700'
+                                : 'border-ui-border'
                         }`}
                     >
-                        <div className="p-1.5 bg-green-50 dark:bg-green-900/20 rounded-lg w-fit">
+                        <div className="p-1.5 bg-green-50 rounded-ui-sm w-fit">
                             <TrendingUp size={16} className="text-green-600" />
                         </div>
                         <div>
-                            <p className="text-[10px] text-gray-400 font-semibold uppercase">Omzet (Gross)</p>
-                            <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">
+                            <SectionTitle className="text-[10px] tracking-[0.25em]">Omzet (Gross)</SectionTitle>
+                            <p className="text-sm font-bold text-ui-text truncate">
                                 {formatCurrency(metrics.grossIncome)}
                             </p>
                         </div>
@@ -566,18 +569,18 @@ export default function Riwayat({ session }) {
                     <button
                         type="button"
                         onClick={() => setActiveRecap('pengeluaran')}
-                        className={`bg-white dark:bg-gray-800 p-3 rounded-2xl shadow-sm border flex flex-col justify-between h-24 text-left transition ${
+                        className={`bg-ui-surface p-3 rounded-ui-xl shadow-ui-sm border flex flex-col justify-between h-24 text-left transition ${
                             activeRecap === 'pengeluaran'
                                 ? 'border-red-400 ring-1 ring-red-200 dark:ring-red-500/40'
-                                : 'border-gray-100 dark:border-gray-700'
+                                : 'border-ui-border'
                         }`}
                     >
-                        <div className="p-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg w-fit">
+                        <div className="p-1.5 bg-red-50 rounded-ui-sm w-fit">
                             <TrendingDown size={16} className="text-red-600" />
                         </div>
                         <div>
-                            <p className="text-[10px] text-gray-400 font-semibold uppercase">Pengeluaran</p>
-                            <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">
+                            <SectionTitle className="text-[10px] tracking-[0.25em]">Pengeluaran</SectionTitle>
+                            <p className="text-sm font-bold text-ui-text truncate">
                                 {formatCurrency(metrics.actualExpenses)}
                             </p>
                         </div>
@@ -586,18 +589,18 @@ export default function Riwayat({ session }) {
                     <button
                         type="button"
                         onClick={() => setActiveRecap('potongan')}
-                        className={`bg-maxim-dark dark:bg-black p-3 rounded-2xl shadow-lg border flex flex-col justify-between h-24 text-left transition ${
+                        className={`bg-ui-inverse p-3 rounded-ui-xl shadow-ui-md border flex flex-col justify-between h-24 text-left transition ${
                             activeRecap === 'potongan'
-                                ? 'border-maxim-yellow ring-1 ring-yellow-200 dark:ring-maxim-yellow/40'
-                                : 'border-gray-800 dark:border-gray-700'
+                                ? 'border-ui-primary ring-1 ring-ui-primary/30'
+                                : 'border-ui-border'
                         }`}
                     >
-                        <div className="p-1.5 bg-white/10 rounded-lg w-fit">
-                            <Wallet size={16} className="text-maxim-yellow" />
+                        <div className="p-1.5 bg-white/10 rounded-ui-sm w-fit">
+                            <Wallet size={16} className="text-ui-primary" />
                         </div>
                         <div>
-                            <p className="text-[10px] text-gray-400 font-semibold uppercase">Potongan</p>
-                            <p className="text-sm font-bold text-maxim-yellow truncate">
+                            <SectionTitle className="text-[10px] tracking-[0.25em] text-white/70">Potongan</SectionTitle>
+                            <p className="text-sm font-bold text-ui-primary truncate">
                                 {formatCurrency(metrics.appFeeTotal + metrics.fuelCostTotal)}
                             </p>
                         </div>
@@ -605,24 +608,24 @@ export default function Riwayat({ session }) {
                 </div>
 
                 {/* --- DETAIL STATISTIK --- */}
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                <Card className="p-4">
                     {activeRecap === 'omzet' && (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500">Total Omzet (Gross) Bulan Ini</span>
-                                <span className="font-bold text-gray-800 dark:text-gray-100">
+                                <span className="text-ui-muted">Total Omzet (Gross) Bulan Ini</span>
+                                <span className="font-bold text-ui-text">
                                     {formatCurrency(metrics.grossIncome)}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500">Jumlah Order</span>
-                                <span className="font-semibold text-gray-700 dark:text-gray-200">
+                                <span className="text-ui-muted">Jumlah Order</span>
+                                <span className="font-semibold text-ui-text">
                                     {metrics.ordersCount} trip
                                 </span>
                             </div>
-                            <div className="flex items-center justify-between text-sm border-t pt-2 dark:border-gray-700">
-                                <span className="text-gray-500">Net Profit</span>
-                                <span className="font-bold text-green-600">
+                            <div className="flex items-center justify-between text-sm border-t pt-2 border-ui-border/70">
+                                <span className="text-ui-muted">Net Profit</span>
+                                <span className="font-bold text-ui-success">
                                     {formatCurrency(metrics.netCash)}
                                 </span>
                             </div>
@@ -632,14 +635,14 @@ export default function Riwayat({ session }) {
                     {activeRecap === 'pengeluaran' && (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500">Total Pengeluaran</span>
-                                <span className="font-bold text-gray-800 dark:text-gray-100">
+                                <span className="text-ui-muted">Total Pengeluaran</span>
+                                <span className="font-bold text-ui-text">
                                     {formatCurrency(metrics.actualExpenses)}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500">Jumlah Transaksi</span>
-                                <span className="font-semibold text-gray-700 dark:text-gray-200">
+                                <span className="text-ui-muted">Jumlah Transaksi</span>
+                                <span className="font-semibold text-ui-text">
                                     {metrics.expensesCount} item
                                 </span>
                             </div>
@@ -649,54 +652,54 @@ export default function Riwayat({ session }) {
                     {activeRecap === 'potongan' && (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500">Estimasi Potongan Aplikasi</span>
-                                <span className="font-semibold text-red-500">
+                                <span className="text-ui-muted">Estimasi Potongan Aplikasi</span>
+                                <span className="font-semibold text-ui-danger">
                                     -{formatCurrency(metrics.appFeeTotal)}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500">Estimasi Bensin</span>
-                                <span className="font-semibold text-red-500">
+                                <span className="text-ui-muted">Estimasi Bensin</span>
+                                <span className="font-semibold text-ui-danger">
                                     -{formatCurrency(metrics.fuelCostTotal)}
                                 </span>
                             </div>
                         </div>
                     )}
-                </div>
+                </Card>
 
                 {/* --- REKAP HARIAN --- */}
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                <Card className="p-4">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200">Rekap Harian Bulan Ini</h3>
-                        <span className="text-xs text-gray-400">Arus kas per hari</span>
+                        <h3 className="text-sm font-bold text-ui-text">Rekap Harian Bulan Ini</h3>
+                        <span className="text-xs text-ui-muted">Arus kas per hari</span>
                     </div>
                     <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
                         {dailyRecapData.length === 0 ? (
-                            <div className="text-center py-6 text-gray-400 text-sm">
+                            <div className="text-center py-6 text-ui-muted text-sm">
                                 Belum ada rekap harian.
                             </div>
                         ) : (
                             dailyRecapData.map((recap) => (
                                 <div
                                     key={format(recap.date, 'yyyy-MM-dd')}
-                                    className="flex items-center justify-between rounded-xl border border-gray-100 dark:border-gray-700 px-4 py-3"
+                                    className="flex items-center justify-between rounded-ui-lg border border-ui-border px-4 py-3"
                                 >
                                     <div>
-                                        <p className="text-xs text-gray-400">
+                                        <p className="text-xs text-ui-muted">
                                             {format(recap.date, 'EEEE, dd MMM', { locale: id })}
                                         </p>
-                                        <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                        <p className="text-sm font-semibold text-ui-text">
                                             {format(recap.date, 'dd/MM/yyyy')}
                                         </p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-xs text-gray-400">
-                                            Masuk: <span className="text-green-600">+{formatCurrency(recap.income)}</span>
+                                        <p className="text-xs text-ui-muted">
+                                            Masuk: <span className="text-ui-success">+{formatCurrency(recap.income)}</span>
                                         </p>
-                                        <p className="text-xs text-gray-400">
-                                            Keluar: <span className="text-red-500">-{formatCurrency(recap.expense)}</span>
+                                        <p className="text-xs text-ui-muted">
+                                            Keluar: <span className="text-ui-danger">-{formatCurrency(recap.expense)}</span>
                                         </p>
-                                        <p className={`text-sm font-bold ${recap.net >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                        <p className={`text-sm font-bold ${recap.net >= 0 ? 'text-ui-success' : 'text-ui-danger'}`}>
                                             {recap.net >= 0 ? '+' : '-'}{formatCurrency(Math.abs(recap.net))}
                                         </p>
                                     </div>
@@ -704,11 +707,11 @@ export default function Riwayat({ session }) {
                             ))
                         )}
                     </div>
-                </div>
+                </Card>
 
                 {/* --- CHART 7 HARI --- */}
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                   <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4">Tren 7 Hari Terakhir</h3>
+                <Card className="p-4">
+                   <h3 className="text-sm font-bold text-ui-text mb-4">Tren 7 Hari Terakhir</h3>
                    <div className="h-40 w-full">
                      <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={chartData}>
@@ -716,7 +719,7 @@ export default function Riwayat({ session }) {
                               dataKey="label" 
                               axisLine={false} 
                               tickLine={false} 
-                              tick={{fontSize: 10, fill: '#9ca3af'}} 
+                              tick={{fontSize: 10, fill: 'var(--ui-color-muted)'}} 
                            />
                            <Tooltip 
                               cursor={{fill: 'transparent'}}
@@ -724,44 +727,44 @@ export default function Riwayat({ session }) {
                            />
                            <Bar dataKey="net" radius={[4, 4, 0, 0]}>
                               {chartData.map((entry, index) => (
-                                 <Cell key={`cell-${index}`} fill={entry.net >= 0 ? '#10b981' : '#ef4444'} />
+                                 <Cell key={`cell-${index}`} fill={entry.net >= 0 ? 'var(--ui-color-success)' : 'var(--ui-color-danger)'} />
                               ))}
                            </Bar>
                         </BarChart>
                      </ResponsiveContainer>
                    </div>
-                </div>
+                </Card>
 
                 {/* --- DAFTAR TRANSAKSI --- */}
                 <div className="pb-10">
-                    <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 px-1">Riwayat Transaksi</h3>
+                    <h3 className="text-sm font-bold text-ui-text mb-3 px-1">Riwayat Transaksi</h3>
                     <div className="space-y-3">
                         {visibleTransactions.length === 0 ? (
-                            <div className="text-center py-8 text-gray-400 text-sm">
+                            <div className="text-center py-8 text-ui-muted text-sm">
                                 Belum ada data hari ini.
                             </div>
                         ) : (
                             visibleTransactions.map((t) => (
-                                <div key={`${t.type}-${t.id}`} className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                                <Card key={`${t.type}-${t.id}`} className="p-4 flex justify-between items-center">
                                     <div className="flex items-center gap-3">
                                         <div className={`p-2 rounded-full ${
                                             t.type === 'income' 
-                                            ? 'bg-green-100 text-green-600 dark:bg-green-900/30' 
-                                            : 'bg-red-100 text-red-600 dark:bg-red-900/30'
+                                            ? 'bg-ui-success/10 text-ui-success' 
+                                            : 'bg-ui-danger/10 text-ui-danger'
                                         }`}>
                                             {t.type === 'income' ? <Plus size={18} /> : <Minus size={18} />}
                                         </div>
                                         <div>
-                                            <p className="font-bold text-gray-800 dark:text-gray-100 text-sm">
+                                            <p className="font-bold text-ui-text text-sm">
                                                 {t.type === 'income' ? 'Order Masuk' : (t.category || 'Pengeluaran')}
                                             </p>
-                                            <p className="text-xs text-gray-400">
+                                            <p className="text-xs text-ui-muted">
                                                 {formatTime(t.created_at)} • {t.type === 'income' ? `${t.distance || 0} km` : t.note || t.description || '-'}
                                             </p>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className={`font-bold text-sm ${t.type === 'income' ? 'text-green-600' : 'text-red-500'}`}>
+                                        <p className={`font-bold text-sm ${t.type === 'income' ? 'text-ui-success' : 'text-ui-danger'}`}>
                                             {t.type === 'income' ? '+' : '-'}{formatCurrency(t.displayAmount)}
                                         </p>
                                         <div className="mt-1 flex items-center justify-end gap-2">
@@ -769,7 +772,7 @@ export default function Riwayat({ session }) {
                                                 <button
                                                     type="button"
                                                     onClick={() => setEditingOrder(t)}
-                                                    className="text-xs text-gray-300 hover:text-maxim-yellow flex items-center gap-1"
+                                                    className="text-xs text-ui-muted hover:text-ui-primary flex items-center gap-1"
                                                 >
                                                     <Edit2 size={12} /> Edit
                                                 </button>
@@ -777,25 +780,25 @@ export default function Riwayat({ session }) {
                                             <button 
                                                 type="button"
                                                 onClick={() => requestDelete(t.id, t.type)}
-                                                className="text-xs text-gray-300 hover:text-red-400 flex items-center gap-1"
+                                                className="text-xs text-ui-muted hover:text-ui-danger flex items-center gap-1"
                                             >
                                                <Trash2 size={12} /> Hapus
                                             </button>
                                         </div>
                                     </div>
-                                </div>
+                                </Card>
                             ))
                         )}
                     </div>
                     {canLoadMore && (
                         <div className="flex justify-center pt-4">
-                            <button
+                            <PrimaryButton
                                 type="button"
                                 onClick={handleLoadMore}
-                                className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                                className="rounded-full bg-ui-surface px-4 py-2 text-sm font-semibold text-ui-text border border-ui-border shadow-none hover:bg-ui-surface-muted"
                             >
                                 Muat lebih banyak
-                            </button>
+                            </PrimaryButton>
                         </div>
                     )}
                 </div>
@@ -805,7 +808,7 @@ export default function Riwayat({ session }) {
             <div className="absolute bottom-6 right-5 z-20">
                 <button
                     onClick={() => setShowExpenseModal(true)}
-                    className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full shadow-lg shadow-red-500/30 transition-all active:scale-95 flex items-center gap-2"
+                    className="bg-ui-danger hover:bg-ui-danger/90 text-white p-4 rounded-full shadow-ui-lg transition-all active:scale-95 flex items-center gap-2"
                 >
                     <Minus size={24} />
                 </button>
