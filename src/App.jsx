@@ -60,25 +60,21 @@ function AppShell({ showToast }) {
         <div
             className="bg-ui-background text-ui-text font-sans"
             style={{
-                '--bottom-nav-height': '64px',
-                '--bottom-nav-offset': 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))',
                 minHeight: '100dvh',
-                paddingBottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
-                position: 'relative',
-                overflow: 'hidden'
+                position: 'relative'
             }}
         >
+            {/* Main content with padding for navigation */}
             <main 
-                className="relative z-0"
                 style={{
-                    minHeight: 'calc(100dvh - 64px - env(safe-area-inset-bottom, 0px))',
-                    maxHeight: 'calc(100dvh - 64px - env(safe-area-inset-bottom, 0px))',
-                    overflow: 'auto'
+                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
+                    minHeight: '100dvh'
                 }}
             >
                 <AnimatedRoutes showToast={showToast} />
             </main>
 
+            {/* Bottom navigation - rendered last so it's on top */}
             <BottomNavigation />
         </div>
     );

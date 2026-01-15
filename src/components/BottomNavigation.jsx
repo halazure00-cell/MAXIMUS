@@ -1,146 +1,156 @@
-import React, { useEffect, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Calculator, Map, History, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-// Singleton portal container - created once, reused always
-let portalRoot = null;
-const getPortalRoot = () => {
-    if (!portalRoot) {
-        portalRoot = document.createElement('div');
-        portalRoot.id = 'bottom-nav-portal';
-        portalRoot.setAttribute('data-navigation', 'true');
-        document.body.appendChild(portalRoot);
-    }
-    return portalRoot;
-};
+/**
+ * BottomNavigation - Simple fixed bottom navigation
+ * Uses Link components for navigation (most reliable)
+ */
+
+const NAV_ITEMS = [
+    { path: '/', label: 'Hitung', icon: Calculator },
+    { path: '/map', label: 'Peta', icon: Map },
+    { path: '/history', label: 'Riwayat', icon: History },
+    { path: '/profile', label: 'Profil', icon: User },
+];
 
 const BottomNavigation = () => {
-    const navigate = useNavigate();
     const location = useLocation();
-    const containerRef = useRef(getPortalRoot());
-    
-    const navItems = [
-        { path: '/', label: 'Hitung', icon: Calculator },
-        { path: '/map', label: 'Peta', icon: Map },
-        { path: '/history', label: 'Riwayat', icon: History },
-        { path: '/profile', label: 'Profil', icon: User },
-    ];
+    const [clickedPath, setClickedPath] = useState(null);
 
-    // Direct click handler on button - simplest approach
-    const onNavClick = (path) => (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        navigate(path);
+    const handleLinkClick = (path) => {
+        setClickedPath(path);
+        setTimeout(() => setClickedPath(null), 300);
     };
 
-    const navContent = (
-        <nav 
-            id="main-bottom-nav"
+    return (
+        <nav
+            id="bottom-navigation"
+            role="navigation"
+            aria-label="Main navigation"
             style={{
                 position: 'fixed',
                 bottom: 0,
                 left: 0,
                 right: 0,
-                zIndex: 2147483647, // Maximum z-index
+                zIndex: 999999,
                 backgroundColor: 'var(--ui-color-surface, #ffffff)',
                 borderTop: '1px solid var(--ui-color-border, #e5e7eb)',
                 paddingBottom: 'env(safe-area-inset-bottom, 0px)',
                 pointerEvents: 'auto',
                 touchAction: 'manipulation',
-                isolation: 'isolate'
+                isolation: 'isolate',
+                contain: 'layout style'
             }}
         >
-            <div 
+            <div
                 style={{
                     display: 'flex',
                     justifyContent: 'space-around',
                     alignItems: 'center',
                     height: '64px',
-                    pointerEvents: 'auto'
+                    width: '100%'
                 }}
             >
-                {navItems.map((item) => {
+                {NAV_ITEMS.map((item) => {
                     const isActive = location.pathname === item.path;
+                    const wasClicked = clickedPath === item.path;
                     const IconComponent = item.icon;
-                    
+
                     return (
-                        <button
+                        <Link
                             key={item.path}
-                            data-nav-path={item.path}
-                            onClick={onNavClick(item.path)}
-                            onTouchEnd={onNavClick(item.path)}
-                            type="button"
+                            to={item.path}
+                            onClick={() => handleLinkClick(item.path)}
+                            role="tab"
+                            aria-selected={isActive}
+                            aria-label={item.label}
                             style={{
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                width: '25%',
+                                flex: '1',
                                 height: '100%',
+                                minHeight: '64px',
                                 gap: '4px',
-                                background: 'none',
-                                border: 'none',
-                                padding: 0,
+                                background: wasClicked ? 'rgba(0,0,0,0.05)' : 'transparent',
+                                textDecoration: 'none',
+                                padding: '8px',
                                 cursor: 'pointer',
                                 pointerEvents: 'auto',
                                 touchAction: 'manipulation',
-                                WebkitTapHighlightColor: 'transparent',
-                                userSelect: 'none',
-                                color: isActive ? 'var(--ui-color-text)' : 'var(--ui-color-muted)'
+                                WebkitTapHighlightColor: 'rgba(0,0,0,0.1)',
+                                outline: 'none',
+                                position: 'relative',
+                                transition: 'background-color 0.15s ease',
+                                color: isActive 
+                                    ? 'var(--ui-color-text, #1f2937)' 
+                                    : 'var(--ui-color-muted, #6b7280)'
                             }}
                         >
+                            {/* Active indicator */}
                             {isActive && (
                                 <motion.div
-                                    layoutId="activeTab"
+                                    layoutId="bottomNavIndicator"
                                     style={{
                                         position: 'absolute',
-                                        top: '-1px',
-                                        left: '25%',
-                                        right: '25%',
-                                        height: '2px',
-                                        backgroundColor: 'var(--ui-color-primary)',
-                                        borderRadius: '9999px'
+                                        top: 0,
+                                        left: '20%',
+                                        right: '20%',
+                                        height: '3px',
+                                        backgroundColor: 'var(--ui-color-primary, #ffd54a)',
+                                        borderRadius: '0 0 4px 4px'
                                     }}
                                     initial={false}
-                                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                    transition={{ 
+                                        type: "spring", 
+                                        stiffness: 400, 
+                                        damping: 30 
+                                    }}
                                 />
                             )}
-                            <div 
+
+                            {/* Icon */}
+                            <div
                                 style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
                                     padding: '6px',
                                     borderRadius: '8px',
-                                    backgroundColor: isActive ? 'var(--ui-color-primary)' : 'transparent',
+                                    backgroundColor: isActive 
+                                        ? 'var(--ui-color-primary, #ffd54a)' 
+                                        : 'transparent',
+                                    transition: 'background-color 0.15s ease',
                                     pointerEvents: 'none'
                                 }}
                             >
-                                <IconComponent 
-                                    style={{ 
-                                        width: '24px', 
-                                        height: '24px',
-                                        pointerEvents: 'none'
-                                    }} 
-                                    strokeWidth={2} 
+                                <IconComponent
+                                    size={22}
+                                    strokeWidth={isActive ? 2.5 : 2}
+                                    style={{ pointerEvents: 'none' }}
                                 />
                             </div>
-                            <span 
+
+                            {/* Label */}
+                            <span
                                 style={{
-                                    fontSize: '12px',
-                                    fontWeight: isActive ? 700 : 500,
+                                    fontSize: '11px',
+                                    fontWeight: isActive ? 600 : 500,
+                                    lineHeight: 1,
                                     pointerEvents: 'none'
                                 }}
                             >
                                 {item.label}
                             </span>
-                        </button>
+                        </Link>
                     );
                 })}
             </div>
         </nav>
     );
-
-    return createPortal(navContent, containerRef.current);
 };
 
 export default BottomNavigation;

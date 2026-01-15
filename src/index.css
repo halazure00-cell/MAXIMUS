@@ -58,20 +58,28 @@
 
 /* --- Leaflet stacking order fixes --- */
 .leaflet-container {
-  z-index: 0;
+  z-index: 0 !important;
+  position: relative !important;
 }
 
+/* All leaflet panes stay within container bounds */
 .leaflet-pane {
-  z-index: 100;
+  z-index: 100 !important;
 }
 
 .leaflet-top,
 .leaflet-bottom {
-  z-index: 400;
+  z-index: 400 !important;
 }
 
 .leaflet-popup {
-  z-index: 600;
+  z-index: 600 !important;
+}
+
+/* CRITICAL: Prevent leaflet from capturing events outside its container */
+.leaflet-container,
+.leaflet-container * {
+  contain: layout style;
 }
 
 /* Hide scrollbar but keep scrolling */
@@ -162,34 +170,34 @@
   box-shadow: 0 0 12px rgba(255, 215, 0, 0.7);
 }
 
-/* Bottom Navigation Portal Styles */
-#bottom-nav-portal {
+/* Bottom Navigation Styles (No Portal) */
+#bottom-navigation {
   position: fixed !important;
   bottom: 0 !important;
   left: 0 !important;
   right: 0 !important;
-  z-index: 2147483647 !important; /* Maximum possible z-index */
+  z-index: 999999 !important;
   pointer-events: auto !important;
   isolation: isolate !important;
+  contain: layout !important;
 }
 
-#bottom-nav-portal * {
+#bottom-navigation * {
   pointer-events: auto !important;
 }
 
-#main-bottom-nav {
-  pointer-events: auto !important;
-}
-
-#main-bottom-nav button {
+#bottom-navigation button {
   pointer-events: auto !important;
   cursor: pointer !important;
   -webkit-tap-highlight-color: transparent !important;
+  touch-action: manipulation !important;
 }
 
-/* Leaflet z-index overrides - keep very low */
+/* Leaflet z-index overrides - MUST stay below navigation */
 .leaflet-container {
   z-index: 0 !important;
+  max-height: calc(100dvh - 64px - env(safe-area-inset-bottom, 0px)) !important;
+  overflow: hidden !important;
 }
 
 .leaflet-pane {
@@ -236,7 +244,7 @@
 
 /* Ensure touch events work on navigation */
 @media (pointer: coarse) {
-  #bottom-nav-portal button {
+  #bottom-navigation button {
     min-height: 44px !important;
     min-width: 44px !important;
   }

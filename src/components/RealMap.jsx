@@ -269,14 +269,19 @@ export default function RealMap() {
 
     return (
         <div 
-            className="relative w-full overflow-hidden" 
+            className="relative w-full" 
             style={{ 
                 height: 'calc(100dvh - 64px - env(safe-area-inset-bottom, 0px))',
                 maxHeight: 'calc(100dvh - 64px - env(safe-area-inset-bottom, 0px))',
-                zIndex: 0
+                overflow: 'hidden',
+                position: 'relative'
             }}
         >
-            <div className="absolute inset-0 z-[100] pointer-events-none">
+            {/* Overlay UI elements - above map but below navigation */}
+            <div 
+                className="absolute inset-0 pointer-events-none"
+                style={{ zIndex: 500 }}
+            >
                 <div className="absolute left-4 top-4 pointer-events-auto">
                     <PrimaryButton
                         type="button"
@@ -289,24 +294,28 @@ export default function RealMap() {
                 <StrategyCard recommendation={currentRecommendation} />
                 <div className="absolute left-4 right-4 top-20 space-y-2 text-xs text-ui-muted">
                     {spotsLoading && (
-                        <div className="rounded-full bg-ui-surface/90 px-3 py-1 shadow-ui-sm">
+                        <div className="rounded-full bg-ui-surface/90 px-3 py-1 shadow-ui-sm pointer-events-auto">
                             Memuat lokasi strategis…
                         </div>
                     )}
                     {spotsError && (
-                        <div className="rounded-full bg-ui-surface/90 px-3 py-1 shadow-ui-sm">
+                        <div className="rounded-full bg-ui-surface/90 px-3 py-1 shadow-ui-sm pointer-events-auto">
                             Gagal memuat lokasi strategis.
                         </div>
                     )}
                     {geoError && (
-                        <div className="rounded-full bg-ui-surface/90 px-3 py-1 shadow-ui-sm">
+                        <div className="rounded-full bg-ui-surface/90 px-3 py-1 shadow-ui-sm pointer-events-auto">
                             Lokasi tidak tersedia, menampilkan titik default.
                         </div>
                     )}
                 </div>
             </div>
 
-            <div className="w-full h-full" style={{ zIndex: 0 }}>
+            {/* Map container - contained within bounds */}
+            <div 
+                className="absolute inset-0"
+                style={{ zIndex: 1 }}
+            >
                 <MapContainer
                     center={BANDUNG_CENTER}
                     zoom={13}
