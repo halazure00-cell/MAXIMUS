@@ -61,11 +61,12 @@ function AppShell({ showToast, session }) {
             className="bg-maxim-bg text-maxim-dark font-sans"
             style={{
                 '--bottom-nav-height': '64px',
-                minHeight: '100dvh',
-                paddingBottom: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))'
+                '--bottom-nav-offset': 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))',
+                minHeight: 'calc(100dvh - var(--bottom-nav-offset))',
+                paddingBottom: 'var(--bottom-nav-offset)'
             }}
         >
-            <main className="relative z-0">
+            <main className="relative z-0 min-h-[calc(100dvh-var(--bottom-nav-offset))]">
                 <AnimatedRoutes showToast={showToast} session={session} />
             </main>
 
