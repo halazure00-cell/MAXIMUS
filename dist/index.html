@@ -2,12 +2,27 @@
 <html class="dark" lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#FFD700" />
     <title>MAXIMUS Utility</title>
     <meta name="description" content="Professional Utility for Maxim Drivers" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-Cz-F1OLY.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CPYs4DyL.css">
+    <style>
+      /* Critical CSS for navigation - loaded before JS */
+      #bottom-nav-portal {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        z-index: 2147483647 !important;
+        pointer-events: auto !important;
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-CT1CRCnt.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-De-44InA.css">
   <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
   <body class="bg-maxim-bg text-maxim-dark antialiased">
     <div id="root"></div>

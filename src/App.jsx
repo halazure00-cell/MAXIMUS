@@ -62,11 +62,20 @@ function AppShell({ showToast }) {
             style={{
                 '--bottom-nav-height': '64px',
                 '--bottom-nav-offset': 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))',
-                minHeight: 'calc(100dvh - var(--bottom-nav-offset))',
-                paddingBottom: 'var(--bottom-nav-offset)'
+                minHeight: '100dvh',
+                paddingBottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
+                position: 'relative',
+                overflow: 'hidden'
             }}
         >
-            <main className="relative z-0 min-h-[calc(100dvh-var(--bottom-nav-offset))]">
+            <main 
+                className="relative z-0"
+                style={{
+                    minHeight: 'calc(100dvh - 64px - env(safe-area-inset-bottom, 0px))',
+                    maxHeight: 'calc(100dvh - 64px - env(safe-area-inset-bottom, 0px))',
+                    overflow: 'auto'
+                }}
+            >
                 <AnimatedRoutes showToast={showToast} />
             </main>
 

@@ -268,8 +268,15 @@ export default function RealMap() {
     };
 
     return (
-        <div className="relative z-0 w-full overflow-hidden" style={{ height: 'calc(100dvh - 64px - env(safe-area-inset-bottom, 0px))' }}>
-            <div className="absolute inset-0 z-[1000] pointer-events-none">
+        <div 
+            className="relative w-full overflow-hidden" 
+            style={{ 
+                height: 'calc(100dvh - 64px - env(safe-area-inset-bottom, 0px))',
+                maxHeight: 'calc(100dvh - 64px - env(safe-area-inset-bottom, 0px))',
+                zIndex: 0
+            }}
+        >
+            <div className="absolute inset-0 z-[100] pointer-events-none">
                 <div className="absolute left-4 top-4 pointer-events-auto">
                     <PrimaryButton
                         type="button"
@@ -299,14 +306,13 @@ export default function RealMap() {
                 </div>
             </div>
 
-            <div className="w-full h-full">
+            <div className="w-full h-full" style={{ zIndex: 0 }}>
                 <MapContainer
                     center={BANDUNG_CENTER}
                     zoom={13}
                     zoomControl={false}
                     scrollWheelZoom={true}
-                    className="z-[1]"
-                    style={{ height: '100%', width: '100%' }}
+                    style={{ height: '100%', width: '100%', zIndex: 0 }}
                 >
                     <TileLayer
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

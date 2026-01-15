@@ -1,13 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Calculator, Map, History, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+// Singleton portal container - created once, reused always
+let portalRoot = null;
+const getPortalRoot = () => {
+    if (!portalRoot) {
+        portalRoot = document.createElement('div');
+        portalRoot.id = 'bottom-nav-portal';
+        portalRoot.setAttribute('data-navigation', 'true');
+        document.body.appendChild(portalRoot);
+    }
+    return portalRoot;
+};
+
 const BottomNavigation = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const [portalContainer, setPortalContainer] = useState(null);
+    const containerRef = useRef(getPortalRoot());
     
     const navItems = [
         { path: '/', label: 'Hitung', icon: Calculator },
@@ -16,44 +28,64 @@ const BottomNavigation = () => {
         { path: '/profile', label: 'Profil', icon: User },
     ];
 
-    // Create portal container on mount
-    useEffect(() => {
-        let container = document.getElementById('bottom-nav-portal');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'bottom-nav-portal';
-            container.style.cssText = 'position: fixed; bottom: 0; left: 0; right: 0; z-index: 99999; pointer-events: auto;';
-            document.body.appendChild(container);
-        }
-        setPortalContainer(container);
-        
-        return () => {
-            // Don't remove on unmount as other instances might use it
-        };
-    }, []);
+    // Direct navigation handler - bypass all event systems
+    const handleNavigation = useCallback((path) => {
+        // Force navigation using React Router
+        navigate(path, { replace: false });
+    }, [navigate]);
 
-    const handleNavClick = (e, path) => {
-        e.preventDefault();
-        e.stopPropagation();
-        navigate(path);
-    };
+    // Setup global click handler for navigation buttons
+    useEffect(() => {
+        const handleGlobalClick = (e) => {
+            // Find if click was on a nav button
+            const navButton = e.target.closest('[data-nav-path]');
+            if (navButton) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                
+                const path = navButton.getAttribute('data-nav-path');
+                if (path) {
+                    handleNavigation(path);
+                }
+            }
+        };
+
+        // Use capture phase to intercept before Leaflet
+        document.addEventListener('click', handleGlobalClick, true);
+        document.addEventListener('touchend', handleGlobalClick, true);
+
+        return () => {
+            document.removeEventListener('click', handleGlobalClick, true);
+            document.removeEventListener('touchend', handleGlobalClick, true);
+        };
+    }, [handleNavigation]);
 
     const navContent = (
         <nav 
-            className="bg-ui-surface border-t border-ui-border pb-safe"
+            id="main-bottom-nav"
             style={{
-                position: 'relative',
-                width: '100%',
+                position: 'fixed',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                zIndex: 2147483647, // Maximum z-index
                 backgroundColor: 'var(--ui-color-surface, #ffffff)',
                 borderTop: '1px solid var(--ui-color-border, #e5e7eb)',
-                paddingBottom: 'env(safe-area-inset-bottom)',
+                paddingBottom: 'env(safe-area-inset-bottom, 0px)',
                 pointerEvents: 'auto',
-                touchAction: 'manipulation'
+                touchAction: 'manipulation',
+                isolation: 'isolate'
             }}
         >
             <div 
-                className="flex justify-around items-center h-16"
-                style={{ pointerEvents: 'auto' }}
+                style={{
+                    display: 'flex',
+                    justifyContent: 'space-around',
+                    alignItems: 'center',
+                    height: '64px',
+                    pointerEvents: 'auto'
+                }}
             >
                 {navItems.map((item) => {
                     const isActive = location.pathname === item.path;
@@ -62,36 +94,66 @@ const BottomNavigation = () => {
                     return (
                         <button
                             key={item.path}
-                            onClick={(e) => handleNavClick(e, item.path)}
+                            data-nav-path={item.path}
                             type="button"
-                            className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors duration-200 group relative ${isActive ? 'text-ui-text' : 'text-ui-muted hover:text-ui-text'}`}
                             style={{
-                                pointerEvents: 'auto',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '25%',
+                                height: '100%',
+                                gap: '4px',
                                 background: 'none',
                                 border: 'none',
                                 padding: 0,
                                 cursor: 'pointer',
+                                pointerEvents: 'auto',
                                 touchAction: 'manipulation',
-                                WebkitTapHighlightColor: 'transparent'
+                                WebkitTapHighlightColor: 'transparent',
+                                userSelect: 'none',
+                                color: isActive ? 'var(--ui-color-text)' : 'var(--ui-color-muted)'
                             }}
                         >
                             {isActive && (
                                 <motion.div
                                     layoutId="activeTab"
-                                    className="absolute -top-[1px] left-0 right-0 h-[2px] bg-ui-primary w-1/2 mx-auto rounded-full"
+                                    style={{
+                                        position: 'absolute',
+                                        top: '-1px',
+                                        left: '25%',
+                                        right: '25%',
+                                        height: '2px',
+                                        backgroundColor: 'var(--ui-color-primary)',
+                                        borderRadius: '9999px'
+                                    }}
                                     initial={false}
                                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                                 />
                             )}
                             <div 
-                                className={`p-1.5 rounded-ui-lg transition-colors duration-200 ${isActive ? 'bg-ui-primary' : 'bg-transparent group-hover:bg-ui-surface-muted'}`}
-                                style={{ pointerEvents: 'none' }}
+                                style={{
+                                    padding: '6px',
+                                    borderRadius: '8px',
+                                    backgroundColor: isActive ? 'var(--ui-color-primary)' : 'transparent',
+                                    pointerEvents: 'none'
+                                }}
                             >
-                                <IconComponent className={`w-6 h-6 ${isActive ? 'text-ui-text' : ''}`} strokeWidth={2} />
+                                <IconComponent 
+                                    style={{ 
+                                        width: '24px', 
+                                        height: '24px',
+                                        pointerEvents: 'none'
+                                    }} 
+                                    strokeWidth={2} 
+                                />
                             </div>
                             <span 
-                                className={`text-xs font-medium transition-all duration-200 ${isActive ? 'font-bold' : ''}`}
-                                style={{ pointerEvents: 'none' }}
+                                style={{
+                                    fontSize: '12px',
+                                    fontWeight: isActive ? 700 : 500,
+                                    pointerEvents: 'none'
+                                }}
                             >
                                 {item.label}
                             </span>
@@ -102,12 +164,7 @@ const BottomNavigation = () => {
         </nav>
     );
 
-    // Use portal to render outside of the main app DOM tree
-    if (!portalContainer) {
-        return null;
-    }
-
-    return createPortal(navContent, portalContainer);
+    return createPortal(navContent, containerRef.current);
 };
 
 export default BottomNavigation;
