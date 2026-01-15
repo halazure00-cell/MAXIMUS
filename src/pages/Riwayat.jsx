@@ -103,6 +103,47 @@ export default function Riwayat({ session }) {
         return parsed ? parsed >= start && parsed <= end : false;
     };
 
+    const parseNumber = (value) => {
+        const parsed = parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const getCommissionRate = (order) => {
+        const storedRate = parseFloat(order.commission_rate);
+        if (Number.isFinite(storedRate)) return storedRate;
+        return parseFloat(settings.defaultCommission) || 0;
+    };
+
+    const getGrossPrice = (order) => {
+        const storedGross = parseFloat(order.gross_price);
+        if (Number.isFinite(storedGross)) return storedGross;
+        const fallbackPrice = parseFloat(order.price);
+        if (!Number.isFinite(fallbackPrice) || fallbackPrice <= 0) return 0;
+        const rate = getCommissionRate(order);
+        if (rate >= 0 && rate < 1) return fallbackPrice / (1 - rate);
+        return fallbackPrice;
+    };
+
+    const getNetProfit = (order) => {
+        const storedNet = parseFloat(order.net_profit);
+        if (Number.isFinite(storedNet)) return storedNet;
+        const fallbackPrice = parseFloat(order.price);
+        if (Number.isFinite(fallbackPrice)) return fallbackPrice;
+        const gross = getGrossPrice(order);
+        const rate = getCommissionRate(order);
+        return gross * (1 - rate);
+    };
+
+    const getAppFee = (order) => {
+        const storedFee = parseFloat(order.app_fee);
+        if (Number.isFinite(storedFee)) return storedFee;
+        const legacyFee = parseFloat(order.fee);
+        if (Number.isFinite(legacyFee)) return legacyFee;
+        const gross = getGrossPrice(order);
+        const rate = getCommissionRate(order);
+        return gross * rate;
+    };
+
     const calculateFinancials = (orders, expenses) => {
         const { startToday, endToday } = getLocalDateRanges();
         const todayOrders = orders.filter((order) =>
@@ -113,30 +154,26 @@ export default function Riwayat({ session }) {
         );
         const monthOrders = orders;
         const monthExpenses = expenses;
-        const commissionRate = parseFloat(settings.defaultCommission) || 0;
-
         const sumValues = (items, key) =>
-            items.reduce((sum, item) => sum + (parseFloat(item[key]) || 0), 0);
+            items.reduce((sum, item) => sum + parseNumber(item[key]), 0);
+        const sumBy = (items, getter) =>
+            items.reduce((sum, item) => sum + getter(item), 0);
 
-        const todayIncome = sumValues(todayOrders, 'price');
+        const todayNetProfit = sumBy(todayOrders, getNetProfit);
         const todayExpense = sumValues(todayExpenses, 'amount');
-        const monthlyIncome = sumValues(monthOrders, 'price');
+        const monthlyGross = sumBy(monthOrders, getGrossPrice);
+        const monthlyNetProfit = sumBy(monthOrders, getNetProfit);
         const monthlyExpense = sumValues(monthExpenses, 'amount');
-        const monthlyPotongan = monthOrders.reduce((sum, order) => {
-            const hasFee = Object.prototype.hasOwnProperty.call(order, 'fee');
-            const feeValue = hasFee && order.fee !== null
-                ? (parseFloat(order.fee) || 0)
-                : (parseFloat(order.price) || 0) * commissionRate;
-            return sum + feeValue;
-        }, 0);
+        const monthlyPotongan = sumBy(monthOrders, getAppFee);
 
         return {
-            todayIncome,
+            todayNetProfit,
             todayExpense,
-            todayNet: todayIncome - todayExpense,
-            monthlyIncome,
+            todayNet: todayNetProfit - todayExpense,
+            monthlyGross,
+            monthlyNetProfit,
             monthlyExpense,
-            monthlyNet: monthlyIncome - monthlyExpense,
+            monthlyNet: monthlyNetProfit - monthlyExpense,
             monthlyPotongan,
             monthOrders,
             monthExpenses
@@ -189,10 +226,11 @@ export default function Riwayat({ session }) {
     const processFinancials = (orders, expenses, shouldUpdate = () => true) => {
         if (!shouldUpdate()) return;
         const {
-            todayIncome,
+            todayNetProfit,
             todayExpense,
             todayNet,
-            monthlyIncome,
+            monthlyGross,
+            monthlyNetProfit,
             monthlyExpense,
             monthlyNet,
             monthlyPotongan,
@@ -202,7 +240,7 @@ export default function Riwayat({ session }) {
 
         if (shouldUpdate()) {
             setTodayRecap({
-            income: todayIncome,
+            income: todayNetProfit,
             expense: todayExpense,
             net: todayNet
             });
@@ -215,13 +253,13 @@ export default function Riwayat({ session }) {
         }, 0);
 
         let efficiency = 0;
-        if (monthlyIncome > 0) {
-            efficiency = (monthlyNet / monthlyIncome) * 100;
+        if (monthlyGross > 0) {
+            efficiency = (monthlyNetProfit / monthlyGross) * 100;
         }
 
         if (shouldUpdate()) {
             setMetrics({
-            grossIncome: monthlyIncome,
+            grossIncome: monthlyGross,
             actualExpenses: monthlyExpense,
             netCash: monthlyNet,
             efficiencyScore: efficiency,
@@ -251,7 +289,7 @@ export default function Riwayat({ session }) {
                 const expenseDate = parseDate(e.created_at);
                 return expenseDate ? isSameDay(expenseDate, day.date) : false;
             });
-            const dailyIncome = dayOrders.reduce((s, o) => s + (parseFloat(o.price) || 0), 0);
+            const dailyIncome = dayOrders.reduce((s, o) => s + getNetProfit(o), 0);
             const dailyExpense = dayExpenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
             return { ...day, net: dailyIncome - dailyExpense };
         });
@@ -268,7 +306,7 @@ export default function Riwayat({ session }) {
                     expense: 0
                 };
             }
-            acc[key].income += parseFloat(order.price) || 0;
+            acc[key].income += getNetProfit(order);
             return acc;
         }, {});
 
@@ -296,7 +334,7 @@ export default function Riwayat({ session }) {
         if (shouldUpdate()) setDailyRecapData(dailyRecapList);
 
         const combined = [
-            ...monthOrders.map(o => ({ ...o, type: 'income', displayAmount: o.price })),
+            ...monthOrders.map(o => ({ ...o, type: 'income', displayAmount: getNetProfit(o) })),
             ...monthExpenses.map(e => ({ ...e, type: 'expense', displayAmount: e.amount }))
         ].sort((a, b) => {
             const dateA = parseDate(a.created_at);
@@ -361,6 +399,7 @@ export default function Riwayat({ session }) {
                 .from('orders')
                 .update({
                     price: updatedOrder.price,
+                    net_profit: updatedOrder.net_profit ?? updatedOrder.price,
                     distance: updatedOrder.distance,
                     origin: updatedOrder.origin,
                     destination: updatedOrder.destination,
@@ -487,7 +526,7 @@ export default function Riwayat({ session }) {
                             <TrendingUp size={16} className="text-green-600" />
                         </div>
                         <div>
-                            <p className="text-[10px] text-gray-400 font-semibold uppercase">Omzet</p>
+                            <p className="text-[10px] text-gray-400 font-semibold uppercase">Omzet (Gross)</p>
                             <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">
                                 {formatCurrency(metrics.grossIncome)}
                             </p>
@@ -540,7 +579,7 @@ export default function Riwayat({ session }) {
                     {activeRecap === 'omzet' && (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between text-sm">
-                                <span className="text-gray-500">Total Omzet Bulan Ini</span>
+                                <span className="text-gray-500">Total Omzet (Gross) Bulan Ini</span>
                                 <span className="font-bold text-gray-800 dark:text-gray-100">
                                     {formatCurrency(metrics.grossIncome)}
                                 </span>
@@ -552,7 +591,7 @@ export default function Riwayat({ session }) {
                                 </span>
                             </div>
                             <div className="flex items-center justify-between text-sm border-t pt-2 dark:border-gray-700">
-                                <span className="text-gray-500">Sisa Uang (Cashflow)</span>
+                                <span className="text-gray-500">Net Profit</span>
                                 <span className="font-bold text-green-600">
                                     {formatCurrency(metrics.netCash)}
                                 </span>

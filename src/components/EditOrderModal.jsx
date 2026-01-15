@@ -38,7 +38,7 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
 
     useEffect(() => {
         if (!isOpen || !order) return;
-        setPrice(order.price?.toString() ?? '');
+        setPrice(order.net_profit?.toString() ?? order.price?.toString() ?? '');
         setDistance(order.distance?.toString() ?? '');
         setOrigin(order.origin ?? '');
         setDestination(order.destination ?? '');
@@ -54,6 +54,7 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
             const updatedOrder = {
                 ...order,
                 price: price ? parseFloat(price) : 0,
+                net_profit: price ? parseFloat(price) : 0,
                 distance: distance ? parseFloat(distance) : 0,
                 origin: origin.trim(),
                 destination: destination.trim(),
