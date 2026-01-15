@@ -88,21 +88,18 @@ export default function ProfileSettings({ showToast }) {
         inFlightRef.current = true;
         pendingSettingsRef.current = null;
         setSaving(true);
-        const username = nextSettings.username ?? '';
         const full_name = nextSettings.driverName ?? '';
-        const website = nextSettings.website ?? '';
         const updates = {
             id: session.user.id,
-            username,
+            username: nextSettings.username || null,
             full_name,
-            website,
             updated_at: new Date().toISOString(),
-            vehicle_type: nextSettings.vehicleType,
-            daily_target: nextSettings.dailyTarget,
-            default_commission: nextSettings.defaultCommission,
-            fuel_efficiency: nextSettings.fuelEfficiency,
-            maintenance_fee: nextSettings.maintenanceFee,
-            dark_mode: nextSettings.darkMode
+            vehicle_type: nextSettings.vehicleType || 'motor',
+            daily_target: parseFloat(nextSettings.dailyTarget) || 0,
+            default_commission: parseFloat(nextSettings.defaultCommission) || 0.10,
+            fuel_efficiency: parseFloat(nextSettings.fuelEfficiency) || 0,
+            maintenance_fee: parseFloat(nextSettings.maintenanceFee) || 0,
+            dark_mode: Boolean(nextSettings.darkMode)
         };
 
         try {
@@ -112,6 +109,7 @@ export default function ProfileSettings({ showToast }) {
                 if (showToast) {
                     showToast(`Gagal menyimpan profil: ${error.message}`, 'error');
                 }
+                console.error('Profile upsert error:', error);
                 return;
             }
             if (showToast) showToast('Profil tersimpan di Cloud', 'success');
