@@ -22,7 +22,20 @@ import {
     Activity,
     BarChart3,
     Lightbulb,
-    Star
+    Star,
+    MapPin,
+    Navigation,
+    Building2,
+    Train,
+    Plane,
+    GraduationCap,
+    Utensils,
+    TreePine,
+    ShoppingBag,
+    Users,
+    Timer,
+    CircleDot,
+    ExternalLink
 } from 'lucide-react';
 import {
     format,
@@ -48,17 +61,21 @@ import SectionTitle from './SectionTitle';
  * Features:
  * 1. Performance Score - Overall rating berdasarkan efisiensi, konsistensi, dan produktivitas
  * 2. Best Time Analysis - Analisis jam dan hari terbaik untuk bekerja
- * 3. Earning Predictions - Prediksi pendapatan berdasarkan pola historis
- * 4. Smart Recommendations - Tips personalisasi berdasarkan data pengguna
- * 5. Streak & Achievement - Gamifikasi untuk motivasi
+ * 3. Hot Spots Bandung - Rekomendasi lokasi strategis berdasarkan waktu & hari
+ * 4. Earning Predictions - Prediksi pendapatan berdasarkan pola historis
+ * 5. Smart Recommendations - Tips personalisasi berdasarkan data pengguna
+ * 6. Streak & Achievement - Gamifikasi untuk motivasi
  */
 
 export default function Insight({ showToast }) {
     const { settings, session } = useSettings();
     const [orders, setOrders] = useState([]);
     const [expenses, setExpenses] = useState([]);
+    const [strategicSpots, setStrategicSpots] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview');
+    const [userLocation, setUserLocation] = useState(null);
+    const [locationError, setLocationError] = useState(false);
 
     // Fetch data dari Supabase
     useEffect(() => {
@@ -74,7 +91,7 @@ export default function Insight({ showToast }) {
                 // Fetch orders 30 hari terakhir untuk analisis komprehensif
                 const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
                 
-                const [ordersRes, expensesRes] = await Promise.all([
+                const [ordersRes, expensesRes, spotsRes] = await Promise.all([
                     supabase
                         .from('orders')
                         .select('*')
@@ -86,14 +103,19 @@ export default function Insight({ showToast }) {
                         .select('*')
                         .eq('user_id', session.user.id)
                         .gte('created_at', thirtyDaysAgo)
-                        .order('created_at', { ascending: false })
+                        .order('created_at', { ascending: false }),
+                    supabase
+                        .from('strategic_spots')
+                        .select('*')
                 ]);
 
                 if (ordersRes.error) throw ordersRes.error;
                 if (expensesRes.error) throw expensesRes.error;
+                if (spotsRes.error) console.warn('Strategic spots fetch warning:', spotsRes.error);
 
                 setOrders(ordersRes.data || []);
                 setExpenses(expensesRes.data || []);
+                setStrategicSpots(spotsRes.data || []);
             } catch (error) {
                 console.error('Error fetching insight data:', error);
                 if (showToast) {
@@ -106,6 +128,29 @@ export default function Insight({ showToast }) {
 
         fetchData();
     }, [session]);
+
+    // Get user location for distance calculation
+    useEffect(() => {
+        if (!navigator.geolocation) {
+            setLocationError(true);
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setUserLocation({
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                });
+                setLocationError(false);
+            },
+            (error) => {
+                console.warn('Geolocation error:', error);
+                setLocationError(true);
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+        );
+    }, []);
 
     // Helper functions
     const parseDate = (value) => {
@@ -129,6 +174,143 @@ export default function Insight({ showToast }) {
     };
 
     const formatCurrency = (value) => new Intl.NumberFormat('id-ID').format(Math.round(value));
+
+    // Calculate distance between two coordinates (Haversine formula)
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+        const R = 6371; // Earth's radius in km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = 
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    };
+
+    // Get category icon for spots
+    const getCategoryIcon = (category) => {
+        const categoryMap = {
+            'tourism/government': Building2,
+            'transport': Train,
+            'public-space': Users,
+            'mall/tourism': ShoppingBag,
+            'campus': GraduationCap,
+            'campus/food': Utensils,
+            'gateway': Navigation,
+            'food': Utensils,
+            'tourism': TreePine
+        };
+        return categoryMap[category] || MapPin;
+    };
+
+    // Get category color
+    const getCategoryColor = (category) => {
+        const colorMap = {
+            'tourism/government': 'text-ui-info',
+            'transport': 'text-ui-success',
+            'public-space': 'text-ui-warning',
+            'mall/tourism': 'text-ui-primary',
+            'campus': 'text-purple-500',
+            'campus/food': 'text-orange-500',
+            'gateway': 'text-ui-danger',
+            'food': 'text-orange-500',
+            'tourism': 'text-green-500'
+        };
+        return colorMap[category] || 'text-ui-muted';
+    };
+
+    // ============================================================
+    // HOT SPOTS ENGINE - Smart Location Recommendations
+    // ============================================================
+
+    const hotSpots = useMemo(() => {
+        if (strategicSpots.length === 0) {
+            return { active: [], upcoming: [], allSpots: [] };
+        }
+
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentDay = now.getDay(); // 0 = Sunday
+        const isWeekend = currentDay === 0 || currentDay === 6;
+
+        // Filter active spots (within current time window)
+        const activeSpots = strategicSpots.filter(spot => {
+            // Check weekend restriction
+            if (spot.is_weekend_only && !isWeekend) return false;
+            
+            // Check time window
+            const startHour = parseInt(spot.start_hour, 10);
+            const endHour = parseInt(spot.end_hour, 10);
+            
+            return currentHour >= startHour && currentHour < endHour;
+        });
+
+        // Filter upcoming spots (starting in next 3 hours)
+        const upcomingSpots = strategicSpots.filter(spot => {
+            if (spot.is_weekend_only && !isWeekend) return false;
+            
+            const startHour = parseInt(spot.start_hour, 10);
+            const hourDiff = startHour - currentHour;
+            
+            // Starting in 1-3 hours, not already active
+            return hourDiff > 0 && hourDiff <= 3;
+        });
+
+        // Calculate distance and sort by proximity if user location available
+        const enrichSpot = (spot) => {
+            let distance = null;
+            if (userLocation && spot.latitude && spot.longitude) {
+                distance = calculateDistance(
+                    userLocation.lat, userLocation.lng,
+                    parseFloat(spot.latitude), parseFloat(spot.longitude)
+                );
+            }
+            
+            // Calculate urgency score
+            const startHour = parseInt(spot.start_hour, 10);
+            const endHour = parseInt(spot.end_hour, 10);
+            const hoursRemaining = endHour - currentHour;
+            
+            // Priority score: closer spots + more time remaining = higher priority
+            const proximityScore = distance ? Math.max(0, 10 - distance) : 5;
+            const timeScore = Math.min(hoursRemaining * 2, 10);
+            const priorityScore = proximityScore + timeScore;
+
+            return {
+                ...spot,
+                distance,
+                hoursRemaining,
+                priorityScore,
+                timeWindow: `${startHour.toString().padStart(2, '0')}:00 - ${endHour.toString().padStart(2, '0')}:00`
+            };
+        };
+
+        const enrichedActive = activeSpots
+            .map(enrichSpot)
+            .sort((a, b) => b.priorityScore - a.priorityScore);
+
+        const enrichedUpcoming = upcomingSpots
+            .map(enrichSpot)
+            .sort((a, b) => {
+                const aStart = parseInt(a.start_hour, 10);
+                const bStart = parseInt(b.start_hour, 10);
+                return aStart - bStart;
+            });
+
+        // Group spots by unique location for "all spots" view
+        const uniqueLocations = [...new Map(
+            strategicSpots.map(spot => [spot.name, spot])
+        ).values()];
+
+        return {
+            active: enrichedActive.slice(0, 5),
+            upcoming: enrichedUpcoming.slice(0, 3),
+            allSpots: uniqueLocations,
+            currentHour,
+            isWeekend
+        };
+    }, [strategicSpots, userLocation]);
 
     // ============================================================
     // SMART ANALYTICS ENGINE - Algoritma Cerdas
@@ -326,6 +508,7 @@ export default function Insight({ showToast }) {
             efficiencyRate,
             consistency,
             trend,
+            trendPercent,
             streak,
             hourlyData,
             dailyData,
@@ -502,8 +685,59 @@ export default function Insight({ showToast }) {
             });
         }
 
-        return recommendations.slice(0, 5); // Max 5 recommendations
+        // 9. Rekomendasi Hot Spot (berdasarkan strategicSpots state)
+        // This will be handled separately in the component with hotSpots data
+
+        return recommendations.slice(0, 6); // Max 6 recommendations
     }
+
+    // Generate spot-based recommendations
+    const spotRecommendations = useMemo(() => {
+        const recs = [];
+        const currentHour = new Date().getHours();
+
+        if (hotSpots.active.length > 0) {
+            const topSpot = hotSpots.active[0];
+            recs.push({
+                type: 'urgent',
+                icon: MapPin,
+                title: `🔥 ${topSpot.name} Ramai!`,
+                description: `Spot paling potensial saat ini. ${topSpot.notes || 'Segera menuju lokasi.'}`,
+                action: topSpot.distance !== null 
+                    ? `${topSpot.distance.toFixed(1)} km dari sini` 
+                    : 'Buka di Maps'
+            });
+        }
+
+        if (hotSpots.upcoming.length > 0 && hotSpots.active.length < 2) {
+            const nextSpot = hotSpots.upcoming[0];
+            const startHour = parseInt(nextSpot.start_hour, 10);
+            recs.push({
+                type: 'info',
+                icon: Navigation,
+                title: `Bersiap ke ${nextSpot.name}`,
+                description: `Akan ramai jam ${startHour}:00. Posisikan diri lebih awal untuk dapat order pertama.`,
+                action: `${startHour - currentHour} jam lagi`
+            });
+        }
+
+        // Weekend tip
+        const isWeekend = [0, 6].includes(new Date().getDay());
+        if (isWeekend && strategicSpots.some(s => s.is_weekend_only)) {
+            const weekendSpots = strategicSpots.filter(s => s.is_weekend_only);
+            if (weekendSpots.length > 0) {
+                recs.push({
+                    type: 'success',
+                    icon: Star,
+                    title: 'Weekend Bonus!',
+                    description: `Ada ${weekendSpots.length} spot khusus weekend: ${weekendSpots.slice(0, 2).map(s => s.name).join(', ')}.`,
+                    action: 'Maksimalkan weekend'
+                });
+            }
+        }
+
+        return recs;
+    }, [hotSpots, strategicSpots]);
 
     // ============================================================
     // UI COMPONENTS
@@ -656,6 +890,232 @@ export default function Insight({ showToast }) {
                 </Card>
             </div>
 
+            {/* ============================================================ */}
+            {/* HOT SPOTS BANDUNG - Smart Location Recommendations */}
+            {/* ============================================================ */}
+            
+            {/* Active Hot Spots - Currently Prime Time */}
+            {hotSpots.active.length > 0 && (
+                <Card className="p-4 border-2 border-ui-danger/30 bg-gradient-to-br from-ui-danger/5 to-transparent">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                            <div className="p-1.5 bg-ui-danger/20 rounded-ui-md">
+                                <Flame size={16} className="text-ui-danger" />
+                            </div>
+                            <div>
+                                <SectionTitle className="text-ui-danger">Hot Spot Aktif</SectionTitle>
+                                <p className="text-[10px] text-ui-muted">Ramai sekarang • Jam {hotSpots.currentHour}:00</p>
+                            </div>
+                        </div>
+                        <span className="text-[10px] font-medium text-ui-danger bg-ui-danger/10 px-2 py-1 rounded-full animate-pulse">
+                            LIVE
+                        </span>
+                    </div>
+
+                    <div className="space-y-3">
+                        {hotSpots.active.map((spot, idx) => {
+                            const CategoryIcon = getCategoryIcon(spot.category);
+                            return (
+                                <motion.div
+                                    key={`${spot.id}-${idx}`}
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: idx * 0.1 }}
+                                    className={`p-3 rounded-ui-lg border ${
+                                        idx === 0 
+                                            ? 'bg-ui-danger/10 border-ui-danger/30' 
+                                            : 'bg-ui-surface-muted border-ui-border'
+                                    }`}
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <div className={`p-2 rounded-ui-md ${idx === 0 ? 'bg-ui-danger/20' : 'bg-ui-surface'}`}>
+                                            <CategoryIcon size={18} className={idx === 0 ? 'text-ui-danger' : getCategoryColor(spot.category)} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div>
+                                                    <h4 className="text-sm font-bold text-ui-text truncate">{spot.name}</h4>
+                                                    <p className="text-[10px] text-ui-muted capitalize">{spot.category?.replace(/[/-]/g, ' ')}</p>
+                                                </div>
+                                                {idx === 0 && (
+                                                    <span className="text-[9px] font-bold text-ui-danger bg-ui-danger/10 px-1.5 py-0.5 rounded shrink-0">
+                                                        #1
+                                                    </span>
+                                                )}
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-3 mt-2">
+                                                <div className="flex items-center gap-1 text-[10px] text-ui-muted">
+                                                    <Clock size={10} />
+                                                    <span>{spot.timeWindow}</span>
+                                                </div>
+                                                {spot.distance !== null && (
+                                                    <div className="flex items-center gap-1 text-[10px] text-ui-info">
+                                                        <Navigation size={10} />
+                                                        <span>{spot.distance.toFixed(1)} km</span>
+                                                    </div>
+                                                )}
+                                                <div className="flex items-center gap-1 text-[10px] text-ui-warning">
+                                                    <Timer size={10} />
+                                                    <span>{spot.hoursRemaining}j lagi</span>
+                                                </div>
+                                            </div>
+                                            
+                                            {spot.notes && (
+                                                <p className="text-[10px] text-ui-muted mt-2 italic bg-ui-surface/50 px-2 py-1 rounded">
+                                                    💡 {spot.notes}
+                                                </p>
+                                            )}
+                                            
+                                            {/* Google Maps Link */}
+                                            {spot.latitude && spot.longitude && (
+                                                <a
+                                                    href={`https://www.google.com/maps/dir/?api=1&destination=${spot.latitude},${spot.longitude}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-1 mt-2 text-[10px] font-medium text-ui-info hover:text-ui-primary transition-colors"
+                                                >
+                                                    <ExternalLink size={10} />
+                                                    Buka di Maps
+                                                </a>
+                                            )}
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                </Card>
+            )}
+
+            {/* Upcoming Hot Spots */}
+            {hotSpots.upcoming.length > 0 && (
+                <Card className="p-4">
+                    <div className="flex items-center gap-2 mb-4">
+                        <div className="p-1.5 bg-ui-warning/20 rounded-ui-md">
+                            <Sunrise size={16} className="text-ui-warning" />
+                        </div>
+                        <div>
+                            <SectionTitle>Spot Akan Ramai</SectionTitle>
+                            <p className="text-[10px] text-ui-muted">Siap-siap menuju lokasi</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        {hotSpots.upcoming.map((spot, idx) => {
+                            const CategoryIcon = getCategoryIcon(spot.category);
+                            const startHour = parseInt(spot.start_hour, 10);
+                            const hoursUntil = startHour - hotSpots.currentHour;
+                            
+                            return (
+                                <motion.div
+                                    key={`upcoming-${spot.id}-${idx}`}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: idx * 0.1 }}
+                                    className="flex items-center gap-3 p-3 bg-ui-surface-muted rounded-ui-lg border border-ui-border"
+                                >
+                                    <div className="p-2 bg-ui-surface rounded-ui-md">
+                                        <CategoryIcon size={16} className={getCategoryColor(spot.category)} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="text-sm font-medium text-ui-text truncate">{spot.name}</h4>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-[10px] text-ui-warning font-medium">
+                                                Mulai jam {startHour}:00
+                                            </span>
+                                            <span className="text-[10px] text-ui-muted">
+                                                ({hoursUntil} jam lagi)
+                                            </span>
+                                        </div>
+                                    </div>
+                                    {spot.distance !== null && (
+                                        <div className="text-right shrink-0">
+                                            <div className="text-xs font-medium text-ui-text">{spot.distance.toFixed(1)} km</div>
+                                            <div className="text-[10px] text-ui-muted">dari sini</div>
+                                        </div>
+                                    )}
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                </Card>
+            )}
+
+            {/* No Active Spots - Free Mode */}
+            {hotSpots.active.length === 0 && strategicSpots.length > 0 && (
+                <Card className="p-4 bg-gradient-to-br from-ui-surface-muted to-transparent">
+                    <div className="flex items-center gap-3">
+                        <div className="p-3 bg-ui-surface rounded-ui-lg">
+                            <Coffee size={24} className="text-ui-muted" />
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-bold text-ui-text">Mode Santai</h4>
+                            <p className="text-xs text-ui-muted mt-0.5">
+                                Tidak ada spot yang ramai saat ini (jam {hotSpots.currentHour}:00).
+                                {hotSpots.upcoming.length > 0 
+                                    ? ` Spot berikutnya jam ${hotSpots.upcoming[0].start_hour}:00.`
+                                    : ' Coba area perumahan atau jelajahi sekitar.'}
+                            </p>
+                        </div>
+                    </div>
+                </Card>
+            )}
+
+            {/* All Strategic Spots Overview */}
+            {strategicSpots.length > 0 && (
+                <Card className="p-4">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                            <MapPin size={16} className="text-ui-info" />
+                            <SectionTitle>Spot Strategis Bandung</SectionTitle>
+                        </div>
+                        <span className="text-[10px] text-ui-muted bg-ui-surface-muted px-2 py-1 rounded-full">
+                            {hotSpots.allSpots.length} lokasi
+                        </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                        {hotSpots.allSpots.slice(0, 8).map((spot, idx) => {
+                            const CategoryIcon = getCategoryIcon(spot.category);
+                            const isActive = hotSpots.active.some(a => a.name === spot.name);
+                            
+                            return (
+                                <motion.a
+                                    key={spot.name}
+                                    href={`https://www.google.com/maps/search/?api=1&query=${spot.latitude},${spot.longitude}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ delay: idx * 0.05 }}
+                                    className={`p-3 rounded-ui-lg border transition-all hover:border-ui-primary/50 ${
+                                        isActive 
+                                            ? 'bg-ui-success/10 border-ui-success/30' 
+                                            : 'bg-ui-surface-muted border-ui-border'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <CategoryIcon size={14} className={isActive ? 'text-ui-success' : getCategoryColor(spot.category)} />
+                                        {isActive && (
+                                            <CircleDot size={8} className="text-ui-success animate-pulse" />
+                                        )}
+                                    </div>
+                                    <h5 className="text-xs font-medium text-ui-text truncate">{spot.name}</h5>
+                                    <p className="text-[9px] text-ui-muted capitalize truncate">
+                                        {spot.category?.replace(/[/-]/g, ' ')}
+                                    </p>
+                                </motion.a>
+                            );
+                        })}
+                    </div>
+                    
+                    <p className="text-[10px] text-ui-muted text-center mt-3">
+                        Tap lokasi untuk buka di Google Maps
+                    </p>
+                </Card>
+            )}
+
             {/* Best Time Section */}
             <Card className="p-4">
                 <div className="flex items-center gap-2 mb-4">
@@ -774,11 +1234,12 @@ export default function Insight({ showToast }) {
 
                 <div className="space-y-3">
                     <AnimatePresence>
-                        {analytics.recommendations.map((rec, idx) => {
+                        {/* Spot-based recommendations first */}
+                        {spotRecommendations.map((rec, idx) => {
                             const IconComponent = rec.icon;
                             return (
                                 <motion.div
-                                    key={idx}
+                                    key={`spot-${idx}`}
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: idx * 0.1 }}
@@ -802,9 +1263,39 @@ export default function Insight({ showToast }) {
                                 </motion.div>
                             );
                         })}
+                        
+                        {/* Performance-based recommendations */}
+                        {analytics.recommendations.map((rec, idx) => {
+                            const IconComponent = rec.icon;
+                            return (
+                                <motion.div
+                                    key={`perf-${idx}`}
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: (spotRecommendations.length + idx) * 0.1 }}
+                                    className={`p-3 rounded-ui-lg border ${getTypeStyles(rec.type)}`}
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <div className="p-1.5 rounded-ui-md bg-current/10">
+                                            <IconComponent size={16} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h4 className="text-sm font-bold text-ui-text">{rec.title}</h4>
+                                            <p className="text-xs text-ui-muted mt-0.5">{rec.description}</p>
+                                            {rec.action && (
+                                                <div className="flex items-center gap-1 mt-2 text-[10px] font-medium opacity-80">
+                                                    <span>{rec.action}</span>
+                                                    <ChevronRight size={12} />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
                     </AnimatePresence>
 
-                    {analytics.recommendations.length === 0 && (
+                    {analytics.recommendations.length === 0 && spotRecommendations.length === 0 && (
                         <div className="text-center py-6">
                             <Award className="w-12 h-12 text-ui-success mx-auto mb-2" />
                             <p className="text-sm text-ui-text font-medium">Performa Sempurna!</p>
