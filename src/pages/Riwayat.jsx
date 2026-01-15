@@ -480,7 +480,7 @@ export default function Riwayat() {
     };
 
     const handleSaveExpense = async (expenseData) => {
-        if (!user) {
+        if (!session?.user) {
             showToast('Terjadi kesalahan: Sesi habis. Silakan login ulang.', 'error');
             return;
         }
@@ -491,7 +491,7 @@ export default function Riwayat() {
             const { error } = await supabase
                 .from('expenses')
                 .insert([{
-                    user_id: user.id,
+                    user_id: session.user.id,
                     amount: parseFloat(expenseData.amount || expenseData.price || 0),
                     category: expenseData.category || 'Lainnya',
                     note: expenseData.note || '',
@@ -505,7 +505,7 @@ export default function Riwayat() {
             setShowExpenseModal(false);
             showToast('Data berhasil disimpan!', 'success');
         } catch (error) {
-            console.error('Gagal simpan pengeluaran:', error);
+            console.error('Error saving expense:', error);
             showToast('Terjadi kesalahan: ' + (error.message || JSON.stringify(error)), 'error');
         }
     };
