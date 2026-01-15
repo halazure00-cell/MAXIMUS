@@ -4,9 +4,53 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --ui-color-primary: #ffd54a;
+    --ui-color-primary-strong: #f5c91d;
+    --ui-color-primary-soft: #fff4c2;
+    --ui-color-background: #f3f4f6;
+    --ui-color-surface: #ffffff;
+    --ui-color-surface-muted: #f8fafc;
+    --ui-color-text: #1f2937;
+    --ui-color-muted: #6b7280;
+    --ui-color-border: #e5e7eb;
+    --ui-color-success: #16a34a;
+    --ui-color-danger: #ef4444;
+    --ui-color-warning: #f59e0b;
+    --ui-color-info: #2563eb;
+    --ui-color-inverse: #111827;
+
+    --ui-radius-sm: 0.5rem;
+    --ui-radius-md: 0.75rem;
+    --ui-radius-lg: 1rem;
+    --ui-radius-xl: 1.5rem;
+
+    --ui-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08);
+    --ui-shadow-md: 0 6px 16px rgba(15, 23, 42, 0.12);
+    --ui-shadow-lg: 0 16px 32px rgba(15, 23, 42, 0.16);
+
+    --ui-font-body: 'Inter', system-ui, sans-serif;
+    --ui-font-display: 'Outfit', 'Inter', system-ui, sans-serif;
+  }
+
+  .dark {
+    --ui-color-primary: #f9d84a;
+    --ui-color-primary-strong: #f2c21f;
+    --ui-color-primary-soft: #3b3320;
+    --ui-color-background: #0f172a;
+    --ui-color-surface: #111827;
+    --ui-color-surface-muted: #1f2937;
+    --ui-color-text: #f9fafb;
+    --ui-color-muted: #9ca3af;
+    --ui-color-border: #1f2937;
+    --ui-color-inverse: #f9fafb;
+  }
+}
+
+@layer base {
   body {
-    @apply bg-maxim-bg text-maxim-dark antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    @apply bg-ui-background text-ui-text antialiased;
+    font-family: var(--ui-font-body);
   }
 }
 
@@ -65,7 +109,7 @@
 
 /* User Location Marker */
 .user-marker-pulse {
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.35) 0%, rgba(59, 130, 246, 0.15) 45%, rgba(59, 130, 246, 0) 70%);
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.35) 0%, rgba(37, 99, 235, 0.15) 45%, rgba(37, 99, 235, 0) 70%);
   border-radius: 50%;
   height: 44px;
   width: 44px;
@@ -77,7 +121,7 @@
 }
 
 .user-marker-dot {
-  background: #3b82f6;
+  background: var(--ui-color-info);
   border-radius: 50%;
   height: 10px;
   width: 10px;
@@ -86,14 +130,14 @@
   top: 50%;
   transform: translate(-50%, -50%);
   border: 2px solid #ffffff;
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.25), 0 0 8px rgba(59, 130, 246, 0.6);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.25), 0 0 8px rgba(37, 99, 235, 0.6);
   animation: radar-glow 1.6s ease-in-out infinite;
 }
 
 /* Active Strategy Marker */
 .active-strategy-ring {
-  background: radial-gradient(circle, rgba(255, 215, 0, 0.22) 0%, rgba(255, 215, 0, 0.1) 50%, rgba(255, 215, 0, 0) 72%);
-  border: 2px solid rgba(255, 215, 0, 0.9);
+  background: radial-gradient(circle, rgba(255, 213, 74, 0.22) 0%, rgba(255, 213, 74, 0.1) 50%, rgba(255, 213, 74, 0) 72%);
+  border: 2px solid rgba(255, 213, 74, 0.9);
   border-radius: 50%;
   height: 54px;
   width: 54px;
@@ -105,7 +149,7 @@
 }
 
 .active-strategy-pin {
-  background-color: #ffd700;
+  background-color: var(--ui-color-primary);
   width: 14px;
   height: 14px;
   border-radius: 50%;
