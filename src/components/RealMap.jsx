@@ -302,7 +302,8 @@ export default function RealMap() {
             <div className="relative h-full w-full">
                 <div
                     aria-hidden="true"
-                    className="absolute bottom-0 left-0 right-0 z-10 h-[var(--bottom-nav-height)] pointer-events-auto"
+                    className="absolute bottom-0 left-0 right-0 z-50 h-[var(--bottom-nav-height)] pointer-events-none"
+                    style={{pointerEvents: 'none'}}
                 />
                 <MapContainer
                     center={BANDUNG_CENTER}

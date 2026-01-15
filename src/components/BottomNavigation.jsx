@@ -12,8 +12,8 @@ const BottomNavigation = () => {
     ];
 
     return (
-        <nav className="fixed bottom-0 left-0 right-0 bg-ui-surface border-t border-ui-border pb-safe z-[9999] pointer-events-auto isolate">
-            <div className="flex justify-around items-center h-16 relative">
+        <nav className="fixed bottom-0 left-0 right-0 bg-ui-surface border-t border-ui-border pb-safe z-[9999] pointer-events-auto isolate" style={{pointerEvents: 'auto'}}>
+            <div className="flex justify-around items-center h-16 relative" style={{pointerEvents: 'auto'}}>
                 {navItems.map((item) => (
                     <NavLink
                         key={item.path}
@@ -22,6 +22,7 @@ const BottomNavigation = () => {
                             `flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors duration-200 group relative ${isActive ? 'text-ui-text' : 'text-ui-muted hover:text-ui-text'
                             }`
                         }
+                        style={{pointerEvents: 'auto'}}
                     >
                         {({ isActive }) => (
                             <>
@@ -33,7 +34,7 @@ const BottomNavigation = () => {
                                         transition={{ type: "spring", stiffness: 500, damping: 30 }}
                                     />
                                 )}
-                                <div className={`p-1.5 rounded-ui-lg transition-colors duration-200 ${isActive ? 'bg-ui-primary' : 'bg-transparent group-hover:bg-ui-surface-muted'}`}>
+                                <div className={`p-1.5 rounded-ui-lg transition-colors duration-200 ${isActive ? 'bg-ui-primary' : 'bg-transparent group-hover:bg-ui-surface-muted'}`} style={{pointerEvents: 'auto'}}>
                                     <item.icon className={`w-6 h-6 ${isActive ? 'text-ui-text' : 'currentColor'}`} strokeWidth={2} />
                                 </div>
                                 <span className={`text-xs font-medium transition-all duration-200 ${isActive ? 'font-bold' : ''}`}>{item.label}</span>
