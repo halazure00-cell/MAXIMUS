@@ -748,30 +748,28 @@ export default function Riwayat() {
                 </Card>
 
                 {/* --- CHART 7 HARI --- */}
-                <Card className="p-4 w-full overflow-hidden">
+                <Card className="p-4 w-full">
                    <SectionTitle className="mb-4 text-[10px] tracking-[0.25em]">Tren 7 Hari Terakhir</SectionTitle>
                    {chartData && chartData.length > 0 ? (
-                     <div className="w-full" style={{height: '250px'}}>
-                       <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                             <XAxis 
-                                dataKey="label" 
-                                axisLine={false} 
-                                tickLine={false} 
-                                tick={{fontSize: 10, fill: 'var(--ui-color-muted)'}} 
-                             />
-                             <Tooltip 
-                                cursor={{fill: 'transparent'}}
-                                contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
-                             />
-                             <Bar dataKey="net" radius={[4, 4, 0, 0]}>
-                                {chartData.map((entry, index) => (
-                                   <Cell key={`cell-${index}`} fill={entry.net >= 0 ? 'var(--ui-color-success)' : 'var(--ui-color-danger)'} />
-                                ))}
-                             </Bar>
-                          </BarChart>
-                       </ResponsiveContainer>
-                     </div>
+                     <ResponsiveContainer width="100%" height={250} minHeight={250}>
+                       <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                          <XAxis 
+                             dataKey="label" 
+                             axisLine={false} 
+                             tickLine={false} 
+                             tick={{fontSize: 10, fill: 'var(--ui-color-muted)'}} 
+                          />
+                          <Tooltip 
+                             cursor={{fill: 'transparent'}}
+                             contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
+                          />
+                          <Bar dataKey="net" radius={[4, 4, 0, 0]}>
+                             {chartData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.net >= 0 ? 'var(--ui-color-success)' : 'var(--ui-color-danger)'} />
+                             ))}
+                          </Bar>
+                       </BarChart>
+                     </ResponsiveContainer>
                    ) : (
                      <div className="h-40 w-full flex items-center justify-center text-ui-muted text-sm">
                        Belum ada data untuk ditampilkan
