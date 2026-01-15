@@ -28,38 +28,12 @@ const BottomNavigation = () => {
         { path: '/profile', label: 'Profil', icon: User },
     ];
 
-    // Direct navigation handler - bypass all event systems
-    const handleNavigation = useCallback((path) => {
-        // Force navigation using React Router
-        navigate(path, { replace: false });
-    }, [navigate]);
-
-    // Setup global click handler for navigation buttons
-    useEffect(() => {
-        const handleGlobalClick = (e) => {
-            // Find if click was on a nav button
-            const navButton = e.target.closest('[data-nav-path]');
-            if (navButton) {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                
-                const path = navButton.getAttribute('data-nav-path');
-                if (path) {
-                    handleNavigation(path);
-                }
-            }
-        };
-
-        // Use capture phase to intercept before Leaflet
-        document.addEventListener('click', handleGlobalClick, true);
-        document.addEventListener('touchend', handleGlobalClick, true);
-
-        return () => {
-            document.removeEventListener('click', handleGlobalClick, true);
-            document.removeEventListener('touchend', handleGlobalClick, true);
-        };
-    }, [handleNavigation]);
+    // Direct click handler on button - simplest approach
+    const onNavClick = (path) => (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        navigate(path);
+    };
 
     const navContent = (
         <nav 
@@ -95,6 +69,8 @@ const BottomNavigation = () => {
                         <button
                             key={item.path}
                             data-nav-path={item.path}
+                            onClick={onNavClick(item.path)}
+                            onTouchEnd={onNavClick(item.path)}
                             type="button"
                             style={{
                                 display: 'flex',
