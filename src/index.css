@@ -161,3 +161,40 @@
   border: 2px solid #ffffff;
   box-shadow: 0 0 12px rgba(255, 215, 0, 0.7);
 }
+
+/* Leaflet map pointer events fix for navigation */
+.leaflet-container {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 1 !important;
+  height: 100% !important;
+  width: 100% !important;
+}
+
+/* Ensure bottom navigation is always interactive */
+nav[class*="fixed"][class*="bottom"] {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 9999 !important;
+  pointer-events: auto !important;
+}
+
+nav[class*="fixed"][class*="bottom"] > * {
+  pointer-events: auto !important;
+}
+
+nav[class*="fixed"][class*="bottom"] a {
+  pointer-events: auto !important;
+}
+
+/* Block leaflet from intercepting navigation clicks */
+.leaflet-top {
+  z-index: 400 !important;
+}
+
+.leaflet-bottom {
+  z-index: 400 !important;
+}
