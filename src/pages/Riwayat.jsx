@@ -235,6 +235,9 @@ export default function Riwayat() {
             const startMonthIso = toUtcIsoString(startMonth);
             const endMonthIso = toUtcIsoString(endMonth);
 
+            console.log('Fetching orders for user:', session.user.id);
+            console.log('Date range:', startMonthIso, 'to', endMonthIso);
+
             const { data: ordersData, error: ordersError } = await supabase
                 .from('orders')
                 .select('*')
@@ -243,9 +246,15 @@ export default function Riwayat() {
                 .lte('created_at', endMonthIso)
                 .order('created_at', { ascending: false });
 
-            if (ordersError) throw ordersError;
+            if (ordersError) {
+                console.error('Orders fetch error:', ordersError);
+                throw ordersError;
+            }
 
             console.log('Total Orders Fetched:', ordersData?.length ?? 0);
+            if (ordersData && ordersData.length > 0) {
+                console.log('Sample order:', ordersData[0]);
+            }
 
             const { data: expensesData, error: expensesError } = await supabase
                 .from('expenses')
@@ -741,27 +750,33 @@ export default function Riwayat() {
                 {/* --- CHART 7 HARI --- */}
                 <Card className="p-4">
                    <SectionTitle className="mb-4 text-[10px] tracking-[0.25em]">Tren 7 Hari Terakhir</SectionTitle>
-                   <div className="h-40 w-full">
-                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chartData}>
-                           <XAxis 
-                              dataKey="label" 
-                              axisLine={false} 
-                              tickLine={false} 
-                              tick={{fontSize: 10, fill: 'var(--ui-color-muted)'}} 
-                           />
-                           <Tooltip 
-                              cursor={{fill: 'transparent'}}
-                              contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
-                           />
-                           <Bar dataKey="net" radius={[4, 4, 0, 0]}>
-                              {chartData.map((entry, index) => (
-                                 <Cell key={`cell-${index}`} fill={entry.net >= 0 ? 'var(--ui-color-success)' : 'var(--ui-color-danger)'} />
-                              ))}
-                           </Bar>
-                        </BarChart>
-                     </ResponsiveContainer>
-                   </div>
+                   {chartData && chartData.length > 0 ? (
+                     <div style={{width: '100%', height: '160px', minHeight: '160px'}}>
+                       <ResponsiveContainer width="100%" height="100%" minHeight={160}>
+                          <BarChart data={chartData}>
+                             <XAxis 
+                                dataKey="label" 
+                                axisLine={false} 
+                                tickLine={false} 
+                                tick={{fontSize: 10, fill: 'var(--ui-color-muted)'}} 
+                             />
+                             <Tooltip 
+                                cursor={{fill: 'transparent'}}
+                                contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
+                             />
+                             <Bar dataKey="net" radius={[4, 4, 0, 0]}>
+                                {chartData.map((entry, index) => (
+                                   <Cell key={`cell-${index}`} fill={entry.net >= 0 ? 'var(--ui-color-success)' : 'var(--ui-color-danger)'} />
+                                ))}
+                             </Bar>
+                          </BarChart>
+                       </ResponsiveContainer>
+                     </div>
+                   ) : (
+                     <div className="h-40 w-full flex items-center justify-center text-ui-muted text-sm">
+                       Belum ada data untuk ditampilkan
+                     </div>
+                   )}
                 </Card>
 
                 {/* --- DAFTAR TRANSAKSI --- */}
