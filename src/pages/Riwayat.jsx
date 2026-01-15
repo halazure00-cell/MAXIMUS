@@ -748,12 +748,12 @@ export default function Riwayat() {
                 </Card>
 
                 {/* --- CHART 7 HARI --- */}
-                <Card className="p-4">
+                <Card className="p-4 w-full overflow-hidden">
                    <SectionTitle className="mb-4 text-[10px] tracking-[0.25em]">Tren 7 Hari Terakhir</SectionTitle>
                    {chartData && chartData.length > 0 ? (
-                     <div style={{width: '100%', height: '160px', minHeight: '160px'}}>
-                       <ResponsiveContainer width="100%" height="100%" minHeight={160}>
-                          <BarChart data={chartData}>
+                     <div className="w-full" style={{height: '250px'}}>
+                       <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                              <XAxis 
                                 dataKey="label" 
                                 axisLine={false} 
