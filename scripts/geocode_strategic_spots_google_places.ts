@@ -54,7 +54,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !GOOGLE_PLACES_API_KEY) {
 // Dynamic import untuk ESM support
 async function getSupabaseClient() {
   const { createClient } = await import("@supabase/supabase-js");
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  return createClient(SUPABASE_URL as string, SUPABASE_SERVICE_ROLE_KEY as string, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
