@@ -109,6 +109,8 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
                                         <span className="text-ui-muted font-bold">Rp</span>
                                     </div>
                                     <input
+                                        id="expense-amount"
+                                        name="amount"
                                         type="number"
                                         value={amount}
                                         onChange={(e) => setAmount(e.target.value)}
@@ -124,6 +126,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
                                         autoFocus
                                         required
                                         inputMode="numeric"
+                                        autoComplete="transaction-amount"
                                     />
                                 </div>
 
@@ -166,11 +169,14 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
                             <div>
                                 <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Catatan (Opsional)</label>
                                 <input
+                                    id="expense-note"
+                                    name="note"
                                     type="text"
                                     value={note}
                                     onChange={(e) => setNote(e.target.value)}
                                     className="w-full p-3 sm:p-4 bg-ui-surface-muted rounded-ui-xl border border-ui-border focus:border-ui-danger focus:ring-2 focus:ring-ui-danger/30 outline-none text-sm sm:text-base text-ui-text placeholder-ui-muted transition-all"
                                     placeholder="Contoh: Pertalite Full Tank"
+                                    autoComplete="off"
                                 />
                             </div>
 

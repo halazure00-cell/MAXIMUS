@@ -162,6 +162,8 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                             <div>
                                 <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Omzet (Rp)</label>
                                 <input
+                                    id="order-price"
+                                    name="price"
                                     type="number"
                                     value={price}
                                     onChange={(event) => setPrice(event.target.value)}
@@ -174,12 +176,15 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                                     placeholder="Masukkan nominal"
                                     required
                                     inputMode="numeric"
+                                    autoComplete="transaction-amount"
                                 />
                             </div>
 
                             <div>
                                 <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Komisi</label>
                                 <select
+                                    id="order-commission"
+                                    name="commission_rate"
                                     value={commissionRate}
                                     onChange={(event) => setCommissionRate(event.target.value)}
                                     className="w-full p-3 bg-ui-surface-muted rounded-ui-xl border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none text-ui-text transition-all"
@@ -188,6 +193,7 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                                         minHeight: '48px',
                                         touchAction: 'manipulation'
                                     }}
+                                    autoComplete="off"
                                 >
                                     <option value="0.1">Prioritas (10%)</option>
                                     <option value="0.15">Reguler (15%)</option>
@@ -202,6 +208,8 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                             <div>
                                 <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Jarak (Km)</label>
                                 <input
+                                    id="order-distance"
+                                    name="distance"
                                     type="number"
                                     step="0.1"
                                     value={distance}
@@ -214,6 +222,7 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                                     }}
                                     placeholder="0"
                                     inputMode="decimal"
+                                    autoComplete="off"
                                 />
                             </div>
 

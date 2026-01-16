@@ -206,6 +206,8 @@ export default function ProfileSettings({ showToast }) {
                 <div>
                     <label className="block text-xs font-medium text-ui-muted mb-1.5">Nama Panggilan</label>
                     <input
+                        id="driver-name"
+                        name="driverName"
                         type="text"
                         value={settings.driverName}
                         onChange={(e) => handleUpdate({ driverName: e.target.value })}
@@ -216,6 +218,7 @@ export default function ProfileSettings({ showToast }) {
                             minHeight: '48px',
                             touchAction: 'manipulation'
                         }}
+                        autoComplete="name"
                     />
                 </div>
 
@@ -224,6 +227,8 @@ export default function ProfileSettings({ showToast }) {
                     <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ui-muted pointer-events-none" style={{ fontSize: 'max(16px, 1rem)' }}>Rp</span>
                         <input
+                            id="daily-target"
+                            name="dailyTarget"
                             type="number"
                             value={settings.dailyTarget}
                             onChange={(e) => handleUpdate({ dailyTarget: parseInt(e.target.value) || 0 })}
@@ -235,6 +240,7 @@ export default function ProfileSettings({ showToast }) {
                                 touchAction: 'manipulation'
                             }}
                             inputMode="numeric"
+                            autoComplete="off"
                         />
                     </div>
                     <p className="text-[10px] text-ui-muted mt-1.5 text-right">
@@ -253,6 +259,8 @@ export default function ProfileSettings({ showToast }) {
                     <label className="block text-xs font-medium text-ui-muted mb-1.5">Jenis Motor</label>
                     <div className="relative">
                         <select
+                            id="vehicle-type"
+                            name="vehicleType"
                             value={settings.vehicleType}
                             onChange={handleVehicleChange}
                             className="w-full p-3 sm:p-4 pr-10 rounded-ui-lg border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none transition-all appearance-none bg-ui-surface text-ui-text"
@@ -261,6 +269,7 @@ export default function ProfileSettings({ showToast }) {
                                 minHeight: '48px',
                                 touchAction: 'manipulation'
                             }}
+                            autoComplete="off"
                         >
                             {Object.entries(vehiclePresets).map(([key, { label }]) => (
                                 <option key={key} value={key}>{label}</option>
@@ -275,6 +284,8 @@ export default function ProfileSettings({ showToast }) {
                     <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ui-muted pointer-events-none" style={{ fontSize: 'max(16px, 1rem)' }}>Rp</span>
                         <input
+                            id="fuel-efficiency"
+                            name="fuelEfficiency"
                             type="number"
                             value={settings.fuelEfficiency}
                             onChange={(e) => handleUpdate({ fuelEfficiency: parseInt(e.target.value) || 0 })}
@@ -286,6 +297,7 @@ export default function ProfileSettings({ showToast }) {
                                 touchAction: 'manipulation'
                             }}
                             inputMode="numeric"
+                            autoComplete="off"
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ui-muted pointer-events-none" style={{ fontSize: '14px' }}>/ km</span>
                     </div>
@@ -296,6 +308,8 @@ export default function ProfileSettings({ showToast }) {
                     <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ui-muted pointer-events-none" style={{ fontSize: 'max(16px, 1rem)' }}>Rp</span>
                         <input
+                            id="maintenance-fee"
+                            name="maintenanceFee"
                             type="number"
                             value={settings.maintenanceFee ?? 500}
                             onChange={(e) => handleUpdate({ maintenanceFee: parseInt(e.target.value) || 0 })}
@@ -307,6 +321,7 @@ export default function ProfileSettings({ showToast }) {
                                 touchAction: 'manipulation'
                             }}
                             inputMode="numeric"
+                            autoComplete="off"
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ui-muted pointer-events-none" style={{ fontSize: '14px' }}>/ order</span>
                     </div>

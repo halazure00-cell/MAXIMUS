@@ -193,6 +193,8 @@ export default function ProfitEngine({ showToast }) {
                                 )}
                             </div>
                             <input
+                                id="order-price"
+                                name="orderPrice"
                                 type="number"
                                 value={orderPrice}
                                 onChange={(e) => setOrderPrice(e.target.value)}
@@ -201,6 +203,11 @@ export default function ProfitEngine({ showToast }) {
                                 step="1000"
                                 className="w-full text-lg p-3 sm:p-4 rounded-ui-lg border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none transition-all bg-ui-surface text-ui-text"
                                 inputMode="numeric"
+                                autoComplete="transaction-amount"
+                                style={{
+                                    fontSize: 'max(16px, 1.125rem)',
+                                    minHeight: '48px'
+                                }}
                             />
 
                             {/* Quick Chips - responsive grid */}
@@ -220,6 +227,8 @@ export default function ProfitEngine({ showToast }) {
                         <div>
                             <SectionTitle className="text-[10px] tracking-[0.3em] mb-2">Jarak (KM)</SectionTitle>
                             <input
+                                id="order-distance-calc"
+                                name="distance"
                                 type="number"
                                 value={distance}
                                 onChange={(e) => setDistance(e.target.value)}
@@ -228,6 +237,11 @@ export default function ProfitEngine({ showToast }) {
                                 step="0.1"
                                 className="w-full text-lg p-3 sm:p-4 rounded-ui-lg border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none transition-all bg-ui-surface text-ui-text"
                                 inputMode="decimal"
+                                autoComplete="off"
+                                style={{
+                                    fontSize: 'max(16px, 1.125rem)',
+                                    minHeight: '48px'
+                                }}
                             />
                         </div>
 
