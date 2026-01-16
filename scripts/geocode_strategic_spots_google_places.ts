@@ -165,78 +165,13 @@ async function geocodeWithGooglePlaces(
       status: "OK",
     };
 
-  } catch (error: any) {      textSearchData.status !== "OK" ||
-      !textSearchData.results ||
-      textSearchData.results.length === 0
-    ) {
-      return {
-        place_id: null,
-        latitude: null,
-        longitude: null,
-        status: "NOT_FOUND",
-        error: `Text Search status: ${textSearchData.status}`,
-      };
-    }
-
-    // Get place_id from first result
-    const placeId: string = textSearchData.results[0].place_id;
-
-    // Step 2: Use Place Details API for stable coordinates
-    const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(
-      placeId
-    )}&fields=geometry&key=${GOOGLE_PLACES_API_KEY}`;
-
-    const detailsResponse = await fetch(detailsUrl);
-    const detailsData = await detailsResponse.json();
-
-    if (detailsData.status === "OVER_QUERY_LIMIT") {
-      if (attempt < MAX_RETRIES) {
-        console.warn(
-          `⏳ Rate limit (Place Details). Retrying (${attempt}/${MAX_RETRIES}) after 5s...`
-        );
-        await sleep(5000);
-        return geocodeWithGooglePlaces(name, category, attempt + 1);
-      } else {
-        return {
-          place_id: placeId,
-          latitude: null,
-          longitude: null,
-          status: "ERROR",
-          error: "OVER_QUERY_LIMIT after retries (Place Details)",
-        };
-      }
-    }
-
-    if (
-      detailsData.status !== "OK" ||
-      !detailsData.result ||
-      !detailsData.result.geometry
-    ) {
-      return {
-        place_id: placeId,
-        latitude: null,
-        longitude: null,
-        status: "ERROR",
-        error: `Place Details status: ${detailsData.status}`,
-      };
-    }
-
-    // Extract coordinates from Place Details (more stable)
-    const { lat, lng } = detailsData.result.geometry.location;
-
-    return {
-      place_id: placeId,
-      latitude: lat,
-      longitude: lng,
-      status: "OK",
-    };
-  } catch (err) {
+  } catch (error: any) {
     return {
       place_id: null,
       latitude: null,
       longitude: null,
       status: "ERROR",
-      error: err instanceof Error ? err.message : String(err),
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 }
