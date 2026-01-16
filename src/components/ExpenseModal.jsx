@@ -103,7 +103,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
                         <form onSubmit={handleSubmit} className="space-y-5 pb-20 sm:pb-8">
                             {/* Amount Input */}
                             <div>
-                                <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Jumlah (Rp)</label>
+                                <label htmlFor="expense-amount" className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Jumlah (Rp)</label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <span className="text-ui-muted font-bold">Rp</span>
@@ -167,7 +167,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
 
                             {/* Note */}
                             <div>
-                                <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Catatan (Opsional)</label>
+                                <label htmlFor="expense-note" className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Catatan (Opsional)</label>
                                 <input
                                     id="expense-note"
                                     name="note"

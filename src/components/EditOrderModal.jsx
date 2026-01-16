@@ -160,7 +160,7 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
 
                         <form onSubmit={handleSubmit} className="space-y-4 pb-20 sm:pb-8">
                             <div>
-                                <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Omzet (Rp)</label>
+                                <label htmlFor="order-price" className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Omzet (Rp)</label>
                                 <input
                                     id="order-price"
                                     name="price"
@@ -181,7 +181,7 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Komisi</label>
+                                <label htmlFor="order-commission" className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Komisi</label>
                                 <select
                                     id="order-commission"
                                     name="commission_rate"
@@ -206,7 +206,7 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Jarak (Km)</label>
+                                <label htmlFor="order-distance" className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Jarak (Km)</label>
                                 <input
                                     id="order-distance"
                                     name="distance"
@@ -227,7 +227,7 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Tanggal & Waktu</label>
+                                <label htmlFor="order-datetime" className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Tanggal & Waktu</label>
                                 <div className="relative">
                                     <Clock size={16} className="absolute left-3 top-3.5 text-ui-muted pointer-events-none" style={{ zIndex: 1 }} />
                                     <input

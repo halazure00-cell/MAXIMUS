@@ -204,7 +204,7 @@ export default function ProfileSettings({ showToast }) {
                 </SectionTitle>
 
                 <div>
-                    <label className="block text-xs font-medium text-ui-muted mb-1.5">Nama Panggilan</label>
+                    <label htmlFor="driver-name" className="block text-xs font-medium text-ui-muted mb-1.5">Nama Panggilan</label>
                     <input
                         id="driver-name"
                         name="driverName"
@@ -223,7 +223,7 @@ export default function ProfileSettings({ showToast }) {
                 </div>
 
                 <div>
-                    <label className="block text-xs font-medium text-ui-muted mb-1.5">Target Pendapatan Harian (Rp)</label>
+                    <label htmlFor="daily-target" className="block text-xs font-medium text-ui-muted mb-1.5">Target Pendapatan Harian (Rp)</label>
                     <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ui-muted pointer-events-none" style={{ fontSize: 'max(16px, 1rem)' }}>Rp</span>
                         <input
@@ -256,7 +256,7 @@ export default function ProfileSettings({ showToast }) {
                 </SectionTitle>
 
                 <div>
-                    <label className="block text-xs font-medium text-ui-muted mb-1.5">Jenis Motor</label>
+                    <label htmlFor="vehicle-type" className="block text-xs font-medium text-ui-muted mb-1.5">Jenis Motor</label>
                     <div className="relative">
                         <select
                             id="vehicle-type"
@@ -280,7 +280,7 @@ export default function ProfileSettings({ showToast }) {
                 </div>
 
                 <div>
-                    <label className="block text-xs font-medium text-ui-muted mb-1.5">Konsumsi BBM (Rp/KM)</label>
+                    <label htmlFor="fuel-efficiency" className="block text-xs font-medium text-ui-muted mb-1.5">Konsumsi BBM (Rp/KM)</label>
                     <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ui-muted pointer-events-none" style={{ fontSize: 'max(16px, 1rem)' }}>Rp</span>
                         <input
@@ -304,7 +304,7 @@ export default function ProfileSettings({ showToast }) {
                 </div>
 
                 <div>
-                    <label className="block text-xs font-medium text-ui-muted mb-1.5">Prediksi Biaya Service (Rp/Order)</label>
+                    <label htmlFor="maintenance-fee" className="block text-xs font-medium text-ui-muted mb-1.5">Prediksi Biaya Service (Rp/Order)</label>
                     <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ui-muted pointer-events-none" style={{ fontSize: 'max(16px, 1rem)' }}>Rp</span>
                         <input
