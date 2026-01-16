@@ -82,8 +82,26 @@ const SpotCard = ({ spot, isTop, onNavigate }) => {
             'campus': GraduationCap,
             'campus/food': Utensils,
             'gateway': Navigation,
+            'market': ShoppingBag,
+            'corridor': Navigation,
         };
         return map[category] || MapPin;
+    };
+
+    const getCategoryLabel = (category) => {
+        const map = {
+            'tourism/government': 'Wisata & Pemerintahan',
+            'transport': 'Transportasi Publik',
+            'public-space': 'Area Publik',
+            'mall/tourism': 'Pusat Belanja & Wisata',
+            'campus': 'Kawasan Kampus',
+            'campus/food': 'Kampus & Kuliner',
+            'gateway': 'Akses Utama',
+            'market': 'Pasar Tradisional',
+            'corridor': 'Jalan Utama',
+        };
+        if (map[category]) return map[category];
+        return category?.replace(/[/-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Lokasi Strategis';
     };
     
     const Icon = getCategoryIcon(spot.category);
@@ -114,7 +132,7 @@ const SpotCard = ({ spot, isTop, onNavigate }) => {
                         )}
                     </div>
                     <p className="text-xs text-ui-muted mt-0.5 truncate">
-                        {spot.notes || spot.category?.replace(/[/-]/g, ' ')}
+                        {getCategoryLabel(spot.category)}
                     </p>
                 </div>
                 <div className="text-right shrink-0">
