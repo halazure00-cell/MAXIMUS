@@ -9,6 +9,7 @@ import ProfileSettings from './components/ProfileSettings';
 import BottomNavigation from './components/BottomNavigation';
 import PageTransition from './components/PageTransition';
 import ToastContainer from './components/ToastContainer';
+import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { useSettings } from './context/SettingsContext';
 
@@ -138,10 +139,12 @@ function App() {
     const { session, loading } = useSettings();
 
     return (
-        <ToastProvider>
-            <ToastContainer />
-            <AppContent session={session} loading={loading} />
-        </ToastProvider>
+        <ErrorBoundary>
+            <ToastProvider>
+                <ToastContainer />
+                <AppContent session={session} loading={loading} />
+            </ToastProvider>
+        </ErrorBoundary>
     );
 }
 

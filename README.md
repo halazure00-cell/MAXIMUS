@@ -56,6 +56,8 @@ VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
+> **Catatan Supabase**: Database schema dan migrations dikelola melalui folder `supabase/migrations/`. File SQL di folder `legacy_sql/` hanya untuk arsip dan tidak digunakan dalam produksi.
+
 ### 4. Menjalankan Aplikasi
 Jalankan server pengembangan:
 
