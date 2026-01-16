@@ -46,10 +46,10 @@ import Card from './Card';
 const TabButton = ({ active, onClick, children, icon: Icon }) => (
     <button
         onClick={onClick}
-        className={`flex-1 py-3 px-2 text-xs font-semibold transition-all rounded-ui-lg flex items-center justify-center gap-1.5 ${
+        className={`flex-1 py-3 px-2 text-xs font-semibold transition-all rounded-ui-lg flex items-center justify-center gap-1.5 press-effect ${
             active 
                 ? 'bg-ui-primary text-ui-background shadow-sm' 
-                : 'text-ui-muted hover:bg-ui-surface-muted'
+                : 'text-ui-muted hover:bg-ui-surface-muted active:bg-ui-primary/20'
         }`}
     >
         {Icon && <Icon size={14} />}
@@ -320,7 +320,7 @@ export default function Insight({ showToast }) {
     // Loading
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-[60vh]">
+            <div className="flex items-center justify-center h-full min-h-[60vh]">
                 <div className="animate-spin rounded-full h-8 w-8 border-2 border-ui-primary border-t-transparent" />
             </div>
         );
@@ -329,7 +329,7 @@ export default function Insight({ showToast }) {
     // Empty state
     if (!orders.length && !strategicSpots.length) {
         return (
-            <div className="flex flex-col items-center justify-center h-[60vh] p-6 text-center">
+            <div className="flex flex-col items-center justify-center h-full min-h-[60vh] p-6 text-center">
                 <BarChart2 className="w-12 h-12 text-ui-muted mb-3" />
                 <h2 className="text-lg font-bold text-ui-text">Belum Ada Data</h2>
                 <p className="text-sm text-ui-muted mt-1">Catat order untuk melihat insight</p>
@@ -338,10 +338,10 @@ export default function Insight({ showToast }) {
     }
 
     return (
-        <div className="flex flex-col bg-ui-background min-h-screen">
+        <div className="flex flex-col min-h-full bg-ui-background">
             {/* Tab Navigation */}
             <div className="sticky top-0 z-10 bg-ui-background px-4 pt-4 pb-2">
-                <div className="flex gap-2 p-1 bg-ui-surface rounded-ui-xl">
+                <div className="flex gap-1.5 p-1 bg-ui-surface rounded-ui-xl shadow-ui-sm">
                     <TabButton 
                         active={activeTab === 'now'} 
                         onClick={() => setActiveTab('now')}
@@ -366,7 +366,7 @@ export default function Insight({ showToast }) {
                 </div>
             </div>
 
-            <div className="flex-1 px-4 pb-6">
+            <div className="flex-1 px-4 pb-6 overflow-y-auto">
                 <AnimatePresence mode="wait">
                     {/* ==================== TAB: SEKARANG ==================== */}
                     {activeTab === 'now' && (

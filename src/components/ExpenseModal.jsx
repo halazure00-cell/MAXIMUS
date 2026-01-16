@@ -21,10 +21,10 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
     }, [isOpen]);
 
     const categories = [
-        { id: 'Bensin', label: 'Bensin', color: 'bg-red-100 text-red-600' },
-        { id: 'Makan', label: 'Makan', color: 'bg-orange-100 text-orange-600' },
-        { id: 'Service', label: 'Service', color: 'bg-blue-100 text-blue-600' },
-        { id: 'Lainnya', label: 'Lainnya', color: 'bg-gray-100 text-gray-600' }
+        { id: 'Bensin', label: 'Bensin', color: 'bg-ui-danger/10 text-ui-danger' },
+        { id: 'Makan', label: 'Makan', color: 'bg-ui-warning/10 text-ui-warning' },
+        { id: 'Service', label: 'Service', color: 'bg-ui-info/10 text-ui-info' },
+        { id: 'Lainnya', label: 'Lainnya', color: 'bg-ui-muted/10 text-ui-muted' }
     ];
 
     const handleSubmit = async (e) => {
@@ -69,7 +69,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto"
+                        className="absolute inset-0 bg-ui-overlay backdrop-blur-sm pointer-events-auto"
                     />
 
                     {/* Modal Content */}
@@ -78,44 +78,53 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
                         animate={{ y: 0 }}
                         exit={{ y: "100%" }}
                         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                        className="bg-white w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6 shadow-xl pointer-events-auto relative z-10 max-h-[80vh] overflow-y-auto pb-32"
+                        className="bg-ui-surface w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 shadow-ui-lg pointer-events-auto relative z-10 max-h-[85vh] overflow-y-auto safe-bottom-padding"
                     >
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-gray-800">Catat Pengeluaran</h2>
-                            <button onClick={onClose} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
-                                <X size={20} className="text-gray-500" />
+                        {/* Handle bar for mobile */}
+                        <div className="flex justify-center mb-4 sm:hidden">
+                            <div className="w-10 h-1 bg-ui-border rounded-full" />
+                        </div>
+
+                        <div className="flex justify-between items-center mb-5">
+                            <h2 className="text-xl font-bold text-ui-text font-display">Catat Pengeluaran</h2>
+                            <button 
+                                onClick={onClose} 
+                                className="p-2 bg-ui-surface-muted rounded-full hover:bg-ui-border transition-colors press-effect"
+                            >
+                                <X size={20} className="text-ui-muted" />
                             </button>
                         </div>
 
                         <form onSubmit={handleSubmit} className="space-y-5">
                             {/* Amount Input */}
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Jumlah (Rp)</label>
+                                <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Jumlah (Rp)</label>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <span className="text-gray-400 font-bold">Rp</span>
+                                        <span className="text-ui-muted font-bold">Rp</span>
                                     </div>
                                     <input
                                         type="number"
                                         value={amount}
                                         onChange={(e) => setAmount(e.target.value)}
-                                        className="pl-10 w-full p-4 text-2xl font-bold bg-gray-50 rounded-xl border border-gray-200 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all placeholder-gray-300"
+                                        className="pl-10 w-full p-4 text-2xl font-bold bg-ui-surface-muted rounded-ui-xl border border-ui-border focus:border-ui-danger focus:ring-2 focus:ring-ui-danger/30 outline-none transition-all text-ui-text placeholder-ui-muted"
                                         placeholder="0"
                                         min="0"
                                         step="1000"
                                         autoFocus
                                         required
+                                        inputMode="numeric"
                                     />
                                 </div>
 
-                                {/* Gap Fix 2: Quick Chips */}
+                                {/* Quick Chips */}
                                 <div className="flex flex-wrap gap-2 mt-3">
                                     {[5000, 10000, 15000, 20000, 50000].map((val) => (
                                         <button
                                             key={val}
                                             type="button"
                                             onClick={() => setAmount(val.toString())}
-                                            className="px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-lg text-xs font-bold text-gray-600 active:bg-red-500 active:text-white transition-colors"
+                                            className="px-3 py-2 bg-ui-surface-muted border border-ui-border rounded-ui-md text-xs font-bold text-ui-muted active:bg-ui-danger active:text-white active:border-ui-danger transition-colors press-effect"
                                         >
                                             {val / 1000}k
                                         </button>
@@ -125,16 +134,16 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
 
                             {/* Categories */}
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Kategori</label>
+                                <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Kategori</label>
                                 <div className="grid grid-cols-2 gap-2">
                                     {categories.map((cat) => (
                                         <button
                                             key={cat.id}
                                             type="button"
                                             onClick={() => setCategory(cat.id)}
-                                            className={`p-3 rounded-xl border-2 text-sm font-semibold transition-all ${category === cat.id
-                                                ? 'border-red-500 bg-red-50 text-red-700'
-                                                : 'border-transparent bg-gray-50 text-gray-500 hover:bg-gray-100'
+                                            className={`p-3 rounded-ui-xl border-2 text-sm font-semibold transition-all press-effect ${category === cat.id
+                                                ? 'border-ui-danger bg-ui-danger/10 text-ui-danger'
+                                                : 'border-transparent bg-ui-surface-muted text-ui-muted hover:bg-ui-border'
                                                 }`}
                                         >
                                             {cat.label}
@@ -145,12 +154,12 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
 
                             {/* Note */}
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Catatan (Opsional)</label>
+                                <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Catatan (Opsional)</label>
                                 <input
                                     type="text"
                                     value={note}
                                     onChange={(e) => setNote(e.target.value)}
-                                    className="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none text-sm"
+                                    className="w-full p-3 bg-ui-surface-muted rounded-ui-xl border border-ui-border focus:border-ui-danger focus:ring-2 focus:ring-ui-danger/30 outline-none text-sm text-ui-text placeholder-ui-muted transition-all"
                                     placeholder="Contoh: Pertalite Full Tank"
                                 />
                             </div>
@@ -159,9 +168,9 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
                             <button
                                 type="submit"
                                 disabled={!amount || isSubmitting}
-                                className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center space-x-2 transition-all ${!amount || isSubmitting
-                                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
-                                    : 'bg-red-500 text-white shadow-red-200 hover:bg-red-600 active:scale-95'
+                                className={`w-full py-4 rounded-ui-xl font-bold text-lg shadow-ui-md flex items-center justify-center space-x-2 transition-all press-effect ${!amount || isSubmitting
+                                    ? 'bg-ui-surface-muted text-ui-muted cursor-not-allowed shadow-none'
+                                    : 'bg-ui-danger text-white hover:bg-ui-danger/90 active:scale-[0.98]'
                                     }`}
                             >
                                 {isSubmitting ? (

@@ -520,35 +520,37 @@ export default function Riwayat() {
 
     if (loading) {
         return (
-            <div className="flex h-full items-center justify-center bg-ui-background pb-24">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ui-text"></div>
+            <div className="flex h-full items-center justify-center bg-ui-background">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-ui-primary border-t-transparent"></div>
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col h-full bg-ui-background pb-24 relative">
-            <div className="px-5 pt-6 pb-2">
+        <div className="flex flex-col min-h-full bg-ui-background relative">
+            {/* Header */}
+            <div className="px-4 pt-5 pb-3 bg-ui-background sticky top-0 z-10">
                 <h1 className="text-2xl font-bold text-ui-text font-display">Financial Board</h1>
                 <SectionTitle className="text-[10px] tracking-[0.3em]">Liputan Keuangan Bulan Ini</SectionTitle>
             </div>
 
-            {/* Insight Harian */}
-            <Card className="mx-5 mb-4 p-3 flex items-center space-x-3">
-                <div className={`p-2 rounded-full bg-opacity-10 ${insight.color.replace('text', 'bg')}`}>
-                    <AlertCircle className={`w-5 h-5 ${insight.color}`} />
-                </div>
-                <p className={`text-sm font-medium ${insight.color}`}>
-                    "{insight.text}"
-                </p>
-            </Card>
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto px-4 pb-24">
+                {/* Insight Harian */}
+                <Card className="mb-4 p-3 flex items-center space-x-3">
+                    <div className={`p-2 rounded-full bg-opacity-10 ${insight.color.replace('text', 'bg')}`}>
+                        <AlertCircle className={`w-5 h-5 ${insight.color}`} />
+                    </div>
+                    <p className={`text-sm font-medium flex-1 ${insight.color}`}>
+                        "{insight.text}"
+                    </p>
+                </Card>
 
-            <div className="flex-1 overflow-y-auto px-5 space-y-6">
-                
+                <div className="space-y-4">
                 {/* --- KARTU REKAP HARIAN (SETORAN) --- */}
-                <Card className="bg-gradient-to-br from-ui-success via-ui-primary to-ui-info p-5 text-ui-inverse border-ui-success/40 shadow-ui-lg">
+                <Card className="bg-gradient-to-br from-ui-success via-ui-primary to-ui-info p-4 text-ui-inverse border-ui-success/40 shadow-ui-lg">
                     <div className="flex flex-col gap-3">
-                        <div className="flex flex-wrap justify-between gap-4 text-sm font-semibold">
+                        <div className="flex flex-wrap justify-between gap-3 text-sm font-semibold">
                             <span className="text-ui-inverse/80">
                                 Pemasukan: <span className="text-ui-inverse">Rp {formatCurrency(todayRecap.income)}</span>
                             </span>
@@ -571,7 +573,7 @@ export default function Riwayat() {
                 </Card>
 
                 {/* --- TOMBOL TAB STATISTIK --- */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-2">
                     <Card
                         className={`p-0 transition-all duration-200 ${activeRecap === 'omzet'
                             ? 'border-ui-success/50 ring-2 ring-ui-success/30 shadow-ui-md bg-ui-success/5'
@@ -580,14 +582,14 @@ export default function Riwayat() {
                         <button
                             type="button"
                             onClick={() => setActiveRecap('omzet')}
-                            className="flex h-full w-full flex-col justify-between p-3 text-left transition-transform duration-200 active:scale-95"
+                            className="flex h-full w-full flex-col justify-between p-3 text-left transition-transform duration-200 active:scale-95 press-effect"
                         >
                             <div className={`p-1.5 rounded-ui-sm w-fit transition-colors duration-200 ${activeRecap === 'omzet' ? 'bg-ui-success/20' : 'bg-ui-success/10'}`}>
-                                <TrendingUp size={16} className="text-ui-success" />
+                                <TrendingUp size={14} className="text-ui-success" />
                             </div>
                             <div className="mt-2">
-                                <SectionTitle className="text-[10px] tracking-[0.25em]">Omzet (Gross)</SectionTitle>
-                                <p className="text-sm font-bold text-ui-text truncate mt-0.5">
+                                <SectionTitle className="text-[9px] tracking-[0.2em]">Omzet</SectionTitle>
+                                <p className="text-xs font-bold text-ui-text truncate mt-0.5">
                                     {formatCurrency(metrics.grossIncome)}
                                 </p>
                             </div>
@@ -602,14 +604,14 @@ export default function Riwayat() {
                         <button
                             type="button"
                             onClick={() => setActiveRecap('pengeluaran')}
-                            className="flex h-full w-full flex-col justify-between p-3 text-left transition-transform duration-200 active:scale-95"
+                            className="flex h-full w-full flex-col justify-between p-3 text-left transition-transform duration-200 active:scale-95 press-effect"
                         >
                             <div className={`p-1.5 rounded-ui-sm w-fit transition-colors duration-200 ${activeRecap === 'pengeluaran' ? 'bg-ui-danger/20' : 'bg-ui-danger/10'}`}>
-                                <TrendingDown size={16} className="text-ui-danger" />
+                                <TrendingDown size={14} className="text-ui-danger" />
                             </div>
                             <div className="mt-2">
-                                <SectionTitle className="text-[10px] tracking-[0.25em]">Pengeluaran</SectionTitle>
-                                <p className="text-sm font-bold text-ui-text truncate mt-0.5">
+                                <SectionTitle className="text-[9px] tracking-[0.2em]">Pengeluaran</SectionTitle>
+                                <p className="text-xs font-bold text-ui-text truncate mt-0.5">
                                     {formatCurrency(metrics.actualExpenses)}
                                 </p>
                             </div>
@@ -624,14 +626,14 @@ export default function Riwayat() {
                         <button
                             type="button"
                             onClick={() => setActiveRecap('potongan')}
-                            className="flex h-full w-full flex-col justify-between p-3 text-left transition-transform duration-200 active:scale-95"
+                            className="flex h-full w-full flex-col justify-between p-3 text-left transition-transform duration-200 active:scale-95 press-effect"
                         >
                             <div className={`p-1.5 rounded-ui-sm w-fit transition-colors duration-200 ${activeRecap === 'potongan' ? 'bg-ui-warning/20' : 'bg-ui-warning/10'}`}>
-                                <Wallet size={16} className="text-ui-warning" />
+                                <Wallet size={14} className="text-ui-warning" />
                             </div>
                             <div className="mt-2">
-                                <SectionTitle className="text-[10px] tracking-[0.25em]">Potongan</SectionTitle>
-                                <p className="text-sm font-bold text-ui-text truncate mt-0.5">
+                                <SectionTitle className="text-[9px] tracking-[0.2em]">Potongan</SectionTitle>
+                                <p className="text-xs font-bold text-ui-text truncate mt-0.5">
                                     {formatCurrency(metrics.appFeeTotal + metrics.fuelCostTotal + metrics.maintenanceTotal)}
                                 </p>
                             </div>
@@ -848,25 +850,32 @@ export default function Riwayat() {
                         )}
                     </div>
                     {canLoadMore && (
-                        <div className="flex justify-center pt-4">
+                        <div className="flex justify-center pt-4 pb-4">
                             <PrimaryButton
                                 type="button"
                                 onClick={handleLoadMore}
-                                className="rounded-full bg-ui-surface px-4 py-2 text-sm font-semibold text-ui-text border border-ui-border shadow-none hover:bg-ui-surface-muted"
+                                className="rounded-full bg-ui-surface px-4 py-2 text-sm font-semibold text-ui-text border border-ui-border shadow-none hover:bg-ui-surface-muted press-effect"
                             >
                                 Muat lebih banyak
                             </PrimaryButton>
                         </div>
                     )}
                 </div>
+                </div>
             </div>
 
-            {/* Tombol Tambah Pengeluaran */}
-            <div className="absolute bottom-6 right-5 z-20">
+            {/* Tombol Tambah Pengeluaran - FAB */}
+            <div 
+                className="fixed z-[999997]"
+                style={{
+                    bottom: 'calc(var(--nav-total-height, 80px) + 16px)',
+                    right: '16px'
+                }}
+            >
                 <PrimaryButton
                     type="button"
                     onClick={() => setShowExpenseModal(true)}
-                    className="bg-ui-danger hover:bg-ui-danger/90 text-ui-inverse p-4 rounded-full shadow-ui-lg transition-all active:scale-95 flex items-center gap-2"
+                    className="bg-ui-danger hover:bg-ui-danger/90 text-ui-inverse p-4 rounded-full shadow-ui-lg transition-all active:scale-90 press-effect"
                     aria-label="Tambah pengeluaran"
                 >
                     <Minus size={24} />
