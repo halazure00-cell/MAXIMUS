@@ -181,9 +181,12 @@ export async function checkLocationPermission() {
  * @returns {number|null} Distance in kilometers, or null if invalid input
  */
 export function haversineDistance(lat1, lon1, lat2, lon2) {
-  // Validate inputs
+  // Validate inputs - check for null/undefined and NaN
   if (
-    lat1 == null || lon1 == null || lat2 == null || lon2 == null ||
+    lat1 === null || lat1 === undefined ||
+    lon1 === null || lon1 === undefined ||
+    lat2 === null || lat2 === undefined ||
+    lon2 === null || lon2 === undefined ||
     isNaN(lat1) || isNaN(lon1) || isNaN(lat2) || isNaN(lon2)
   ) {
     return null;
