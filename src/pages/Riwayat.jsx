@@ -582,13 +582,13 @@ export default function Riwayat() {
                         <button
                             type="button"
                             onClick={() => setActiveRecap('omzet')}
-                            className="flex h-full w-full flex-col justify-between p-3 text-left transition-transform duration-200 active:scale-95 press-effect"
+                            className="flex h-full w-full flex-col justify-between p-2 text-left transition-transform duration-200 active:scale-95 press-effect"
                         >
                             <div className={`p-1.5 rounded-ui-sm w-fit transition-colors duration-200 ${activeRecap === 'omzet' ? 'bg-ui-success/20' : 'bg-ui-success/10'}`}>
                                 <TrendingUp size={14} className="text-ui-success" />
                             </div>
                             <div className="mt-2">
-                                <SectionTitle className="text-[9px] tracking-wide">Omzet</SectionTitle>
+                                <SectionTitle className="text-[8px] !tracking-normal">Omzet</SectionTitle>
                                 <p className="text-xs font-bold text-ui-text truncate mt-0.5">
                                     {formatCurrency(metrics.grossIncome)}
                                 </p>
@@ -604,13 +604,13 @@ export default function Riwayat() {
                         <button
                             type="button"
                             onClick={() => setActiveRecap('pengeluaran')}
-                            className="flex h-full w-full flex-col justify-between p-3 text-left transition-transform duration-200 active:scale-95 press-effect"
+                            className="flex h-full w-full flex-col justify-between p-2 text-left transition-transform duration-200 active:scale-95 press-effect"
                         >
                             <div className={`p-1.5 rounded-ui-sm w-fit transition-colors duration-200 ${activeRecap === 'pengeluaran' ? 'bg-ui-danger/20' : 'bg-ui-danger/10'}`}>
                                 <TrendingDown size={14} className="text-ui-danger" />
                             </div>
                             <div className="mt-2">
-                                <SectionTitle className="text-[9px] tracking-wide">Pengeluaran</SectionTitle>
+                                <SectionTitle className="text-[8px] !tracking-normal">Pengeluaran</SectionTitle>
                                 <p className="text-xs font-bold text-ui-text truncate mt-0.5">
                                     {formatCurrency(metrics.actualExpenses)}
                                 </p>
@@ -626,13 +626,13 @@ export default function Riwayat() {
                         <button
                             type="button"
                             onClick={() => setActiveRecap('potongan')}
-                            className="flex h-full w-full flex-col justify-between p-3 text-left transition-transform duration-200 active:scale-95 press-effect"
+                            className="flex h-full w-full flex-col justify-between p-2 text-left transition-transform duration-200 active:scale-95 press-effect"
                         >
                             <div className={`p-1.5 rounded-ui-sm w-fit transition-colors duration-200 ${activeRecap === 'potongan' ? 'bg-ui-warning/20' : 'bg-ui-warning/10'}`}>
                                 <Wallet size={14} className="text-ui-warning" />
                             </div>
                             <div className="mt-2">
-                                <SectionTitle className="text-[9px] tracking-wide">Potongan</SectionTitle>
+                                <SectionTitle className="text-[8px] !tracking-normal">Potongan</SectionTitle>
                                 <p className="text-xs font-bold text-ui-text truncate mt-0.5">
                                     {formatCurrency(metrics.appFeeTotal + metrics.fuelCostTotal + metrics.maintenanceTotal)}
                                 </p>
