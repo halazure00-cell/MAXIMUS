@@ -169,16 +169,26 @@ export default function Insight({ showToast }) {
                     .gte('created_at', thirtyDaysAgo)
                     .order('created_at', { ascending: false });
                 
-                const spotsPromise = supabase
-                    .from('strategic_spots')
-                    .select('*')
-                    .eq('geocode_status', 'OK'); // Only fetch valid geocoded spots
+                // Smart spots fetch with fallback for missing columns (migration safety)
+                const fetchSpots = async () => {
+                    const { data, error } = await supabase
+                        .from('strategic_spots')
+                        .select('*')
+                        .eq('geocode_status', 'OK');
+                    
+                    // If column doesn't exist (42703), fallback to legacy fetch
+                    if (error && error.code === '42703') {
+                        console.warn('⚠️ geocode_status column missing. Falling back to simple fetch.');
+                        return await supabase.from('strategic_spots').select('*');
+                    }
+                    return { data, error };
+                };
 
                 // Await all and handle results explicitly
                 const [ordersRes, expensesRes, spotsRes] = await Promise.all([
                    ordersPromise,
                    expensesPromise,
-                   spotsPromise
+                   fetchSpots()
                 ]);
 
                 // Log specific errors but don't crash whole page
