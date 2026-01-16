@@ -25,7 +25,15 @@ export default class ErrorBoundary extends React.Component {
             </div>
             <button
               className="w-full py-3 rounded-ui-lg bg-ui-primary text-ui-background font-bold"
-              onClick={() => window.location.reload()}
+              onClick={() => {
+                // Try to navigate home first, fallback to full reload
+                try {
+                  window.history.pushState({}, '', '/');
+                  window.location.reload();
+                } catch {
+                  window.location.reload();
+                }
+              }}
             >
               Muat Ulang
             </button>
