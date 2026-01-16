@@ -100,7 +100,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-5">
+                        <form onSubmit={handleSubmit} className="space-y-5 pb-20 sm:pb-8">
                             {/* Amount Input */}
                             <div>
                                 <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Jumlah (Rp)</label>
@@ -174,24 +174,31 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
                                 />
                             </div>
 
-                            {/* Submit Button */}
-                            <button
-                                type="submit"
-                                disabled={!amount || isSubmitting}
-                                className={`w-full py-3 sm:py-4 rounded-ui-xl font-bold text-base sm:text-lg shadow-ui-md flex items-center justify-center space-x-2 transition-all press-effect min-h-[48px] ${!amount || isSubmitting
-                                    ? 'bg-ui-surface-muted text-ui-muted cursor-not-allowed shadow-none'
-                                    : 'bg-ui-danger text-white hover:bg-ui-danger/90 active:scale-[0.98]'
-                                    }`}
+                            {/* Submit Button - Sticky */}
+                            <div className="fixed bottom-0 left-0 right-0 sm:static p-4 sm:p-0 bg-gradient-to-t from-ui-surface via-ui-surface to-transparent sm:bg-none"
+                                style={{
+                                    paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))',
+                                    zIndex: 20
+                                }}
                             >
-                                {isSubmitting ? (
-                                    <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                ) : (
-                                    <>
-                                        <Save size={20} />
-                                        <span>Simpan Pengeluaran</span>
-                                    </>
-                                )}
-                            </button>
+                                <button
+                                    type="submit"
+                                    disabled={!amount || isSubmitting}
+                                    className={`w-full py-3 sm:py-4 rounded-ui-xl font-bold text-base sm:text-lg shadow-ui-md flex items-center justify-center space-x-2 transition-all press-effect min-h-[48px] ${!amount || isSubmitting
+                                        ? 'bg-ui-surface-muted text-ui-muted cursor-not-allowed shadow-none'
+                                        : 'bg-ui-danger text-white hover:bg-ui-danger/90 active:scale-[0.98]'
+                                        }`}
+                                >
+                                    {isSubmitting ? (
+                                        <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <>
+                                            <Save size={20} />
+                                            <span>Simpan Pengeluaran</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </form>
                     </motion.div>
                 </div>

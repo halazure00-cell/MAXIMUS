@@ -158,7 +158,7 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-4">
+                        <form onSubmit={handleSubmit} className="space-y-4 pb-20 sm:pb-8">
                             <div>
                                 <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Omzet (Rp)</label>
                                 <input
@@ -240,24 +240,32 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                                 </div>
                             </div>
 
-                            <button
-                                type="submit"
-                                disabled={isSubmitting}
-                                className={`w-full py-4 rounded-ui-xl font-bold text-lg shadow-ui-md flex items-center justify-center space-x-2 transition-all press-effect ${
-                                    isSubmitting
-                                        ? 'bg-ui-surface-muted text-ui-muted cursor-not-allowed shadow-none'
-                                        : 'bg-ui-inverse text-ui-primary hover:bg-ui-inverse/90 active:scale-[0.98]'
-                                }`}
+                            {/* Submit Button - Sticky */}
+                            <div className="fixed bottom-0 left-0 right-0 sm:static p-4 sm:p-0 bg-gradient-to-t from-ui-surface via-ui-surface to-transparent sm:bg-none"
+                                style={{
+                                    paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))',
+                                    zIndex: 20
+                                }}
                             >
-                                {isSubmitting ? (
-                                    <div className="w-6 h-6 border-2 border-ui-primary/30 border-t-ui-primary rounded-full animate-spin" />
-                                ) : (
-                                    <>
-                                        <Save size={20} />
-                                        <span>Simpan Perubahan</span>
-                                    </>
-                                )}
-                            </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting}
+                                    className={`w-full py-3 sm:py-4 rounded-ui-xl font-bold text-base sm:text-lg shadow-ui-md flex items-center justify-center space-x-2 transition-all press-effect min-h-[48px] ${
+                                        isSubmitting
+                                            ? 'bg-ui-surface-muted text-ui-muted cursor-not-allowed shadow-none'
+                                            : 'bg-ui-inverse text-ui-primary hover:bg-ui-inverse/90 active:scale-[0.98]'
+                                    }`}
+                                >
+                                    {isSubmitting ? (
+                                        <div className="w-6 h-6 border-2 border-ui-primary/30 border-t-ui-primary rounded-full animate-spin" />
+                                    ) : (
+                                        <>
+                                            <Save size={20} />
+                                            <span>Simpan Perubahan</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </form>
                     </motion.div>
                 </div>
