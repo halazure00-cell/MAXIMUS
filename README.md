@@ -78,6 +78,12 @@ Aplikasi ini siap dideploy ke platform cloud seperti **Netlify** atau **Vercel**
 
 Kami sangat terbuka untuk segala bentuk kontribusi! Jika Anda memiliki ide fitur atau menemukan bug, silakan buat *Issue* atau kirimkan *Pull Request*.
 
+### Aturan Penting untuk Kontributor:
+- ⚠️ **Jangan pernah commit folder `dist/` ke Git**. Folder ini adalah build artifact dan akan di-generate otomatis saat deployment.
+- Pastikan kode Anda lolos ESLint sebelum commit: `npm run lint`
+- Verifikasi build sukses: `npm run build`
+- CI akan otomatis memeriksa setiap push/PR untuk memastikan kode tidak rusak.
+
 ---
 
 ## 📜 Lisensi & Harapan

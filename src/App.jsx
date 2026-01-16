@@ -61,7 +61,6 @@ function AppShell({ showToast }) {
         <div
             className="bg-ui-background text-ui-text font-sans flex flex-col w-full"
             style={{
-                minHeight: '100dvh',
                 minHeight: '100vh',
                 width: '100%',
                 maxWidth: '100%',

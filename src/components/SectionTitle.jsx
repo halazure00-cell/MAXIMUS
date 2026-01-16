@@ -1,4 +1,3 @@
-import React from 'react';
 
 export default function SectionTitle({ as: Component = 'h2', className = '', children, ...props }) {
     return (
