@@ -17,7 +17,7 @@ export async function initLocalDb() {
   if (dbPromise) return dbPromise;
 
   dbPromise = openDB(DB_NAME, DB_VERSION, {
-    upgrade(db, oldVersion, newVersion, transaction) {
+    upgrade(db) {
       // Create orders_cache store
       if (!db.objectStoreNames.contains('orders_cache')) {
         const ordersStore = db.createObjectStore('orders_cache', { 

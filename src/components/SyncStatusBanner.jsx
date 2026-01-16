@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { useSyncContext } from '../context/SyncContext';
-import { WifiOff, Wifi, RefreshCw, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { WifiOff, RefreshCw, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { id } from 'date-fns/locale';
 
@@ -58,7 +58,7 @@ export default function SyncStatusBanner() {
         addSuffix: true,
         locale: id 
       });
-    } catch (error) {
+    } catch {
       return 'Unknown';
     }
   };

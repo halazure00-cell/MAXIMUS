@@ -1,10 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { useSyncContext } from '../context/SyncContext';
-import { supabase } from '../lib/supabaseClient';
-import {
-    monthRangeLocal,
-} from '../lib/db';
 import { 
     getCachedOrders, 
     getCachedExpenses,

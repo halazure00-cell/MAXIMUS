@@ -113,7 +113,7 @@ export async function pushToSupabase(userId) {
  * Push upsert operation to Supabase
  */
 async function pushUpsert(op) {
-  const { table, payload, client_tx_id } = op;
+  const { table, payload } = op;
   
   // Prepare data for Supabase (remove IndexedDB-only fields)
   const data = {
