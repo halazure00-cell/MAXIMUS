@@ -588,7 +588,7 @@ export default function Riwayat() {
                                 <TrendingUp size={14} className="text-ui-success" />
                             </div>
                             <div className="mt-2">
-                                <SectionTitle className="text-[9px] tracking-[0.2em]">Omzet</SectionTitle>
+                                <SectionTitle className="text-[9px] tracking-wide">Omzet</SectionTitle>
                                 <p className="text-xs font-bold text-ui-text truncate mt-0.5">
                                     {formatCurrency(metrics.grossIncome)}
                                 </p>
@@ -610,7 +610,7 @@ export default function Riwayat() {
                                 <TrendingDown size={14} className="text-ui-danger" />
                             </div>
                             <div className="mt-2">
-                                <SectionTitle className="text-[9px] tracking-[0.2em]">Pengeluaran</SectionTitle>
+                                <SectionTitle className="text-[9px] tracking-wide">Pengeluaran</SectionTitle>
                                 <p className="text-xs font-bold text-ui-text truncate mt-0.5">
                                     {formatCurrency(metrics.actualExpenses)}
                                 </p>
@@ -632,7 +632,7 @@ export default function Riwayat() {
                                 <Wallet size={14} className="text-ui-warning" />
                             </div>
                             <div className="mt-2">
-                                <SectionTitle className="text-[9px] tracking-[0.2em]">Potongan</SectionTitle>
+                                <SectionTitle className="text-[9px] tracking-wide">Potongan</SectionTitle>
                                 <p className="text-xs font-bold text-ui-text truncate mt-0.5">
                                     {formatCurrency(metrics.appFeeTotal + metrics.fuelCostTotal + metrics.maintenanceTotal)}
                                 </p>
