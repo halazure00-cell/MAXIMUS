@@ -41,6 +41,7 @@ import { useToast } from '../context/ToastContext';
 import Card from '../components/Card';
 import PrimaryButton from '../components/PrimaryButton';
 import SectionTitle from '../components/SectionTitle';
+import SyncStatusBanner from '../components/SyncStatusBanner';
 
 const logger = createLogger('Riwayat');
 
@@ -519,6 +520,9 @@ export default function Riwayat() {
 
     return (
         <div className="flex flex-col min-h-full bg-ui-background relative">
+            {/* Sync Status Banner */}
+            <SyncStatusBanner />
+            
             {/* Header */}
             <div className="px-4 pt-5 pb-3 bg-ui-background sticky top-0 z-10">
                 <h1 className="text-2xl font-bold text-ui-text font-display">Financial Board</h1>
