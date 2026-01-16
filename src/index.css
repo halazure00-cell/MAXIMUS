@@ -401,6 +401,17 @@
   padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
 }
 
+/* Safe bottom padding for modals to avoid bottom navigation overlap */
+.pb-safe-bottom {
+  padding-bottom: calc(var(--nav-total-height, 80px) + 24px);
+}
+
+@media (min-width: 640px) {
+  .pb-safe-bottom {
+    padding-bottom: 2rem;
+  }
+}
+
 /* Toast container positioning */
 .toast-container-position {
   top: calc(env(safe-area-inset-top, 0px) + 16px);

@@ -100,7 +100,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-5 pb-20 sm:pb-8">
+                        <form onSubmit={handleSubmit} className="space-y-5 pb-safe-bottom">
                             {/* Amount Input */}
                             <div>
                                 <label htmlFor="expense-amount" className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Jumlah (Rp)</label>
@@ -181,13 +181,8 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
                                 />
                             </div>
 
-                            {/* Submit Button - Sticky */}
-                            <div className="fixed bottom-0 left-0 right-0 sm:static p-4 sm:p-0 bg-gradient-to-t from-ui-surface via-ui-surface to-transparent sm:bg-none"
-                                style={{
-                                    paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))',
-                                    zIndex: 20
-                                }}
-                            >
+                            {/* Submit Button */}
+                            <div className="pt-2">
                                 <button
                                     type="submit"
                                     disabled={!amount || isSubmitting}
