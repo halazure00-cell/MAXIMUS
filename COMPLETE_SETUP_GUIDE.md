@@ -1,124 +1,49 @@
-# Setup Lengkap: Migrasi Database + Geocoding Strategic Spots
+# Setup Lengkap: Migrasi & Geocoding (Versi GRATIS)
 
-Ada 3 tahap yang harus diselesaikan untuk fitur Heatmap/Strategic Spots berfungsi sempurna:
+Panduan ini telah disesuaikan untuk menggunakan **OpenStreetMap (Nominatim)** yang 100% GRATIS dan tidak memerlukan API Key Google.
 
-## **Tahap 1: Migrasi Database (Tambah Kolom)**
+## **Tahap 1: Migrasi Database (Wajib)**
+Fitur ini memerlukan kolom tambahan di database untuk menyimpan koordinat.
 
-### Opsi A: Via Supabase Dashboard (Paling Mudah)
 1. Buka [Supabase Dashboard](https://supabase.com/dashboard)
-2. Pilih project: `erfjhbrsttzkvggksdhx`
-3. Menu **SQL Editor** → **New Query**
-4. Copy-paste kode dari file `RUN_MIGRATION_MANUALLY.md`
-5. Klik **Run** (tombol hijau)
+2. Masuk ke **SQL Editor** → **New Query**
+3. Jalankan kode dari file `RUN_MIGRATION_MANUALLY.md`
 
-### Opsi B: Via CLI (Jika Anda punya akses)
-```bash
-# Install Supabase CLI (jika belum)
-npm install -g supabase
-
-# Login
-supabase login
-
-# Link project
-supabase link --project-ref erfjhbrsttzkvggksdhx
-
-# Jalankan migration
-supabase db push
-```
+*(Jika sudah pernah dijalankan sebelumnya, lewati tahap ini)*
 
 ---
 
 ## **Tahap 2: Jalankan Script Geocoding**
 
-Script ini akan mengquery Google Places API untuk setiap 100 lokasi strategis dan mengisi koordinat latitude/longitude.
+Script ini akan mencari koordinat secara otomatis menggunakan OpenStreetMap.
 
-### Persiapan:
-1. **Dapatkan SUPABASE SERVICE ROLE KEY:**
-   - Buka [Supabase Settings > API](https://supabase.com/dashboard/project/erfjhbrsttzkvggksdhx/settings/api)
-   - Cari **"Service Role"** secret key (bukan ANON key!)
-   - Copy key tersebut
+### Cara Menjalankan:
+1.  **Dapatkan SUPABASE SERVICE ROLE KEY:**
+    - Buka [Supabase Settings > API](https://supabase.com/dashboard/project/haywceiagliqoqxixaks/settings/api)
+    - Cari **"Service Role"** secret key.
+    - Copy key tersebut.
 
-2. **Dapatkan GOOGLE PLACES API KEY:**
-   - Buka [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-   - Buat API key atau gunakan yang sudah ada
-   - Pastikan **Google Places API** sudah enabled di project
-
-### Jalankan Script:
+2.  **Jalankan Perintah di Terminal:**
 ```bash
-# Set environment variables
-export SUPABASE_SERVICE_ROLE_KEY="your-service-role-key-here"
-export GOOGLE_PLACES_API_KEY="your-google-places-api-key-here"
+# Set key (Ganti dengan key Anda yang diawali 'ey...')
+export SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJIUz..."
 
-# Jalankan script geocoding
+# Jalankan script
 bash run-geocoding.sh
 ```
 
-**Output yang akan Anda lihat:**
-```
-🚀 Starting geocoding job for strategic_spots...
-
-📍 Found 100 spots to geocode
-
-📦 Processing batch 1...
-  ✅ Stasiun Bandung (Hall) → OK
-  ✅ Pasar Baru Trade Center → OK
-  ✅ Pasar Ciroyom → OK
-  ...
-  
-(proses berlanjut selama 5-10 menit)
-
-📊 GEOCODING SUMMARY
-============================================================
-✅ Success (OK):   95
-⚠️  Not Found:      3
-❌ Errors:         2
-📍 Total:          100
-📈 Success Rate:   95.0%
-============================================================
-
-✅ Job completed successfully (>= 90% success rate)
-```
+**Catatan Penting:**
+- Script ini akan berjalan agak lambat (1.5 detik per lokasi) untuk mematuhi aturan penggunaan gratis OpenStreetMap.
+- Total waktu untuk 100 lokasi: ±3-4 menit.
+- Anda bisa melihat progress bar berjalan di terminal.
 
 ---
 
-## **Tahap 3: Verifikasi di Frontend**
+## **Tahap 3: Selesai!**
 
-Setelah script selesai:
-
-1. **Refresh aplikasi** (Ctrl+F5 atau Cmd+Shift+R)
-2. Buka halaman **Insight** → Tab **Spot**
-3. Seharusnya Anda akan melihat:
-   - ✅ List lokasi strategis (nama + kategori)
-   - ✅ Jarak dari posisi Anda saat ini (dalam km)
-   - ✅ Jam operasional (start_hour - end_hour)
-   - ✅ Rekomendasi berdasarkan heatmap (active + upcoming)
-
----
-
-## Troubleshooting
-
-### "0 lokasi strategis di Bandung"
-**Sebab:** Database migrasi belum dijalankan atau data seed belum masuk
-**Solusi:** Jalankan Tahap 1 (migrasi)
-
-### "Script error: Missing env"
-**Sebab:** SUPABASE_SERVICE_ROLE_KEY atau GOOGLE_PLACES_API_KEY tidak diset
-**Solusi:** Export kedua variable sesuai instruksi di atas
-
-### "Column geocode_status does not exist"
-**Sebab:** Migrasi database belum selesai
-**Solusi:** Jalankan Tahap 1
-
-### "No results found" untuk beberapa lokasi
-**Sebab:** Google Places API tidak menemukan lokasi tersebut
-**Solusi:** Normal! Script akan merekam error, dan Anda masih bisa melihat spot (tanpa koordinat) di aplikasi
-
----
-
-## Checklist Completion
-
-- [ ] Tahap 1 selesai: Database migration executed
-- [ ] Tahap 2 selesai: Geocoding script completed
-- [ ] Tahap 3 selesai: Frontend menampilkan spots dengan jarak
-
-Setelah semua selesai, fitur **Heatmap/Strategic Spots** akan fully operational! 🎉
+Setelah script menampilkan pesan `FINISHED!`:
+1. Refresh aplikasi Anda.
+2. Menu **Insight** → Tab **Spot** sekarang akan menampilkan:
+   - Jarak (km)
+   - Status Aktif/Tidak
+   - Rekomendasi Spot
