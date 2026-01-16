@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Calculator, Lightbulb, History, User } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -18,16 +18,34 @@ const NAV_ITEMS = [
 const BottomNavigation = () => {
     const location = useLocation();
     const [pressedPath, setPressedPath] = useState(null);
+    const [canVibrate, setCanVibrate] = useState(false);
+
+    // Enable vibration only after first user interaction
+    useEffect(() => {
+        const enableVibration = () => {
+            setCanVibrate(true);
+            document.removeEventListener('touchstart', enableVibration, { once: true });
+            document.removeEventListener('click', enableVibration, { once: true });
+        };
+
+        document.addEventListener('touchstart', enableVibration, { once: true });
+        document.addEventListener('click', enableVibration, { once: true });
+
+        return () => {
+            document.removeEventListener('touchstart', enableVibration);
+            document.removeEventListener('click', enableVibration);
+        };
+    }, []);
 
     const handlePressStart = (path) => {
         setPressedPath(path);
-        // Haptic feedback with safety check
-        try {
-            if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+        // Haptic feedback - only after user interaction
+        if (canVibrate && typeof navigator?.vibrate === 'function') {
+            try {
                 navigator.vibrate(10);
+            } catch {
+                // Silently ignore
             }
-        } catch {
-            // Silently ignore if vibration fails
         }
     };
 
