@@ -387,20 +387,34 @@ export default function Riwayat() {
         setDailyRecapData(dailyRecapList);
 
         const combined = [
-            ...monthOrders.map(o => ({ 
-                ...o, 
-                type: 'income', 
-                displayAmount: getNetProfit(o),
-                // Ensure client_tx_id is available for operations
-                client_tx_id: o.client_tx_id || o.id, 
-            })),
-            ...monthExpenses.map(e => ({ 
-                ...e, 
-                type: 'expense', 
-                displayAmount: e.amount,
-                // Ensure client_tx_id is available for operations
-                client_tx_id: e.client_tx_id || e.id,
-            }))
+            ...monthOrders.map(o => {
+                // Validate client_tx_id exists
+                if (!o.client_tx_id) {
+                    logger.warn('Order missing client_tx_id, using id as fallback', { id: o.id });
+                }
+                
+                return { 
+                    ...o, 
+                    type: 'income', 
+                    displayAmount: getNetProfit(o),
+                    // Use client_tx_id if available, fallback to id
+                    client_tx_id: o.client_tx_id || `legacy-${o.id}`, 
+                };
+            }),
+            ...monthExpenses.map(e => {
+                // Validate client_tx_id exists
+                if (!e.client_tx_id) {
+                    logger.warn('Expense missing client_tx_id, using id as fallback', { id: e.id });
+                }
+                
+                return { 
+                    ...e, 
+                    type: 'expense', 
+                    displayAmount: e.amount,
+                    // Use client_tx_id if available, fallback to id
+                    client_tx_id: e.client_tx_id || `legacy-${e.id}`,
+                };
+            })
         ].sort((a, b) => {
             const dateA = parseDate(a.created_at);
             const dateB = parseDate(b.created_at);

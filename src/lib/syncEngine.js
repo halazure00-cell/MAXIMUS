@@ -120,9 +120,10 @@ async function pushUpsert(op) {
     ...payload,
   };
   
-  // Remove id if it's a new record (let DB generate it)
-  // But keep client_tx_id for upsert matching
-  if (!data.id || typeof data.id === 'string') {
+  // For new records without a server-assigned ID, remove the id field
+  // Server will generate bigserial id, we keep client_tx_id for matching
+  if (data.id && !Number.isInteger(data.id)) {
+    // Only remove if it's not a proper server-assigned integer
     delete data.id;
   }
   

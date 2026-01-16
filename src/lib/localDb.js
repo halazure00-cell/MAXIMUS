@@ -11,9 +11,25 @@ const DB_VERSION = 1;
 let dbPromise = null;
 
 /**
+ * Check if IndexedDB is available
+ */
+function isIndexedDBAvailable() {
+  try {
+    return typeof indexedDB !== 'undefined';
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
  * Initialize IndexedDB with all required stores
  */
 export async function initLocalDb() {
+  if (!isIndexedDBAvailable()) {
+    console.warn('[localDb] IndexedDB not available - offline features disabled');
+    throw new Error('IndexedDB not available');
+  }
+  
   if (dbPromise) return dbPromise;
 
   dbPromise = openDB(DB_NAME, DB_VERSION, {

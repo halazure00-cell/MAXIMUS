@@ -10,11 +10,19 @@ begin;
 do $$ 
 begin
   -- client_tx_id: stable client-generated UUID for sync
+  -- Start as nullable, we'll backfill and add NOT NULL later
   if not exists (
     select 1 from information_schema.columns 
     where table_name='orders' and column_name='client_tx_id'
   ) then
-    alter table public.orders add column client_tx_id uuid not null default gen_random_uuid();
+    alter table public.orders add column client_tx_id uuid;
+    
+    -- Backfill existing rows with generated UUIDs
+    update public.orders set client_tx_id = gen_random_uuid() where client_tx_id is null;
+    
+    -- Now make it NOT NULL with default for new rows
+    alter table public.orders alter column client_tx_id set not null;
+    alter table public.orders alter column client_tx_id set default gen_random_uuid();
   end if;
 
   -- updated_at: for incremental pull sync
@@ -22,7 +30,14 @@ begin
     select 1 from information_schema.columns 
     where table_name='orders' and column_name='updated_at'
   ) then
-    alter table public.orders add column updated_at timestamptz not null default now();
+    alter table public.orders add column updated_at timestamptz;
+    
+    -- Backfill with created_at or now()
+    update public.orders set updated_at = coalesce(created_at, now()) where updated_at is null;
+    
+    -- Now make it NOT NULL with default
+    alter table public.orders alter column updated_at set not null;
+    alter table public.orders alter column updated_at set default now();
   end if;
 
   -- deleted_at: soft delete for sync
@@ -41,14 +56,20 @@ begin
     select 1 from information_schema.columns 
     where table_name='expenses' and column_name='client_tx_id'
   ) then
-    alter table public.expenses add column client_tx_id uuid not null default gen_random_uuid();
+    alter table public.expenses add column client_tx_id uuid;
+    update public.expenses set client_tx_id = gen_random_uuid() where client_tx_id is null;
+    alter table public.expenses alter column client_tx_id set not null;
+    alter table public.expenses alter column client_tx_id set default gen_random_uuid();
   end if;
 
   if not exists (
     select 1 from information_schema.columns 
     where table_name='expenses' and column_name='updated_at'
   ) then
-    alter table public.expenses add column updated_at timestamptz not null default now();
+    alter table public.expenses add column updated_at timestamptz;
+    update public.expenses set updated_at = coalesce(created_at, now()) where updated_at is null;
+    alter table public.expenses alter column updated_at set not null;
+    alter table public.expenses alter column updated_at set default now();
   end if;
 
   if not exists (

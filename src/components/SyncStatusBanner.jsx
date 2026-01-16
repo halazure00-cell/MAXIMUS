@@ -54,12 +54,20 @@ export default function SyncStatusBanner() {
   const getLastSyncText = () => {
     if (!lastSyncAt) return 'Never synced';
     try {
+      // Try with Indonesian locale, fallback to default if not available
       return formatDistanceToNow(new Date(lastSyncAt), { 
         addSuffix: true,
         locale: id 
       });
     } catch {
-      return 'Unknown';
+      // Fallback to default locale
+      try {
+        return formatDistanceToNow(new Date(lastSyncAt), { 
+          addSuffix: true 
+        });
+      } catch {
+        return 'Unknown';
+      }
     }
   };
 

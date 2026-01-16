@@ -250,8 +250,16 @@ export async function importFromSupabase(orders, expenses) {
   for (const order of orders) {
     const cacheOrder = {
       ...order,
-      // Generate client_tx_id if not present (for old records)
-      client_tx_id: order.client_tx_id || crypto.randomUUID(),
+      // Only generate client_tx_id if it doesn't exist (legacy data)
+      // Log when we have to generate one for traceability
+      client_tx_id: order.client_tx_id || (() => {
+        const newId = crypto.randomUUID();
+        console.warn('[offlineOps] Generating client_tx_id for legacy order', { 
+          orderId: order.id, 
+          newClientTxId: newId 
+        });
+        return newId;
+      })(),
       updated_at: order.updated_at || order.created_at || new Date().toISOString(),
       deleted_at: order.deleted_at || null,
     };
@@ -262,7 +270,15 @@ export async function importFromSupabase(orders, expenses) {
   for (const expense of expenses) {
     const cacheExpense = {
       ...expense,
-      client_tx_id: expense.client_tx_id || crypto.randomUUID(),
+      // Only generate client_tx_id if it doesn't exist (legacy data)
+      client_tx_id: expense.client_tx_id || (() => {
+        const newId = crypto.randomUUID();
+        console.warn('[offlineOps] Generating client_tx_id for legacy expense', { 
+          expenseId: expense.id, 
+          newClientTxId: newId 
+        });
+        return newId;
+      })(),
       updated_at: expense.updated_at || expense.created_at || new Date().toISOString(),
       deleted_at: expense.deleted_at || null,
     };
