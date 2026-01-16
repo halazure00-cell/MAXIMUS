@@ -231,6 +231,8 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                                 <div className="relative">
                                     <Clock size={16} className="absolute left-3 top-3.5 text-ui-muted pointer-events-none" style={{ zIndex: 1 }} />
                                     <input
+                                        id="order-datetime"
+                                        name="created_at"
                                         type="datetime-local"
                                         value={createdAt}
                                         onChange={handleCreatedAtChange}
@@ -245,6 +247,7 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                                             touchAction: 'manipulation'
                                         }}
                                         required
+                                        autoComplete="off"
                                     />
                                 </div>
                             </div>
