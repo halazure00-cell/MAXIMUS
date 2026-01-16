@@ -1,0 +1,79 @@
+{
+  "name": "MAXIMUS - Utility Driver Assistant",
+  "short_name": "MAXIMUS",
+  "description": "Professional utility app untuk driver Grab & Gojek Indonesia. Kelola pendapatan, biaya, dan insight keuangan real-time.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f0f0f",
+  "theme_color": "#ffd54a",
+  "categories": ["productivity", "utilities"],
+  "screenshots": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Catat Order",
+      "short_name": "Order",
+      "description": "Catat order baru dengan cepat",
+      "url": "/?page=home",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Riwayat Transaksi",
+      "short_name": "Riwayat",
+      "description": "Lihat riwayat transaksi dan analytics",
+      "url": "/?page=history",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Insight & Analytics",
+      "short_name": "Insight",
+      "description": "Analisis performa dan earnings",
+      "url": "/?page=insight",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
