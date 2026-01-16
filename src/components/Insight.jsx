@@ -169,18 +169,13 @@ export default function Insight({ showToast }) {
                     .gte('created_at', thirtyDaysAgo)
                     .order('created_at', { ascending: false });
                 
-                // Smart spots fetch with fallback for missing columns (migration safety)
                 const fetchSpots = async () => {
+                   // Coba fetch normal dulu (tanpa filter geocode) agar data tetap muncul walau belum digeocode
+                   // Supaya user tidak melihat layar kosong saat migrasi database belum jalan sempurna
                     const { data, error } = await supabase
                         .from('strategic_spots')
-                        .select('*')
-                        .eq('geocode_status', 'OK');
+                        .select('*');
                     
-                    // If column doesn't exist (42703), fallback to legacy fetch
-                    if (error && error.code === '42703') {
-                        console.warn('⚠️ geocode_status column missing. Falling back to simple fetch.');
-                        return await supabase.from('strategic_spots').select('*');
-                    }
                     return { data, error };
                 };
 
