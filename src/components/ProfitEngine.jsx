@@ -1,17 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSettings } from '../context/SettingsContext';
+import { useSyncContext } from '../context/SyncContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle } from 'lucide-react';
 
-import { supabase } from '../lib/supabaseClient';
+import { createOrder } from '../lib/offlineOps';
+import { createLogger } from '../lib/logger';
 import Card from './Card';
 import PrimaryButton from './PrimaryButton';
 import SectionTitle from './SectionTitle';
+
+const logger = createLogger('ProfitEngine');
 
 const MotionPrimaryButton = motion(PrimaryButton);
 
 export default function ProfitEngine({ showToast }) {
     const { settings, session } = useSettings();
+    const { updateStatus } = useSyncContext();
     const [orderPrice, setOrderPrice] = useState('');
     const [distance, setDistance] = useState('');
     const [isPriority, setIsPriority] = useState(settings.defaultCommission === 0.10);
@@ -82,25 +87,25 @@ export default function ProfitEngine({ showToast }) {
         }
 
         try {
-            const { error } = await supabase
-                .from('orders')
-                .insert([
-                    {
-                        user_id: session.user.id,
-                        price: estimatedNetProfit,
-                        gross_price: priceValue,
-                        commission_rate: currentCommissionRate,
-                        app_fee: appFee,
-                        net_profit: estimatedNetProfit,
-                        distance: distanceValue,
-                        fuel_cost: fuelCost,
-                        maintenance_fee: maintenance,
-                        fuel_efficiency_at_time: settings.fuelEfficiency,
-                        // created_at is default now() in DB
-                    },
-                ]);
+            // Use offline-first operations
+            await createOrder({
+                price: estimatedNetProfit,
+                gross_price: priceValue,
+                commission_rate: currentCommissionRate,
+                app_fee: appFee,
+                net_profit: estimatedNetProfit,
+                distance: distanceValue,
+                fuel_cost: fuelCost,
+                maintenance_fee: maintenance,
+                fuel_efficiency_at_time: settings.fuelEfficiency,
+            }, session.user.id);
 
-            if (error) throw error;
+            logger.info('Order created offline', { netProfit: estimatedNetProfit });
+
+            // Trigger sync status update
+            if (updateStatus) {
+                updateStatus();
+            }
 
             if (isMountedRef.current) {
                 setShowSuccess(true);
@@ -123,7 +128,7 @@ export default function ProfitEngine({ showToast }) {
             }, 1500);
 
         } catch (error) {
-            console.error('Error saving order:', error);
+            logger.error('Error saving order', error);
             if (showToast) {
                 showToast(`Gagal menyimpan order: ${error.message}`, 'error');
             }

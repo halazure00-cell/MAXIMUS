@@ -1,8 +1,16 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save } from 'lucide-react';
+import { useSettings } from '../context/SettingsContext';
+import { useSyncContext } from '../context/SyncContext';
+import { createExpense } from '../lib/offlineOps';
+import { createLogger } from '../lib/logger';
 
-export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
+const logger = createLogger('ExpenseModal');
+
+export default function ExpenseModal({ isOpen, onClose, showToast }) {
+    const { session } = useSettings();
+    const { updateStatus } = useSyncContext();
     const [amount, setAmount] = useState('');
     const [category, setCategory] = useState('Bensin');
     const [note, setNote] = useState('');
@@ -41,16 +49,29 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
 
         setIsSubmitting(true);
         try {
-            await onSave({
-                amount,
+            // Use offline-first operations
+            await createExpense({
+                amount: amountValue,
                 category,
                 note
-            });
+            }, session.user.id);
+
+            logger.info('Expense created offline', { category, amount: amountValue });
+
+            // Trigger sync status update
+            if (updateStatus) {
+                updateStatus();
+            }
+
+            if (showToast) {
+                showToast(`Pengeluaran tersimpan: -Rp ${new Intl.NumberFormat('id-ID').format(amountValue)}`, 'success');
+            }
+
             resetForm();
             onClose();
 
         } catch (error) {
-            console.error('Error saving expense:', error);
+            logger.error('Error saving expense', error);
             if (showToast) {
                 showToast('Gagal menyimpan pengeluaran.', 'error');
             }
