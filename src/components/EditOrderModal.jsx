@@ -132,8 +132,7 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className="bg-ui-surface w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 shadow-ui-lg pointer-events-auto relative z-10 max-h-[85vh] overflow-y-auto"
-                        style={{ paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))' }}
+                        className="bg-ui-surface w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 shadow-ui-lg pointer-events-auto relative z-10 max-h-[85vh] overflow-y-auto safe-bottom-padding"
                     >
                         {/* Handle bar for mobile */}
                         <div className="flex justify-center mb-4 sm:hidden">

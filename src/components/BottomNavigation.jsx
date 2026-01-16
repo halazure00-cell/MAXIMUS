@@ -21,9 +21,13 @@ const BottomNavigation = () => {
 
     const handlePressStart = (path) => {
         setPressedPath(path);
-        // Haptic feedback
-        if (navigator.vibrate) {
-            navigator.vibrate(10);
+        // Haptic feedback with safety check
+        try {
+            if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+                navigator.vibrate(10);
+            }
+        } catch {
+            // Silently ignore if vibration fails
         }
     };
 

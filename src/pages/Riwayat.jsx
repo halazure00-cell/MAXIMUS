@@ -875,7 +875,7 @@ export default function Riwayat() {
                 <PrimaryButton
                     type="button"
                     onClick={() => setShowExpenseModal(true)}
-                    className="bg-ui-danger hover:bg-ui-danger/90 text-white p-4 rounded-full shadow-ui-lg transition-all active:scale-90 press-effect"
+                    className="bg-ui-danger hover:bg-ui-danger/90 text-ui-inverse p-4 rounded-full shadow-ui-lg transition-all active:scale-90 press-effect"
                     aria-label="Tambah pengeluaran"
                 >
                     <Minus size={24} />

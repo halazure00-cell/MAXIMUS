@@ -68,14 +68,7 @@ export default function ToastContainer() {
     const { toasts, removeToast } = useToast();
 
     return (
-        <div 
-            className="fixed z-[100000] flex w-full max-w-sm flex-col gap-2 px-4"
-            style={{
-                top: 'calc(env(safe-area-inset-top, 0px) + 16px)',
-                left: '50%',
-                transform: 'translateX(-50%)'
-            }}
-        >
+        <div className="fixed z-[100000] flex w-full max-w-sm flex-col gap-2 px-4 toast-container-position">
             {toasts.map((toast) => (
                 <ToastItem key={toast.id} toast={toast} onRemove={removeToast} />
             ))}

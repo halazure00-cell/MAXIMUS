@@ -335,7 +335,7 @@ export default function ProfileSettings({ showToast }) {
                 <p className="text-[10px] text-ui-muted mb-3">Maximus Driver (Cloud Sync) v1.3</p>
                 <PrimaryButton
                     type="button"
-                    className="bg-ui-danger text-white hover:bg-ui-danger/90 press-effect"
+                    className="bg-ui-danger text-ui-inverse hover:bg-ui-danger/90 press-effect"
                     onClick={() => supabase.auth.signOut()}
                 >
                     Keluar (Sign Out)

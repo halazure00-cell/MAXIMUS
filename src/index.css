@@ -82,16 +82,16 @@
     -webkit-overflow-scrolling: touch;
     /* Ensure text is readable */
     line-height: 1.5;
-    /* Prevent rubber banding */
-    position: fixed;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
+    /* Full viewport height */
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
   }
   
   #root {
-    height: 100%;
-    overflow: hidden;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    display: flex;
+    flex-direction: column;
   }
   
   /* Better touch behavior */
@@ -383,10 +383,14 @@
   transform: scale(0.9);
 }
 
-/* Status bar area placeholder for iOS standalone */
-@supports (padding-top: env(safe-area-inset-top)) {
-  .status-bar-placeholder {
-    height: env(safe-area-inset-top, 0px);
-    background: var(--ui-color-surface);
-  }
+/* Safe area bottom padding utility */
+.safe-bottom-padding {
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Toast container positioning */
+.toast-container-position {
+  top: calc(env(safe-area-inset-top, 0px) + 16px);
+  left: 50%;
+  transform: translateX(-50%);
 }

@@ -58,20 +58,16 @@ function AnimatedRoutes({ showToast }) {
 function AppShell({ showToast }) {
     return (
         <div
-            className="bg-ui-background text-ui-text font-sans"
+            className="bg-ui-background text-ui-text font-sans flex flex-col"
             style={{
-                height: '100%',
-                position: 'relative',
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden'
+                minHeight: '100dvh',
+                position: 'relative'
             }}
         >
             {/* Main content with padding for navigation */}
             <main 
-                className="page-scroll"
+                className="flex-1 overflow-y-auto"
                 style={{
-                    flex: 1,
                     paddingBottom: 'calc(var(--nav-total-height, 80px) + 16px)',
                     WebkitOverflowScrolling: 'touch'
                 }}
