@@ -60,15 +60,20 @@ function AppShell({ showToast }) {
         <div
             className="bg-ui-background text-ui-text font-sans"
             style={{
-                minHeight: '100dvh',
-                position: 'relative'
+                height: '100%',
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
             }}
         >
             {/* Main content with padding for navigation */}
             <main 
+                className="page-scroll"
                 style={{
-                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
-                    minHeight: '100dvh'
+                    flex: 1,
+                    paddingBottom: 'calc(var(--nav-total-height, 80px) + 16px)',
+                    WebkitOverflowScrolling: 'touch'
                 }}
             >
                 <AnimatedRoutes showToast={showToast} />

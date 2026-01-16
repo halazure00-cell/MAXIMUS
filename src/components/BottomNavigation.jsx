@@ -4,8 +4,8 @@ import { Calculator, Lightbulb, History, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 /**
- * BottomNavigation - Simple fixed bottom navigation
- * Uses Link components for navigation (most reliable)
+ * BottomNavigation - Mobile-first fixed bottom navigation
+ * Enhanced with better touch targets and visual feedback
  */
 
 const NAV_ITEMS = [
@@ -17,11 +17,18 @@ const NAV_ITEMS = [
 
 const BottomNavigation = () => {
     const location = useLocation();
-    const [clickedPath, setClickedPath] = useState(null);
+    const [pressedPath, setPressedPath] = useState(null);
 
-    const handleLinkClick = (path) => {
-        setClickedPath(path);
-        setTimeout(() => setClickedPath(null), 300);
+    const handlePressStart = (path) => {
+        setPressedPath(path);
+        // Haptic feedback
+        if (navigator.vibrate) {
+            navigator.vibrate(10);
+        }
+    };
+
+    const handlePressEnd = () => {
+        setPressedPath(null);
     };
 
     return (
@@ -35,13 +42,15 @@ const BottomNavigation = () => {
                 left: 0,
                 right: 0,
                 zIndex: 999999,
-                backgroundColor: 'var(--ui-color-surface, #ffffff)',
-                borderTop: '1px solid var(--ui-color-border, #e5e7eb)',
+                backgroundColor: 'var(--ui-color-surface)',
+                borderTop: '1px solid var(--ui-color-border)',
                 paddingBottom: 'env(safe-area-inset-bottom, 0px)',
                 pointerEvents: 'auto',
                 touchAction: 'manipulation',
                 isolation: 'isolate',
-                contain: 'layout style'
+                contain: 'layout style',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)'
             }}
         >
             <div
@@ -50,19 +59,26 @@ const BottomNavigation = () => {
                     justifyContent: 'space-around',
                     alignItems: 'center',
                     height: '64px',
-                    width: '100%'
+                    width: '100%',
+                    maxWidth: '500px',
+                    margin: '0 auto',
+                    padding: '0 8px'
                 }}
             >
                 {NAV_ITEMS.map((item) => {
                     const isActive = location.pathname === item.path;
-                    const wasClicked = clickedPath === item.path;
+                    const isPressed = pressedPath === item.path;
                     const IconComponent = item.icon;
 
                     return (
                         <Link
                             key={item.path}
                             to={item.path}
-                            onClick={() => handleLinkClick(item.path)}
+                            onTouchStart={() => handlePressStart(item.path)}
+                            onTouchEnd={handlePressEnd}
+                            onMouseDown={() => handlePressStart(item.path)}
+                            onMouseUp={handlePressEnd}
+                            onMouseLeave={handlePressEnd}
                             role="tab"
                             aria-selected={isActive}
                             aria-label={item.label}
@@ -74,20 +90,23 @@ const BottomNavigation = () => {
                                 flex: '1',
                                 height: '100%',
                                 minHeight: '64px',
+                                maxWidth: '96px',
                                 gap: '4px',
-                                background: wasClicked ? 'rgba(0,0,0,0.05)' : 'transparent',
+                                background: 'transparent',
                                 textDecoration: 'none',
-                                padding: '8px',
+                                padding: '8px 4px',
                                 cursor: 'pointer',
                                 pointerEvents: 'auto',
                                 touchAction: 'manipulation',
-                                WebkitTapHighlightColor: 'rgba(0,0,0,0.1)',
+                                WebkitTapHighlightColor: 'transparent',
                                 outline: 'none',
                                 position: 'relative',
-                                transition: 'background-color 0.15s ease',
+                                transform: isPressed ? 'scale(0.92)' : 'scale(1)',
+                                transition: 'transform 0.1s ease-out',
                                 color: isActive 
-                                    ? 'var(--ui-color-text, #1f2937)' 
-                                    : 'var(--ui-color-muted, #6b7280)'
+                                    ? 'var(--ui-color-text)' 
+                                    : 'var(--ui-color-muted)',
+                                opacity: isPressed ? 0.7 : 1
                             }}
                         >
                             {/* Active indicator */}
@@ -97,10 +116,10 @@ const BottomNavigation = () => {
                                     style={{
                                         position: 'absolute',
                                         top: 0,
-                                        left: '20%',
-                                        right: '20%',
+                                        left: '15%',
+                                        right: '15%',
                                         height: '3px',
-                                        backgroundColor: 'var(--ui-color-primary, #ffd54a)',
+                                        backgroundColor: 'var(--ui-color-primary)',
                                         borderRadius: '0 0 4px 4px'
                                     }}
                                     initial={false}
@@ -112,27 +131,31 @@ const BottomNavigation = () => {
                                 />
                             )}
 
-                            {/* Icon */}
-                            <div
+                            {/* Icon container with background */}
+                            <motion.div
                                 style={{
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    padding: '6px',
-                                    borderRadius: '8px',
+                                    padding: '8px 16px',
+                                    borderRadius: '20px',
                                     backgroundColor: isActive 
-                                        ? 'var(--ui-color-primary, #ffd54a)' 
+                                        ? 'var(--ui-color-primary)' 
                                         : 'transparent',
-                                    transition: 'background-color 0.15s ease',
+                                    transition: 'background-color 0.2s ease',
                                     pointerEvents: 'none'
                                 }}
+                                animate={{
+                                    scale: isActive ? 1 : 0.95
+                                }}
+                                transition={{ duration: 0.15 }}
                             >
                                 <IconComponent
                                     size={22}
                                     strokeWidth={isActive ? 2.5 : 2}
                                     style={{ pointerEvents: 'none' }}
                                 />
-                            </div>
+                            </motion.div>
 
                             {/* Label */}
                             <span
@@ -140,7 +163,8 @@ const BottomNavigation = () => {
                                     fontSize: '11px',
                                     fontWeight: isActive ? 600 : 500,
                                     lineHeight: 1,
-                                    pointerEvents: 'none'
+                                    pointerEvents: 'none',
+                                    letterSpacing: isActive ? '0' : '-0.01em'
                                 }}
                             >
                                 {item.label}

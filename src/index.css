@@ -32,6 +32,16 @@
 
     --ui-font-body: 'Inter', system-ui, sans-serif;
     --ui-font-display: 'Outfit', 'Inter', system-ui, sans-serif;
+    
+    /* Safe area insets */
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-left: env(safe-area-inset-left, 0px);
+    --safe-area-right: env(safe-area-inset-right, 0px);
+    
+    /* Navigation height */
+    --nav-height: 64px;
+    --nav-total-height: calc(var(--nav-height) + var(--safe-area-bottom));
   }
 
   .dark {
@@ -45,14 +55,67 @@
     --ui-color-muted: #9ca3af;
     --ui-color-border: #1f2937;
     --ui-color-inverse: #f9fafb;
-    --ui-color-overlay: rgba(15, 23, 42, 0.8);
+    --ui-color-overlay: rgba(15, 23, 42, 0.85);
   }
 }
 
 @layer base {
+  html {
+    /* Prevent iOS overscroll bounce */
+    overscroll-behavior: none;
+    /* Smooth scrolling */
+    scroll-behavior: smooth;
+    /* Prevent text size adjustment on orientation change */
+    -webkit-text-size-adjust: 100%;
+  }
+  
   body {
     @apply bg-ui-background text-ui-text antialiased;
     font-family: var(--ui-font-body);
+    /* Support safe areas for iOS */
+    padding-top: var(--safe-area-top);
+    padding-left: var(--safe-area-left);
+    padding-right: var(--safe-area-right);
+    /* Prevent pull-to-refresh on mobile */
+    overscroll-behavior-y: contain;
+    /* Enable momentum scrolling */
+    -webkit-overflow-scrolling: touch;
+    /* Ensure text is readable */
+    line-height: 1.5;
+    /* Prevent rubber banding */
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+  
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+  
+  /* Better touch behavior */
+  button, a, [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  
+  /* Smooth scrolling containers */
+  .scroll-container {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  
+  /* Input styling for mobile */
+  input, select, textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  
+  /* Remove default focus outline and add custom */
+  input:focus, select:focus, textarea:focus, button:focus {
+    outline: none;
   }
 }
 
@@ -180,17 +243,27 @@
   pointer-events: auto !important;
   isolation: isolate !important;
   contain: layout !important;
+  /* Safe area support */
+  padding-bottom: var(--safe-area-bottom) !important;
+  background-color: var(--ui-color-surface) !important;
+  border-top: 1px solid var(--ui-color-border) !important;
+  /* Prevent content from overlapping */
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
 }
 
 #bottom-navigation * {
   pointer-events: auto !important;
 }
 
-#bottom-navigation button {
+#bottom-navigation button,
+#bottom-navigation a {
   pointer-events: auto !important;
   cursor: pointer !important;
   -webkit-tap-highlight-color: transparent !important;
   touch-action: manipulation !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
 }
 
 /* Leaflet z-index overrides - MUST stay below navigation */
@@ -244,8 +317,76 @@
 
 /* Ensure touch events work on navigation */
 @media (pointer: coarse) {
-  #bottom-navigation button {
-    min-height: 44px !important;
-    min-width: 44px !important;
+  #bottom-navigation button,
+  #bottom-navigation a {
+    min-height: 48px !important;
+    min-width: 48px !important;
+  }
+}
+
+/* Custom scrollbar styling */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--ui-color-border);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--ui-color-muted);
+}
+
+/* Active button press effect */
+.press-effect {
+  transition: transform 0.1s ease-out, opacity 0.1s ease-out;
+}
+
+.press-effect:active {
+  transform: scale(0.97);
+  opacity: 0.9;
+}
+
+/* Smooth page content scrolling */
+.page-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+}
+
+/* Card hover/active states for mobile */
+.card-interactive {
+  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+}
+
+.card-interactive:active {
+  transform: scale(0.98);
+  box-shadow: var(--ui-shadow-sm);
+}
+
+/* Floating action button styling */
+.fab {
+  position: fixed;
+  z-index: 999998;
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+
+.fab:active {
+  transform: scale(0.9);
+}
+
+/* Status bar area placeholder for iOS standalone */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .status-bar-placeholder {
+    height: env(safe-area-inset-top, 0px);
+    background: var(--ui-color-surface);
   }
 }

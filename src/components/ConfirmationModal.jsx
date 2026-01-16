@@ -13,13 +13,13 @@ export default function ConfirmationModal({
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[1000] flex items-center justify-center px-4">
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center px-4">
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        className="absolute inset-0 bg-ui-overlay backdrop-blur-sm"
                     />
                     <motion.div
                         initial={{ opacity: 0, scale: 0.96 }}
@@ -27,28 +27,28 @@ export default function ConfirmationModal({
                         exit={{ opacity: 0, scale: 0.96 }}
                         transition={{ duration: 0.2, ease: 'easeOut' }}
                         onClick={(event) => event.stopPropagation()}
-                        className="relative z-10 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl border border-gray-100 dark:border-slate-700 dark:bg-slate-800"
+                        className="relative z-10 w-full max-w-sm rounded-ui-xl bg-ui-surface p-5 shadow-ui-lg border border-ui-border"
                     >
                         <div className="space-y-2">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                            <h3 className="text-lg font-bold text-ui-text font-display">{title}</h3>
+                            <p className="text-sm text-ui-muted leading-relaxed">
                                 {message}
                             </p>
                         </div>
-                        <div className="mt-6 flex items-center gap-3">
+                        <div className="mt-5 flex items-center gap-3">
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 shadow-sm transition hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-700 dark:text-gray-200 dark:hover:bg-slate-600"
+                                className="flex-1 rounded-ui-lg border border-ui-border bg-ui-surface px-4 py-3 text-sm font-semibold text-ui-muted shadow-ui-sm transition hover:bg-ui-surface-muted press-effect"
                             >
                                 Batal
                             </button>
                             <button
                                 type="button"
                                 onClick={onConfirm}
-                                className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-ui-sm transition active:scale-[0.98] ${
+                                className={`flex-1 rounded-ui-lg px-4 py-3 text-sm font-semibold shadow-ui-sm transition active:scale-[0.98] press-effect ${
                                     isDestructive
-                                        ? 'bg-ui-danger text-ui-inverse hover:bg-ui-danger/90'
+                                        ? 'bg-ui-danger text-white hover:bg-ui-danger/90'
                                         : 'bg-ui-primary text-ui-text hover:bg-ui-primary-strong'
                                 }`}
                             >

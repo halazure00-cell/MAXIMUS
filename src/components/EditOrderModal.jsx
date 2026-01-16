@@ -124,7 +124,7 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="absolute inset-0 bg-black/60 backdrop-blur-sm pointer-events-auto"
+                        className="absolute inset-0 bg-ui-overlay backdrop-blur-sm pointer-events-auto"
                     />
 
                     <motion.div
@@ -132,41 +132,48 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className="bg-white dark:bg-gray-900 w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6 shadow-xl pointer-events-auto relative z-10 max-h-[80vh] overflow-y-auto pb-32"
+                        className="bg-ui-surface w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 shadow-ui-lg pointer-events-auto relative z-10 max-h-[85vh] overflow-y-auto"
+                        style={{ paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))' }}
                     >
-                        <div className="flex justify-between items-center mb-6">
+                        {/* Handle bar for mobile */}
+                        <div className="flex justify-center mb-4 sm:hidden">
+                            <div className="w-10 h-1 bg-ui-border rounded-full" />
+                        </div>
+
+                        <div className="flex justify-between items-center mb-5">
                             <div>
-                                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">{title}</h2>
-                                <p className="text-xs text-gray-400">Time travel untuk edit tanggal transaksi.</p>
+                                <h2 className="text-xl font-bold text-ui-text font-display">{title}</h2>
+                                <p className="text-xs text-ui-muted">Time travel untuk edit tanggal transaksi.</p>
                             </div>
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                                className="p-2 bg-ui-surface-muted rounded-full hover:bg-ui-border transition-colors press-effect"
                             >
-                                <X size={20} className="text-gray-500" />
+                                <X size={20} className="text-ui-muted" />
                             </button>
                         </div>
 
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Omzet (Rp)</label>
+                                <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Omzet (Rp)</label>
                                 <input
                                     type="number"
                                     value={price}
                                     onChange={(event) => setPrice(event.target.value)}
-                                    className="w-full p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 focus:border-ui-primary focus:ring-1 focus:ring-ui-primary outline-none text-sm dark:text-gray-100"
+                                    className="w-full p-3 bg-ui-surface-muted rounded-ui-xl border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none text-sm text-ui-text placeholder-ui-muted transition-all"
                                     placeholder="Masukkan nominal"
                                     required
+                                    inputMode="numeric"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Komisi</label>
+                                <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Komisi</label>
                                 <select
                                     value={commissionRate}
                                     onChange={(event) => setCommissionRate(event.target.value)}
-                                    className="w-full p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 focus:border-ui-primary focus:ring-1 focus:ring-ui-primary outline-none text-sm dark:text-gray-100"
+                                    className="w-full p-3 bg-ui-surface-muted rounded-ui-xl border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none text-sm text-ui-text transition-all"
                                 >
                                     <option value="0.1">Prioritas (10%)</option>
                                     <option value="0.15">Reguler (15%)</option>
@@ -179,29 +186,30 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Jarak (Km)</label>
+                                <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Jarak (Km)</label>
                                 <input
                                     type="number"
                                     step="0.1"
                                     value={distance}
                                     onChange={(event) => setDistance(event.target.value)}
-                                    className="w-full p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 focus:border-ui-primary focus:ring-1 focus:ring-ui-primary outline-none text-sm dark:text-gray-100"
+                                    className="w-full p-3 bg-ui-surface-muted rounded-ui-xl border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none text-sm text-ui-text placeholder-ui-muted transition-all"
                                     placeholder="0"
+                                    inputMode="decimal"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Tanggal & Waktu</label>
+                                <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Tanggal & Waktu</label>
                                 <div className="relative">
-                                    <Clock size={16} className="absolute left-3 top-3 text-gray-400" />
+                                    <Clock size={16} className="absolute left-3 top-3.5 text-ui-muted" />
                                     <input
                                         type="datetime-local"
                                         value={createdAt}
                                         onChange={handleCreatedAtChange}
-                                        className={`w-full pl-9 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border outline-none text-sm dark:text-gray-100 ${
+                                        className={`w-full pl-10 p-3 bg-ui-surface-muted rounded-ui-xl border outline-none text-sm text-ui-text transition-all ${
                                             createdAtError
-                                                ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-400'
-                                                : 'border-gray-200 dark:border-gray-700 focus:border-ui-primary focus:ring-1 focus:ring-ui-primary'
+                                                ? 'border-ui-danger focus:border-ui-danger focus:ring-2 focus:ring-ui-danger/30'
+                                                : 'border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30'
                                         }`}
                                         required
                                     />
@@ -211,14 +219,14 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                             <button
                                 type="submit"
                                 disabled={isSubmitting}
-                                className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center space-x-2 transition-all ${
+                                className={`w-full py-4 rounded-ui-xl font-bold text-lg shadow-ui-md flex items-center justify-center space-x-2 transition-all press-effect ${
                                     isSubmitting
-                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
-                                        : 'bg-ui-inverse text-ui-primary shadow-ui-md hover:bg-ui-inverse/90 active:scale-95'
+                                        ? 'bg-ui-surface-muted text-ui-muted cursor-not-allowed shadow-none'
+                                        : 'bg-ui-inverse text-ui-primary hover:bg-ui-inverse/90 active:scale-[0.98]'
                                 }`}
                             >
                                 {isSubmitting ? (
-                                    <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    <div className="w-6 h-6 border-2 border-ui-primary/30 border-t-ui-primary rounded-full animate-spin" />
                                 ) : (
                                     <>
                                         <Save size={20} />
