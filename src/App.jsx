@@ -12,6 +12,7 @@ import ToastContainer from './components/ToastContainer';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { useSettings } from './context/SettingsContext';
+import { SyncProvider } from './context/SyncContext';
 
 function AnimatedRoutes({ showToast }) {
     const location = useLocation();
@@ -140,8 +141,10 @@ function App() {
     return (
         <ErrorBoundary>
             <ToastProvider>
-                <ToastContainer />
-                <AppContent session={session} loading={loading} />
+                <SyncProvider>
+                    <ToastContainer />
+                    <AppContent session={session} loading={loading} />
+                </SyncProvider>
             </ToastProvider>
         </ErrorBoundary>
     );
