@@ -132,7 +132,12 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                        className="bg-ui-surface w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 shadow-ui-lg pointer-events-auto relative z-10 max-h-[85vh] overflow-y-auto safe-bottom-padding"
+                        className="bg-ui-surface w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 shadow-ui-lg pointer-events-auto relative z-10 safe-bottom-padding"
+                        style={{
+                            maxHeight: 'calc(100vh - env(safe-area-inset-top, 20px) - 20px)',
+                            overflowY: 'auto',
+                            WebkitOverflowScrolling: 'touch'
+                        }}
                     >
                         {/* Handle bar for mobile */}
                         <div className="flex justify-center mb-4 sm:hidden">
@@ -160,7 +165,12 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                                     type="number"
                                     value={price}
                                     onChange={(event) => setPrice(event.target.value)}
-                                    className="w-full p-3 bg-ui-surface-muted rounded-ui-xl border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none text-sm text-ui-text placeholder-ui-muted transition-all"
+                                    className="w-full p-3 bg-ui-surface-muted rounded-ui-xl border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none text-ui-text placeholder-ui-muted transition-all"
+                                    style={{
+                                        fontSize: 'max(16px, 0.875rem)',
+                                        minHeight: '48px',
+                                        touchAction: 'manipulation'
+                                    }}
                                     placeholder="Masukkan nominal"
                                     required
                                     inputMode="numeric"
@@ -172,7 +182,12 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                                 <select
                                     value={commissionRate}
                                     onChange={(event) => setCommissionRate(event.target.value)}
-                                    className="w-full p-3 bg-ui-surface-muted rounded-ui-xl border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none text-sm text-ui-text transition-all"
+                                    className="w-full p-3 bg-ui-surface-muted rounded-ui-xl border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none text-ui-text transition-all"
+                                    style={{
+                                        fontSize: 'max(16px, 0.875rem)',
+                                        minHeight: '48px',
+                                        touchAction: 'manipulation'
+                                    }}
                                 >
                                     <option value="0.1">Prioritas (10%)</option>
                                     <option value="0.15">Reguler (15%)</option>
@@ -191,7 +206,12 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                                     step="0.1"
                                     value={distance}
                                     onChange={(event) => setDistance(event.target.value)}
-                                    className="w-full p-3 bg-ui-surface-muted rounded-ui-xl border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none text-sm text-ui-text placeholder-ui-muted transition-all"
+                                    className="w-full p-3 bg-ui-surface-muted rounded-ui-xl border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none text-ui-text placeholder-ui-muted transition-all"
+                                    style={{
+                                        fontSize: 'max(16px, 0.875rem)',
+                                        minHeight: '48px',
+                                        touchAction: 'manipulation'
+                                    }}
                                     placeholder="0"
                                     inputMode="decimal"
                                 />
@@ -200,16 +220,21 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
                             <div>
                                 <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Tanggal & Waktu</label>
                                 <div className="relative">
-                                    <Clock size={16} className="absolute left-3 top-3.5 text-ui-muted" />
+                                    <Clock size={16} className="absolute left-3 top-3.5 text-ui-muted pointer-events-none" style={{ zIndex: 1 }} />
                                     <input
                                         type="datetime-local"
                                         value={createdAt}
                                         onChange={handleCreatedAtChange}
-                                        className={`w-full pl-10 p-3 bg-ui-surface-muted rounded-ui-xl border outline-none text-sm text-ui-text transition-all ${
+                                        className={`w-full pl-10 p-3 bg-ui-surface-muted rounded-ui-xl border outline-none text-ui-text transition-all ${
                                             createdAtError
                                                 ? 'border-ui-danger focus:border-ui-danger focus:ring-2 focus:ring-ui-danger/30'
                                                 : 'border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30'
                                         }`}
+                                        style={{
+                                            fontSize: 'max(16px, 0.875rem)',
+                                            minHeight: '48px',
+                                            touchAction: 'manipulation'
+                                        }}
                                         required
                                     />
                                 </div>

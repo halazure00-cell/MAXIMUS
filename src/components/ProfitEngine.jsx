@@ -142,21 +142,25 @@ export default function ProfitEngine({ showToast }) {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={() => setShowSuccess(false)}
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-ui-overlay backdrop-blur-sm cursor-pointer"
+                        className="fixed inset-0 z-[9001] flex items-center justify-center bg-ui-overlay backdrop-blur-sm cursor-pointer px-4"
+                        style={{
+                            pointerEvents: 'auto',
+                            touchAction: 'none'
+                        }}
                     >
-                        <div className="text-center">
+                        <div className="text-center max-w-sm w-full">
                             <motion.div
                                 initial={{ scale: 0, rotate: -45 }}
                                 animate={{ scale: 1, rotate: 0 }}
                                 transition={{ type: "spring", stiffness: 200, damping: 15 }}
                             >
-                            <CheckCircle className="w-24 h-24 text-ui-primary mx-auto mb-4" />
+                            <CheckCircle className="w-16 h-16 sm:w-24 sm:h-24 text-ui-primary mx-auto mb-4" />
                             </motion.div>
                             <motion.h2
                                 initial={{ y: 20, opacity: 0 }}
                                 animate={{ y: 0, opacity: 1 }}
                                 transition={{ delay: 0.1 }}
-                                className="text-3xl font-bold text-ui-primary font-display"
+                                className="text-2xl sm:text-3xl font-bold text-ui-primary font-display break-words"
                             >
                                 ORDER MASUK!
                             </motion.h2>
@@ -165,25 +169,25 @@ export default function ProfitEngine({ showToast }) {
                 )}
             </AnimatePresence>
 
-            <div className="flex flex-col min-h-full bg-ui-background">
-                {/* Scrollable content area */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex flex-col w-full h-full bg-ui-background">
+                {/* Scrollable content area - responsive padding */}
+                <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 space-y-4 w-full box-border">
                     {/* Header Card */}
-                    <Card className="p-5 flex flex-col items-center justify-center space-y-2 text-center">
+                    <Card className="p-4 sm:p-5 flex flex-col items-center justify-center space-y-2 text-center">
                         <SectionTitle>Estimasi Bersih</SectionTitle>
-                        <div className={`text-4xl font-bold ${estimatedNetProfit > 0 ? 'text-ui-text' : 'text-ui-danger'}`}>
-                            <span className="text-lg text-ui-muted font-normal mr-1">Rp</span>
+                        <div className={`text-3xl sm:text-4xl font-bold ${estimatedNetProfit > 0 ? 'text-ui-text' : 'text-ui-danger'}`}>
+                            <span className="text-sm sm:text-lg text-ui-muted font-normal mr-1">Rp</span>
                             {formatCurrency(Math.max(0, estimatedNetProfit))}
                         </div>
                     </Card>
 
                     {/* Input Section */}
-                    <Card className="p-5 space-y-4">
+                    <Card className="p-4 sm:p-5 space-y-4">
                         <div>
-                            <div className="flex justify-between items-end mb-2">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-2 mb-2">
                                 <SectionTitle className="text-[10px] tracking-[0.3em]">Omzet Order (Rp)</SectionTitle>
                                 {orderPrice && (
-                                    <span className="text-[10px] font-bold text-ui-success bg-ui-success/10 px-2 py-0.5 rounded-ui-sm">
+                                    <span className="text-[10px] font-bold text-ui-success bg-ui-success/10 px-2 py-0.5 rounded-ui-sm w-fit">
                                         Bersih: Rp {formatCurrency(realNet)}
                                     </span>
                                 )}
@@ -195,17 +199,17 @@ export default function ProfitEngine({ showToast }) {
                                 placeholder="0"
                                 min="0"
                                 step="1000"
-                                className="w-full text-lg p-3 rounded-ui-lg border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none transition-all bg-ui-surface text-ui-text"
+                                className="w-full text-lg p-3 sm:p-4 rounded-ui-lg border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none transition-all bg-ui-surface text-ui-text"
                                 inputMode="numeric"
                             />
 
-                            {/* Quick Chips */}
-                            <div className="flex flex-wrap gap-2 mt-3">
+                            {/* Quick Chips - responsive grid */}
+                            <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-2 mt-3">
                                 {quickValues.map((val) => (
                                     <button
                                         key={val}
                                         onClick={() => setOrderPrice(val.toString())}
-                                        className="px-3 py-2 bg-ui-surface-muted border border-ui-border rounded-ui-md text-xs font-bold text-ui-muted active:bg-ui-primary active:text-ui-text transition-colors press-effect"
+                                        className="px-3 py-2 bg-ui-surface-muted border border-ui-border rounded-ui-md text-xs sm:text-sm font-bold text-ui-muted active:bg-ui-primary active:text-ui-text transition-colors press-effect min-h-[44px]"
                                     >
                                         {val / 1000}k
                                     </button>
@@ -222,7 +226,7 @@ export default function ProfitEngine({ showToast }) {
                                 placeholder="0"
                                 min="0"
                                 step="0.1"
-                                className="w-full text-lg p-3 rounded-ui-lg border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none transition-all bg-ui-surface text-ui-text"
+                                className="w-full text-lg p-3 sm:p-4 rounded-ui-lg border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none transition-all bg-ui-surface text-ui-text"
                                 inputMode="decimal"
                             />
                         </div>
@@ -235,26 +239,26 @@ export default function ProfitEngine({ showToast }) {
                             </div>
                             <button
                                 onClick={() => setIsPriority(!isPriority)}
-                                className={`w-14 h-7 rounded-full transition-colors relative ${isPriority ? 'bg-ui-primary' : 'bg-ui-surface-muted border border-ui-border'}`}
+                                className={`w-14 h-7 rounded-full transition-colors relative min-h-[44px] flex items-center ${isPriority ? 'bg-ui-primary' : 'bg-ui-surface-muted border border-ui-border'}`}
                             >
-                                <div className={`w-5 h-5 rounded-full bg-ui-surface shadow-ui-sm absolute top-1 transition-transform transform ${isPriority ? 'translate-x-8' : 'translate-x-1'}`} />
+                                <div className={`w-5 h-5 rounded-full bg-ui-surface shadow-ui-sm absolute transition-transform transform ${isPriority ? 'translate-x-8' : 'translate-x-1'}`} />
                             </button>
                         </div>
                     </Card>
 
-                    {/* Detailed Breakdown */}
+                    {/* Detailed Breakdown - responsive grid */}
                     <div className="grid grid-cols-3 gap-2">
-                        <Card className="p-3 text-center">
-                            <SectionTitle className="text-[9px]">Potongan</SectionTitle>
-                            <div className="text-sm font-semibold text-ui-danger">-{formatCurrency(appFee)}</div>
+                        <Card className="p-3 sm:p-4 text-center">
+                            <SectionTitle className="text-[9px] sm:text-[10px]">Potongan</SectionTitle>
+                            <div className="text-sm sm:text-base font-semibold text-ui-danger break-words">-{formatCurrency(appFee)}</div>
                         </Card>
-                        <Card className="p-3 text-center">
-                            <SectionTitle className="text-[9px]">Bensin</SectionTitle>
-                            <div className="text-sm font-semibold text-ui-danger">-{formatCurrency(fuelCost)}</div>
+                        <Card className="p-3 sm:p-4 text-center">
+                            <SectionTitle className="text-[9px] sm:text-[10px]">Bensin</SectionTitle>
+                            <div className="text-sm sm:text-base font-semibold text-ui-danger break-words">-{formatCurrency(fuelCost)}</div>
                         </Card>
-                        <Card className="p-3 text-center">
-                            <SectionTitle className="text-[9px]">Servis</SectionTitle>
-                            <div className="text-sm font-semibold text-ui-danger">-{formatCurrency(maintenance)}</div>
+                        <Card className="p-3 sm:p-4 text-center">
+                            <SectionTitle className="text-[9px] sm:text-[10px]">Servis</SectionTitle>
+                            <div className="text-sm sm:text-base font-semibold text-ui-danger break-words">-{formatCurrency(maintenance)}</div>
                         </Card>
                     </div>
 
@@ -263,7 +267,7 @@ export default function ProfitEngine({ showToast }) {
                         whileTap={{ scale: 0.97 }}
                         onClick={handleAccept}
                         disabled={!orderPrice || !distance || isSubmitting}
-                        className="w-full py-4 text-lg font-bold shadow-ui-md disabled:bg-ui-surface-muted disabled:text-ui-muted"
+                        className="w-full py-3 sm:py-4 text-base sm:text-lg font-bold shadow-ui-md disabled:bg-ui-surface-muted disabled:text-ui-muted min-h-[48px]"
                     >
                         {isSubmitting ? (
                             <span className="flex items-center justify-center gap-2">

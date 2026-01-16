@@ -58,24 +58,41 @@ function AnimatedRoutes({ showToast }) {
 function AppShell({ showToast }) {
     return (
         <div
-            className="bg-ui-background text-ui-text font-sans flex flex-col"
+            className="bg-ui-background text-ui-text font-sans flex flex-col w-full"
             style={{
                 minHeight: '100dvh',
-                position: 'relative'
+                minHeight: '100vh',
+                width: '100%',
+                maxWidth: '100%',
+                margin: 0,
+                padding: 0,
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                overflow: 'hidden',
+                zIndex: 0,
+                isolation: 'isolate'
             }}
         >
-            {/* Main content with padding for navigation */}
+            {/* Main content with safe padding for navigation */}
             <main 
-                className="flex-1 overflow-y-auto"
+                className="flex-1 overflow-y-auto w-full"
                 style={{
-                    paddingBottom: 'calc(var(--nav-total-height, 80px) + 16px)',
-                    WebkitOverflowScrolling: 'touch'
+                    paddingBottom: 'calc(64px + env(safe-area-inset-bottom, 0px) + 16px)',
+                    WebkitOverflowScrolling: 'touch',
+                    overscrollBehavior: 'contain',
+                    width: '100%',
+                    maxWidth: '100%',
+                    overflowX: 'hidden',
+                    boxSizing: 'border-box'
                 }}
             >
                 <AnimatedRoutes showToast={showToast} />
             </main>
 
-            {/* Bottom navigation - rendered last so it's on top */}
+            {/* Bottom navigation - fixed positioning on top layer */}
             <BottomNavigation />
         </div>
     );

@@ -765,28 +765,38 @@ export default function Riwayat() {
                 </Card>
 
                 {/* --- CHART 7 HARI --- */}
-                <Card className="p-4 w-full">
-                   <SectionTitle className="mb-4 text-[10px] tracking-[0.25em]">Tren 7 Hari Terakhir</SectionTitle>
+                <Card className="p-3 w-full overflow-hidden">
+                   <SectionTitle className="mb-3 text-[10px] tracking-[0.25em]">Tren 7 Hari Terakhir</SectionTitle>
                    {chartData && chartData.length > 0 ? (
-                     <ResponsiveContainer width="100%" height={250} minHeight={250}>
-                       <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                          <XAxis 
-                             dataKey="label" 
-                             axisLine={false} 
-                             tickLine={false} 
-                             tick={{fontSize: 10, fill: 'var(--ui-color-muted)'}} 
-                          />
-                          <Tooltip 
-                             cursor={{fill: 'transparent'}}
-                             contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
-                          />
-                          <Bar dataKey="net" radius={[4, 4, 0, 0]}>
-                             {chartData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.net >= 0 ? 'var(--ui-color-success)' : 'var(--ui-color-danger)'} />
-                             ))}
-                          </Bar>
-                       </BarChart>
-                     </ResponsiveContainer>
+                     <div className="w-full" style={{ minHeight: '200px', maxHeight: '250px' }}>
+                       <ResponsiveContainer width="100%" height="100%">
+                         <BarChart 
+                           data={chartData} 
+                           margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+                         >
+                            <XAxis 
+                               dataKey="label" 
+                               axisLine={false} 
+                               tickLine={false} 
+                               tick={{fontSize: 11, fill: 'var(--ui-color-muted)'}} 
+                            />
+                            <Tooltip 
+                               cursor={{fill: 'transparent'}}
+                               contentStyle={{
+                                 borderRadius: '8px', 
+                                 border: 'none', 
+                                 boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                                 fontSize: '12px'
+                               }}
+                            />
+                            <Bar dataKey="net" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                               {chartData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.net >= 0 ? 'var(--ui-color-success)' : 'var(--ui-color-danger)'} />
+                               ))}
+                            </Bar>
+                         </BarChart>
+                       </ResponsiveContainer>
+                     </div>
                    ) : (
                      <div className="h-40 w-full flex items-center justify-center text-ui-muted text-sm">
                        Belum ada data untuk ditampilkan
@@ -831,17 +841,19 @@ export default function Riwayat() {
                                                 <button
                                                     type="button"
                                                     onClick={() => setEditingOrder(t)}
-                                                    className="text-xs text-ui-muted hover:text-ui-primary flex items-center gap-1"
+                                                    className="text-xs text-ui-muted hover:text-ui-primary flex items-center gap-1 min-h-[44px] px-2 press-effect"
+                                                    style={{ minHeight: '44px', touchAction: 'manipulation' }}
                                                 >
-                                                    <Edit2 size={12} /> Edit
+                                                    <Edit2 size={14} /> Edit
                                                 </button>
                                             )}
                                             <button 
                                                 type="button"
                                                 onClick={() => requestDelete(t.id, t.type)}
-                                                className="text-xs text-ui-muted hover:text-ui-danger flex items-center gap-1"
+                                                className="text-xs text-ui-muted hover:text-ui-danger flex items-center gap-1 min-h-[44px] px-2 press-effect"
+                                                style={{ minHeight: '44px', touchAction: 'manipulation' }}
                                             >
-                                               <Trash2 size={12} /> Hapus
+                                               <Trash2 size={14} /> Hapus
                                             </button>
                                         </div>
                                     </div>
@@ -868,14 +880,25 @@ export default function Riwayat() {
             <div 
                 className="fixed z-[999997]"
                 style={{
-                    bottom: 'calc(var(--nav-total-height, 80px) + 16px)',
-                    right: '16px'
+                    bottom: 'max(calc(var(--nav-total-height, 80px) + 16px), calc(env(safe-area-inset-bottom) + 80px))',
+                    right: 'max(16px, env(safe-area-inset-right, 16px))'
                 }}
             >
                 <PrimaryButton
                     type="button"
                     onClick={() => setShowExpenseModal(true)}
-                    className="bg-ui-danger hover:bg-ui-danger/90 text-ui-inverse p-4 rounded-full shadow-ui-lg transition-all active:scale-90 press-effect"
+                    className="bg-ui-danger hover:bg-ui-danger/90 text-ui-inverse shadow-ui-lg transition-all active:scale-90 press-effect"
+                    style={{
+                        width: '56px',
+                        height: '56px',
+                        minWidth: '56px',
+                        minHeight: '56px',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 0
+                    }}
                     aria-label="Tambah pengeluaran"
                 >
                     <Minus size={24} />

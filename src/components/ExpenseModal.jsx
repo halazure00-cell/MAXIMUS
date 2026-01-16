@@ -78,18 +78,23 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
                         animate={{ y: 0 }}
                         exit={{ y: "100%" }}
                         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                        className="bg-ui-surface w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 shadow-ui-lg pointer-events-auto relative z-10 max-h-[85vh] overflow-y-auto safe-bottom-padding"
+                        className="bg-ui-surface w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 shadow-ui-lg pointer-events-auto relative z-10 safe-bottom-padding"
+                        style={{
+                            maxHeight: 'calc(100vh - env(safe-area-inset-top, 20px) - 20px)',
+                            overflowY: 'auto',
+                            WebkitOverflowScrolling: 'touch'
+                        }}
                     >
                         {/* Handle bar for mobile */}
                         <div className="flex justify-center mb-4 sm:hidden">
                             <div className="w-10 h-1 bg-ui-border rounded-full" />
                         </div>
 
-                        <div className="flex justify-between items-center mb-5">
-                            <h2 className="text-xl font-bold text-ui-text font-display">Catat Pengeluaran</h2>
+                        <div className="flex justify-between items-center mb-5 gap-2">
+                            <h2 className="text-lg sm:text-xl font-bold text-ui-text font-display">Catat Pengeluaran</h2>
                             <button 
                                 onClick={onClose} 
-                                className="p-2 bg-ui-surface-muted rounded-full hover:bg-ui-border transition-colors press-effect"
+                                className="p-2 bg-ui-surface-muted rounded-full hover:bg-ui-border transition-colors press-effect flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
                             >
                                 <X size={20} className="text-ui-muted" />
                             </button>
@@ -107,7 +112,12 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
                                         type="number"
                                         value={amount}
                                         onChange={(e) => setAmount(e.target.value)}
-                                        className="pl-10 w-full p-4 text-2xl font-bold bg-ui-surface-muted rounded-ui-xl border border-ui-border focus:border-ui-danger focus:ring-2 focus:ring-ui-danger/30 outline-none transition-all text-ui-text placeholder-ui-muted"
+                                        className="pl-10 w-full p-3 sm:p-4 text-2xl sm:text-3xl font-bold bg-ui-surface-muted rounded-ui-xl border border-ui-border focus:border-ui-danger focus:ring-2 focus:ring-ui-danger/30 outline-none transition-all text-ui-text placeholder-ui-muted"
+                                        style={{
+                                            fontSize: 'max(16px, 1.5rem)',
+                                            minHeight: '56px',
+                                            touchAction: 'manipulation'
+                                        }}
                                         placeholder="0"
                                         min="0"
                                         step="1000"
@@ -118,13 +128,13 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
                                 </div>
 
                                 {/* Quick Chips */}
-                                <div className="flex flex-wrap gap-2 mt-3">
+                                <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-2 mt-3">
                                     {[5000, 10000, 15000, 20000, 50000].map((val) => (
                                         <button
                                             key={val}
                                             type="button"
                                             onClick={() => setAmount(val.toString())}
-                                            className="px-3 py-2 bg-ui-surface-muted border border-ui-border rounded-ui-md text-xs font-bold text-ui-muted active:bg-ui-danger active:text-white active:border-ui-danger transition-colors press-effect"
+                                            className="px-3 py-2 sm:px-4 bg-ui-surface-muted border border-ui-border rounded-ui-md text-xs sm:text-sm font-bold text-ui-muted active:bg-ui-danger active:text-white active:border-ui-danger transition-colors press-effect min-h-[44px]"
                                         >
                                             {val / 1000}k
                                         </button>
@@ -141,7 +151,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
                                             key={cat.id}
                                             type="button"
                                             onClick={() => setCategory(cat.id)}
-                                            className={`p-3 rounded-ui-xl border-2 text-sm font-semibold transition-all press-effect ${category === cat.id
+                                            className={`p-3 sm:p-4 rounded-ui-xl border-2 text-sm sm:text-base font-semibold transition-all press-effect min-h-[48px] ${category === cat.id
                                                 ? 'border-ui-danger bg-ui-danger/10 text-ui-danger'
                                                 : 'border-transparent bg-ui-surface-muted text-ui-muted hover:bg-ui-border'
                                                 }`}
@@ -159,7 +169,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
                                     type="text"
                                     value={note}
                                     onChange={(e) => setNote(e.target.value)}
-                                    className="w-full p-3 bg-ui-surface-muted rounded-ui-xl border border-ui-border focus:border-ui-danger focus:ring-2 focus:ring-ui-danger/30 outline-none text-sm text-ui-text placeholder-ui-muted transition-all"
+                                    className="w-full p-3 sm:p-4 bg-ui-surface-muted rounded-ui-xl border border-ui-border focus:border-ui-danger focus:ring-2 focus:ring-ui-danger/30 outline-none text-sm sm:text-base text-ui-text placeholder-ui-muted transition-all"
                                     placeholder="Contoh: Pertalite Full Tank"
                                 />
                             </div>
@@ -168,7 +178,7 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
                             <button
                                 type="submit"
                                 disabled={!amount || isSubmitting}
-                                className={`w-full py-4 rounded-ui-xl font-bold text-lg shadow-ui-md flex items-center justify-center space-x-2 transition-all press-effect ${!amount || isSubmitting
+                                className={`w-full py-3 sm:py-4 rounded-ui-xl font-bold text-base sm:text-lg shadow-ui-md flex items-center justify-center space-x-2 transition-all press-effect min-h-[48px] ${!amount || isSubmitting
                                     ? 'bg-ui-surface-muted text-ui-muted cursor-not-allowed shadow-none'
                                     : 'bg-ui-danger text-white hover:bg-ui-danger/90 active:scale-[0.98]'
                                     }`}

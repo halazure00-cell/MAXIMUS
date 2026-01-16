@@ -80,11 +80,18 @@ export default function Auth() {
                             <input
                                 id="email"
                                 className="w-full px-4 py-2 border border-ui-border rounded-ui-md focus:ring-2 focus:ring-ui-primary focus:border-transparent outline-none transition-all bg-ui-surface text-ui-text placeholder:text-ui-muted"
+                                style={{
+                                    fontSize: 'max(16px, 1rem)',
+                                    minHeight: '48px',
+                                    touchAction: 'manipulation'
+                                }}
                                 type="email"
                                 placeholder="nama@email.com"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
+                                autoComplete="email"
+                                inputMode="email"
                             />
                         </div>
 

@@ -1,17 +1,68 @@
 <!DOCTYPE html>
-<html class="dark" lang="en">
+<html class="dark" lang="id">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <!-- Critical viewport and mobile meta tags -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes, minimum-scale=1.0, maximum-scale=5.0" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MAXIMUS" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="theme-color" content="#FFD700" />
-    <title>MAXIMUS Utility</title>
-    <meta name="description" content="Professional Utility for Maxim Drivers" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <meta name="theme-color" content="#ffd54a" />
+    <meta name="msapplication-TileColor" content="#ffd54a" />
+    
+    <!-- Performance and SEO -->
+    <title>MAXIMUS - Utility Driver Assistant</title>
+    <meta name="description" content="Professional utility app untuk driver Grab & Gojek Indonesia" />
+    <meta name="keywords" content="driver, ojek, grab, gojek, utility, earnings" />
+    <meta name="color-scheme" content="dark light" />
+    
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    
+    <!-- Critical CSS - prevent CLS and layout shifts -->
     <style>
-      /* Critical CSS for navigation - loaded before JS */
+      /* Critical fixes untuk mobile responsiveness */
+      * {
+        box-sizing: border-box;
+      }
+      
+      html, body, #root {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        -webkit-text-size-adjust: 100%;
+      }
+      
+      html {
+        overflow-y: scroll;
+        scroll-behavior: smooth;
+      }
+      
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        overflow-x: hidden;
+        overscroll-behavior: none;
+        -webkit-user-select: none;
+        user-select: none;
+        min-height: 100vh;
+        min-height: 100dvh;
+      }
+      
+      #root {
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        z-index: 0;
+      }
+      
+      /* Bottom navigation z-index hierarchy - CRITICAL */
       #bottom-navigation {
         position: fixed !important;
         bottom: 0 !important;
@@ -19,10 +70,22 @@
         right: 0 !important;
         z-index: 999999 !important;
         pointer-events: auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding-right: 0 !important;
+        padding-left: 0 !important;
+        overflow: hidden !important;
+        isolation: isolate !important;
+      }
+      
+      /* Prevent content from being hidden behind bottom nav */
+      main {
+        padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 16px) !important;
       }
     </style>
   </head>
-  <body class="bg-maxim-bg text-maxim-dark antialiased">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

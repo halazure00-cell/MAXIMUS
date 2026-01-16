@@ -178,28 +178,28 @@ export default function ProfileSettings({ showToast }) {
     const formatCurrency = (value) => new Intl.NumberFormat('id-ID').format(value);
 
     return (
-        <div className="flex flex-col min-h-full bg-ui-background">
+        <div className="flex flex-col w-full h-full bg-ui-background">
             {/* Scrollable content */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-8">
+            <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 space-y-4 pb-8 box-border w-full">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-3">
-                        <div className="bg-ui-primary-soft p-2 rounded-ui-lg">
-                            <User className="w-6 h-6 text-ui-text" />
+                <div className="flex items-center justify-between mb-2 gap-3">
+                    <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+                        <div className="bg-ui-primary-soft p-2 rounded-ui-lg flex-shrink-0">
+                            <User className="w-5 h-5 sm:w-6 sm:h-6 text-ui-text" />
                         </div>
-                        <h1 className="text-2xl font-bold text-ui-text font-display">Profil Saya</h1>
+                        <h1 className="text-xl sm:text-2xl font-bold text-ui-text font-display truncate">Profil Saya</h1>
                     </div>
                     {(saving || syncPending) && (
-                        <span className="text-xs text-ui-muted flex items-center animate-pulse">
+                        <span className="text-xs text-ui-muted flex items-center animate-pulse flex-shrink-0">
                             <Cloud className="w-3 h-3 mr-1" />
-                            {saving && !syncPending ? 'Menyimpan...' : 'Sinkronisasi...'}
+                            <span className="hidden sm:inline">{saving && !syncPending ? 'Menyimpan...' : 'Sinkronisasi...'}</span>
                         </span>
                     )}
                 </div>
 
             {/* A. Driver Profile */}
-            <Card className="p-5 space-y-4">
-                <SectionTitle className="mb-2 flex items-center gap-2">
+            <Card className="p-4 sm:p-5 space-y-4">
+                <SectionTitle className="mb-2 flex items-center gap-2 text-base sm:text-lg">
                     <User className="w-4 h-4" /> Data Driver
                 </SectionTitle>
 
@@ -210,20 +210,30 @@ export default function ProfileSettings({ showToast }) {
                         value={settings.driverName}
                         onChange={(e) => handleUpdate({ driverName: e.target.value })}
                         placeholder="Contoh: Bang Jago"
-                        className="w-full text-base p-3 rounded-ui-lg border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none transition-all bg-ui-surface text-ui-text placeholder:text-ui-muted"
+                        className="w-full p-3 sm:p-4 rounded-ui-lg border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none transition-all bg-ui-surface text-ui-text placeholder:text-ui-muted"
+                        style={{
+                            fontSize: 'max(16px, 1rem)',
+                            minHeight: '48px',
+                            touchAction: 'manipulation'
+                        }}
                     />
                 </div>
 
                 <div>
                     <label className="block text-xs font-medium text-ui-muted mb-1.5">Target Pendapatan Harian (Rp)</label>
                     <div className="relative">
-                        <span className="absolute left-3 top-3 text-ui-muted">Rp</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ui-muted pointer-events-none" style={{ fontSize: 'max(16px, 1rem)' }}>Rp</span>
                         <input
                             type="number"
                             value={settings.dailyTarget}
                             onChange={(e) => handleUpdate({ dailyTarget: parseInt(e.target.value) || 0 })}
                             placeholder="200000"
-                            className="w-full text-base p-3 pl-10 rounded-ui-lg border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none transition-all bg-ui-surface text-ui-text placeholder:text-ui-muted"
+                            className="w-full p-3 sm:p-4 pl-10 rounded-ui-lg border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none transition-all bg-ui-surface text-ui-text placeholder:text-ui-muted"
+                            style={{
+                                fontSize: 'max(16px, 1rem)',
+                                minHeight: '48px',
+                                touchAction: 'manipulation'
+                            }}
                             inputMode="numeric"
                         />
                     </div>
@@ -234,8 +244,8 @@ export default function ProfileSettings({ showToast }) {
             </Card>
 
             {/* B. Vehicle Config */}
-            <Card className="p-5 space-y-4">
-                <SectionTitle className="mb-2 flex items-center gap-2">
+            <Card className="p-4 sm:p-5 space-y-4">
+                <SectionTitle className="mb-2 flex items-center gap-2 text-base sm:text-lg">
                     <Car className="w-4 h-4" /> Kendaraan
                 </SectionTitle>
 
@@ -245,86 +255,101 @@ export default function ProfileSettings({ showToast }) {
                         <select
                             value={settings.vehicleType}
                             onChange={handleVehicleChange}
-                            className="w-full text-base p-3 pr-10 rounded-ui-lg border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none transition-all appearance-none bg-ui-surface text-ui-text"
+                            className="w-full p-3 sm:p-4 pr-10 rounded-ui-lg border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none transition-all appearance-none bg-ui-surface text-ui-text"
+                            style={{
+                                fontSize: 'max(16px, 1rem)',
+                                minHeight: '48px',
+                                touchAction: 'manipulation'
+                            }}
                         >
                             {Object.entries(vehiclePresets).map(([key, { label }]) => (
                                 <option key={key} value={key}>{label}</option>
                             ))}
                         </select>
-                        <ChevronDown className="absolute right-3 top-3.5 w-5 h-5 text-ui-muted pointer-events-none" />
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ui-muted pointer-events-none" />
                     </div>
                 </div>
 
                 <div>
                     <label className="block text-xs font-medium text-ui-muted mb-1.5">Konsumsi BBM (Rp/KM)</label>
                     <div className="relative">
-                        <span className="absolute left-3 top-3 text-ui-muted">Rp</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ui-muted pointer-events-none" style={{ fontSize: 'max(16px, 1rem)' }}>Rp</span>
                         <input
                             type="number"
                             value={settings.fuelEfficiency}
                             onChange={(e) => handleUpdate({ fuelEfficiency: parseInt(e.target.value) || 0 })}
                             placeholder="200"
-                            className="w-full text-base p-3 pl-10 pr-14 rounded-ui-lg border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none transition-all bg-ui-surface text-ui-text placeholder:text-ui-muted"
+                            className="w-full p-3 sm:p-4 pl-10 pr-14 rounded-ui-lg border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none transition-all bg-ui-surface text-ui-text placeholder:text-ui-muted"
+                            style={{
+                                fontSize: 'max(16px, 1rem)',
+                                minHeight: '48px',
+                                touchAction: 'manipulation'
+                            }}
                             inputMode="numeric"
                         />
-                        <span className="absolute right-3 top-3 text-ui-muted text-sm">/ km</span>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ui-muted pointer-events-none" style={{ fontSize: '14px' }}>/ km</span>
                     </div>
                 </div>
 
                 <div>
                     <label className="block text-xs font-medium text-ui-muted mb-1.5">Prediksi Biaya Service (Rp/Order)</label>
                     <div className="relative">
-                        <span className="absolute left-3 top-3 text-ui-muted">Rp</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ui-muted pointer-events-none" style={{ fontSize: 'max(16px, 1rem)' }}>Rp</span>
                         <input
                             type="number"
                             value={settings.maintenanceFee ?? 500}
                             onChange={(e) => handleUpdate({ maintenanceFee: parseInt(e.target.value) || 0 })}
                             placeholder="500"
-                            className="w-full text-base p-3 pl-10 pr-16 rounded-ui-lg border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none transition-all bg-ui-surface text-ui-text placeholder:text-ui-muted"
+                            className="w-full p-3 sm:p-4 pl-10 pr-16 rounded-ui-lg border border-ui-border focus:border-ui-primary focus:ring-2 focus:ring-ui-primary/30 outline-none transition-all bg-ui-surface text-ui-text placeholder:text-ui-muted"
+                            style={{
+                                fontSize: 'max(16px, 1rem)',
+                                minHeight: '48px',
+                                touchAction: 'manipulation'
+                            }}
                             inputMode="numeric"
                         />
-                        <span className="absolute right-3 top-3 text-ui-muted text-sm">/ order</span>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ui-muted pointer-events-none" style={{ fontSize: '14px' }}>/ order</span>
                     </div>
                 </div>
             </Card>
 
             {/* C. App Preferences */}
-            <Card className="p-5 space-y-4">
-                <SectionTitle className="mb-2 flex items-center gap-2">
+            <Card className="p-4 sm:p-5 space-y-4">
+                <SectionTitle className="mb-2 flex items-center gap-2 text-base sm:text-lg">
                     <SettingsIcon className="w-4 h-4" /> Preferensi
                 </SectionTitle>
 
-                <div className="flex items-center justify-between">
-                    <div>
+                <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
                         <div className="text-sm font-bold text-ui-text">Potongan Default</div>
-                        <div className="text-xs text-ui-muted">Otomatis terpilih saat buka aplikasi</div>
+                        <div className="text-xs text-ui-muted">Otomatis saat buka app</div>
                     </div>
-                    <div className="flex bg-ui-surface-muted rounded-ui-lg p-1">
+                    <div className="flex bg-ui-surface-muted rounded-ui-lg p-1 flex-shrink-0">
                         <button
                             onClick={() => handleUpdate({ defaultCommission: 0.10 })}
-                            className={`px-4 py-2 rounded-ui-md text-xs font-medium transition-all press-effect ${settings.defaultCommission === 0.10 ? 'bg-ui-surface shadow-ui-sm text-ui-text' : 'text-ui-muted'}`}
+                            className={`px-3 sm:px-4 py-2 rounded-ui-md text-xs sm:text-sm font-medium transition-all press-effect min-h-[36px] ${settings.defaultCommission === 0.10 ? 'bg-ui-surface shadow-ui-sm text-ui-text' : 'text-ui-muted'}`}
                         >
                             10%
                         </button>
                         <button
                             onClick={() => handleUpdate({ defaultCommission: 0.15 })}
-                            className={`px-4 py-2 rounded-ui-md text-xs font-medium transition-all press-effect ${settings.defaultCommission === 0.15 ? 'bg-ui-surface shadow-ui-sm text-ui-text' : 'text-ui-muted'}`}
+                            className={`px-3 sm:px-4 py-2 rounded-ui-md text-xs sm:text-sm font-medium transition-all press-effect min-h-[36px] ${settings.defaultCommission === 0.15 ? 'bg-ui-surface shadow-ui-sm text-ui-text' : 'text-ui-muted'}`}
                         >
                             15%
                         </button>
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-3 border-t border-ui-border/60">
-                    <div>
+                <div className="flex items-center justify-between pt-3 border-t border-ui-border/60 gap-3">
+                    <div className="min-w-0">
                         <div className="text-sm font-bold text-ui-text">Mode Gelap</div>
-                        <div className="text-xs text-ui-muted">Tampilan ramah mata malam hari</div>
+                        <div className="text-xs text-ui-muted">Ramah mata malam hari</div>
                     </div>
                     <button
                         onClick={() => handleUpdate({ darkMode: !settings.darkMode })}
-                        className={`w-14 h-8 rounded-full transition-colors relative press-effect ${settings.darkMode ? 'bg-ui-primary' : 'bg-ui-border'}`}
+                        className={`w-14 h-8 rounded-full transition-colors relative press-effect flex-shrink-0 min-h-[44px] flex items-center ${settings.darkMode ? 'bg-ui-primary' : 'bg-ui-border'}`}
                     >
-                        <div className={`w-6 h-6 rounded-full bg-ui-surface shadow-ui-sm absolute top-1 transition-transform transform flex items-center justify-center ${settings.darkMode ? 'translate-x-7' : 'translate-x-1'}`}>
+                        <div className={`w-6 h-6 rounded-full bg-ui-surface shadow-ui-sm absolute transition-transform transform flex items-center justify-center ${settings.darkMode ? 'translate-x-7' : 'translate-x-1'}`}>
                             {settings.darkMode ? <Moon className="w-3 h-3 text-ui-text" /> : <Sun className="w-3 h-3 text-ui-warning" />}
                         </div>
                     </button>
@@ -335,7 +360,7 @@ export default function ProfileSettings({ showToast }) {
                 <p className="text-[10px] text-ui-muted mb-3">Maximus Driver (Cloud Sync) v1.3</p>
                 <PrimaryButton
                     type="button"
-                    className="bg-ui-danger text-ui-inverse hover:bg-ui-danger/90 press-effect"
+                    className="bg-ui-danger text-ui-inverse hover:bg-ui-danger/90 press-effect w-full min-h-[48px] sm:max-w-xs sm:mx-auto"
                     onClick={() => supabase.auth.signOut()}
                 >
                     Keluar (Sign Out)

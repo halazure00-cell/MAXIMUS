@@ -94,11 +94,12 @@ const BottomNavigation = () => {
                                 flex: '1',
                                 height: '100%',
                                 minHeight: '64px',
+                                minWidth: '64px',
                                 maxWidth: '96px',
-                                gap: '4px',
+                                gap: '2px',
                                 background: 'transparent',
                                 textDecoration: 'none',
-                                padding: '8px 4px',
+                                padding: '6px 2px',
                                 cursor: 'pointer',
                                 pointerEvents: 'auto',
                                 touchAction: 'manipulation',
@@ -141,13 +142,15 @@ const BottomNavigation = () => {
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    padding: '8px 16px',
-                                    borderRadius: '20px',
+                                    padding: '6px 12px',
+                                    borderRadius: '16px',
                                     backgroundColor: isActive 
                                         ? 'var(--ui-color-primary)' 
                                         : 'transparent',
                                     transition: 'background-color 0.2s ease',
-                                    pointerEvents: 'none'
+                                    pointerEvents: 'none',
+                                    minWidth: '48px',
+                                    minHeight: '48px'
                                 }}
                                 animate={{
                                     scale: isActive ? 1 : 0.95
