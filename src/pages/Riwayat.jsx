@@ -573,21 +573,21 @@ export default function Riwayat() {
                 {/* --- TOMBOL TAB STATISTIK --- */}
                 <div className="grid grid-cols-3 gap-3">
                     <Card
-                        className={`p-0 ${activeRecap === 'omzet'
-                            ? 'border-ui-success/40 ring-1 ring-ui-success/20'
-                            : ''}`}
+                        className={`p-0 transition-all duration-200 ${activeRecap === 'omzet'
+                            ? 'border-ui-success/50 ring-2 ring-ui-success/30 shadow-ui-md bg-ui-success/5'
+                            : 'hover:border-ui-success/30 hover:shadow-ui-sm'}`}
                     >
                         <button
                             type="button"
                             onClick={() => setActiveRecap('omzet')}
-                            className="flex h-full w-full flex-col justify-between p-3 text-left"
+                            className="flex h-full w-full flex-col justify-between p-3 text-left transition-transform duration-200 active:scale-95"
                         >
-                            <div className="p-1.5 bg-ui-success/10 rounded-ui-sm w-fit">
+                            <div className={`p-1.5 rounded-ui-sm w-fit transition-colors duration-200 ${activeRecap === 'omzet' ? 'bg-ui-success/20' : 'bg-ui-success/10'}`}>
                                 <TrendingUp size={16} className="text-ui-success" />
                             </div>
-                            <div>
+                            <div className="mt-2">
                                 <SectionTitle className="text-[10px] tracking-[0.25em]">Omzet (Gross)</SectionTitle>
-                                <p className="text-sm font-bold text-ui-text truncate">
+                                <p className="text-sm font-bold text-ui-text truncate mt-0.5">
                                     {formatCurrency(metrics.grossIncome)}
                                 </p>
                             </div>
@@ -595,21 +595,21 @@ export default function Riwayat() {
                     </Card>
 
                     <Card
-                        className={`p-0 ${activeRecap === 'pengeluaran'
-                            ? 'border-ui-danger/40 ring-1 ring-ui-danger/20'
-                            : ''}`}
+                        className={`p-0 transition-all duration-200 ${activeRecap === 'pengeluaran'
+                            ? 'border-ui-danger/50 ring-2 ring-ui-danger/30 shadow-ui-md bg-ui-danger/5'
+                            : 'hover:border-ui-danger/30 hover:shadow-ui-sm'}`}
                     >
                         <button
                             type="button"
                             onClick={() => setActiveRecap('pengeluaran')}
-                            className="flex h-full w-full flex-col justify-between p-3 text-left"
+                            className="flex h-full w-full flex-col justify-between p-3 text-left transition-transform duration-200 active:scale-95"
                         >
-                            <div className="p-1.5 bg-ui-danger/10 rounded-ui-sm w-fit">
+                            <div className={`p-1.5 rounded-ui-sm w-fit transition-colors duration-200 ${activeRecap === 'pengeluaran' ? 'bg-ui-danger/20' : 'bg-ui-danger/10'}`}>
                                 <TrendingDown size={16} className="text-ui-danger" />
                             </div>
-                            <div>
+                            <div className="mt-2">
                                 <SectionTitle className="text-[10px] tracking-[0.25em]">Pengeluaran</SectionTitle>
-                                <p className="text-sm font-bold text-ui-text truncate">
+                                <p className="text-sm font-bold text-ui-text truncate mt-0.5">
                                     {formatCurrency(metrics.actualExpenses)}
                                 </p>
                             </div>
@@ -617,21 +617,21 @@ export default function Riwayat() {
                     </Card>
 
                     <Card
-                        className={`p-0 bg-ui-inverse ${activeRecap === 'potongan'
-                            ? 'border-ui-primary ring-1 ring-ui-primary/30'
-                            : ''}`}
+                        className={`p-0 transition-all duration-200 ${activeRecap === 'potongan'
+                            ? 'border-ui-warning/50 ring-2 ring-ui-warning/30 shadow-ui-md bg-ui-warning/5'
+                            : 'hover:border-ui-warning/30 hover:shadow-ui-sm'}`}
                     >
                         <button
                             type="button"
                             onClick={() => setActiveRecap('potongan')}
-                            className="flex h-full w-full flex-col justify-between p-3 text-left text-ui-inverse"
+                            className="flex h-full w-full flex-col justify-between p-3 text-left transition-transform duration-200 active:scale-95"
                         >
-                            <div className="p-1.5 bg-ui-primary/10 rounded-ui-sm w-fit">
-                                <Wallet size={16} className="text-ui-primary" />
+                            <div className={`p-1.5 rounded-ui-sm w-fit transition-colors duration-200 ${activeRecap === 'potongan' ? 'bg-ui-warning/20' : 'bg-ui-warning/10'}`}>
+                                <Wallet size={16} className="text-ui-warning" />
                             </div>
-                            <div>
-                                <SectionTitle className="text-[10px] tracking-[0.25em] text-ui-inverse/70">Potongan</SectionTitle>
-                                <p className="text-sm font-bold text-ui-primary truncate">
+                            <div className="mt-2">
+                                <SectionTitle className="text-[10px] tracking-[0.25em]">Potongan</SectionTitle>
+                                <p className="text-sm font-bold text-ui-text truncate mt-0.5">
                                     {formatCurrency(metrics.appFeeTotal + metrics.fuelCostTotal + metrics.maintenanceTotal)}
                                 </p>
                             </div>
@@ -642,7 +642,12 @@ export default function Riwayat() {
                 {/* --- DETAIL STATISTIK --- */}
                 <Card className="p-4">
                     {activeRecap === 'omzet' && (
-                        <div className="space-y-3">
+                        <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="space-y-3"
+                        >
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-ui-muted">Total Omzet (Gross) Bulan Ini</span>
                                 <span className="font-bold text-ui-text">
@@ -661,11 +666,16 @@ export default function Riwayat() {
                                     {formatCurrency(metrics.netCash)}
                                 </span>
                             </div>
-                        </div>
+                        </motion.div>
                     )}
 
                     {activeRecap === 'pengeluaran' && (
-                        <div className="space-y-3">
+                        <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="space-y-3"
+                        >
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-ui-muted">Total Pengeluaran</span>
                                 <span className="font-bold text-ui-text">
@@ -678,30 +688,35 @@ export default function Riwayat() {
                                     {metrics.expensesCount} item
                                 </span>
                             </div>
-                        </div>
+                        </motion.div>
                     )}
 
                     {activeRecap === 'potongan' && (
-                        <div className="space-y-3">
+                        <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="space-y-3"
+                        >
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-ui-muted">Estimasi Potongan Aplikasi</span>
-                                <span className="font-semibold text-ui-danger">
+                                <span className="font-semibold text-ui-warning">
                                     -{formatCurrency(metrics.appFeeTotal)}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-ui-muted">Estimasi Bensin</span>
-                                <span className="font-semibold text-ui-danger">
+                                <span className="font-semibold text-ui-warning">
                                     -{formatCurrency(metrics.fuelCostTotal)}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-ui-muted">Estimasi Maintenance</span>
-                                <span className="font-semibold text-ui-danger">
+                                <span className="font-semibold text-ui-warning">
                                     -{formatCurrency(metrics.maintenanceTotal)}
                                 </span>
                             </div>
-                        </div>
+                        </motion.div>
                     )}
                 </Card>
 
