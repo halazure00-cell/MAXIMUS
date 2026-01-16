@@ -768,8 +768,8 @@ export default function Riwayat() {
                 <Card className="p-3 w-full overflow-hidden">
                    <SectionTitle className="mb-3 text-[10px] tracking-[0.25em]">Tren 7 Hari Terakhir</SectionTitle>
                    {chartData && chartData.length > 0 ? (
-                     <div className="w-full" style={{ minHeight: '200px', maxHeight: '250px' }}>
-                       <ResponsiveContainer width="100%" height="100%">
+                     <div className="w-full" style={{ height: '220px', minHeight: '220px' }}>
+                       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
                          <BarChart 
                            data={chartData} 
                            margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
