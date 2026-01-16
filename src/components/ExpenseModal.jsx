@@ -146,9 +146,9 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
                             </div>
 
                             {/* Categories */}
-                            <div>
-                                <label className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Kategori</label>
-                                <div className="grid grid-cols-2 gap-2">
+                            <fieldset>
+                                <legend className="block text-xs font-bold text-ui-muted uppercase tracking-wider mb-2">Kategori</legend>
+                                <div className="grid grid-cols-2 gap-2" role="group" aria-label="Pilih kategori pengeluaran">
                                     {categories.map((cat) => (
                                         <button
                                             key={cat.id}
@@ -158,12 +158,13 @@ export default function ExpenseModal({ isOpen, onClose, onSave, showToast }) {
                                                 ? 'border-ui-danger bg-ui-danger/10 text-ui-danger'
                                                 : 'border-transparent bg-ui-surface-muted text-ui-muted hover:bg-ui-border'
                                                 }`}
+                                            aria-pressed={category === cat.id}
                                         >
                                             {cat.label}
                                         </button>
                                     ))}
                                 </div>
-                            </div>
+                            </fieldset>
 
                             {/* Note */}
                             <div>
