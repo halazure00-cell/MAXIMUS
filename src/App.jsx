@@ -9,6 +9,7 @@ import ProfileSettings from './components/ProfileSettings';
 import BottomNavigation from './components/BottomNavigation';
 import PageTransition from './components/PageTransition';
 import ToastContainer from './components/ToastContainer';
+import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { useSettings } from './context/SettingsContext';
 
@@ -60,7 +61,6 @@ function AppShell({ showToast }) {
         <div
             className="bg-ui-background text-ui-text font-sans flex flex-col w-full"
             style={{
-                minHeight: '100dvh',
                 minHeight: '100vh',
                 width: '100%',
                 maxWidth: '100%',
@@ -138,10 +138,12 @@ function App() {
     const { session, loading } = useSettings();
 
     return (
-        <ToastProvider>
-            <ToastContainer />
-            <AppContent session={session} loading={loading} />
-        </ToastProvider>
+        <ErrorBoundary>
+            <ToastProvider>
+                <ToastContainer />
+                <AppContent session={session} loading={loading} />
+            </ToastProvider>
+        </ErrorBoundary>
     );
 }
 

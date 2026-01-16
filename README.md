@@ -56,6 +56,8 @@ VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
+> **Catatan Supabase**: Database schema dan migrations dikelola melalui folder `supabase/migrations/`. File SQL di folder `legacy_sql/` hanya untuk arsip dan tidak digunakan dalam produksi.
+
 ### 4. Menjalankan Aplikasi
 Jalankan server pengembangan:
 
@@ -75,6 +77,12 @@ Aplikasi ini siap dideploy ke platform cloud seperti **Netlify** atau **Vercel**
 ## 🤝 Kontribusi
 
 Kami sangat terbuka untuk segala bentuk kontribusi! Jika Anda memiliki ide fitur atau menemukan bug, silakan buat *Issue* atau kirimkan *Pull Request*.
+
+### Aturan Penting untuk Kontributor:
+- ⚠️ **Jangan pernah commit folder `dist/` ke Git**. Folder ini adalah build artifact dan akan di-generate otomatis saat deployment.
+- Pastikan kode Anda lolos ESLint sebelum commit: `npm run lint`
+- Verifikasi build sukses: `npm run build`
+- CI akan otomatis memeriksa setiap push/PR untuk memastikan kode tidak rusak.
 
 ---
 

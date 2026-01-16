@@ -1,0 +1,52 @@
+name: CI - Build & Lint
+
+on:
+  push:
+    branches: [ main, develop, copilot/** ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-and-lint:
+    name: Build & Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run ESLint
+        run: npm run lint
+      
+      - name: Run preflight check
+        run: npm run preflight
+        env:
+          NODE_ENV: production
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'placeholder-key-for-ci-build' }}
+      
+      - name: Build application
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'placeholder-key-for-ci-build' }}
+      
+      - name: Check for dist/ in git
+        run: |
+          if git ls-files | grep -q '^dist/'; then
+            echo "❌ ERROR: dist/ files are tracked in git!"
+            echo "The following dist/ files should not be committed:"
+            git ls-files | grep '^dist/'
+            exit 1
+          else
+            echo "✅ No dist/ files in git tracking"
+          fi
