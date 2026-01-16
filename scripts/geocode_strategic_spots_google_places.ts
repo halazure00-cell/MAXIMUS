@@ -117,8 +117,55 @@ async function geocodeWithGooglePlaces(
       }
     }
 
-    if (
-      textSearchData.status !== "OK" ||
+    if (textSearchData.status !== "OK" && textSearchData.status !== "ZERO_RESULTS") {
+       throw new Error(`TextSearch API error: ${textSearchData.status}`);
+    }
+
+    if (!textSearchData.results || textSearchData.results.length === 0) {
+      return {
+        place_id: null,
+        latitude: null,
+        longitude: null,
+        status: "NOT_FOUND",
+        error: "No results found",
+      };
+    }
+
+    // Step 2: Details API to get accurate location (Text Search location is approx)
+    const placeId = textSearchData.results[0].place_id;
+    const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=geometry&key=${GOOGLE_PLACES_API_KEY}`;
+    
+    const detailsResponse = await fetch(detailsUrl);
+    const detailsData = await detailsResponse.json();
+
+    if (detailsData.status !== "OK") {
+       throw new Error(`Details API error: ${detailsData.status}`);
+    }
+
+    const { lat, lng } = detailsData.result.geometry.location;
+
+    // Validate Coordinates Strategy: Bandung Bounds
+    const BANDUNG_BOUNDS = {
+        lat_min: -7.1,
+        lat_max: -6.8,
+        lng_min: 107.5,
+        lng_max: 107.8
+    };
+
+    if (lat < BANDUNG_BOUNDS.lat_min || lat > BANDUNG_BOUNDS.lat_max || 
+        lng < BANDUNG_BOUNDS.lng_min || lng > BANDUNG_BOUNDS.lng_max) {
+            console.warn(`  ⚠️ Coordinates (${lat}, ${lng}) are outside Bandung bounds. Marking as warning but saving.`);
+            // NOTE: We could return ERROR here if we want to be strict, but for now we accept it.
+    }
+
+    return {
+      place_id: placeId,
+      latitude: lat,
+      longitude: lng,
+      status: "OK",
+    };
+
+  } catch (error: any) {      textSearchData.status !== "OK" ||
       !textSearchData.results ||
       textSearchData.results.length === 0
     ) {

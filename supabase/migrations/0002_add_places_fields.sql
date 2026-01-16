@@ -63,7 +63,67 @@ create index if not exists strategic_spots_geocode_status_idx
 create index if not exists strategic_spots_notes_idx 
   on public.strategic_spots (notes);
 
--- 8) RLS: Pastikan tetap safe
+-- 8) Tambah kolom extended fields untuk compatibility dengan format lengkap
+do $$ 
+begin
+  if not exists (
+    select 1 from information_schema.columns 
+    where table_name='strategic_spots' and column_name='kecamatan'
+  ) then
+    alter table public.strategic_spots add column kecamatan text;
+  end if;
+  
+  if not exists (
+    select 1 from information_schema.columns 
+    where table_name='strategic_spots' and column_name='modes'
+  ) then
+    alter table public.strategic_spots add column modes text[];
+  end if;
+  
+  if not exists (
+    select 1 from information_schema.columns 
+    where table_name='strategic_spots' and column_name='corridor_tags'
+  ) then
+    alter table public.strategic_spots add column corridor_tags text[];
+  end if;
+  
+  if not exists (
+    select 1 from information_schema.columns 
+    where table_name='strategic_spots' and column_name='halal_risk'
+  ) then
+    alter table public.strategic_spots add column halal_risk text;
+  end if;
+  
+  if not exists (
+    select 1 from information_schema.columns 
+    where table_name='strategic_spots' and column_name='geocode_query'
+  ) then
+    alter table public.strategic_spots add column geocode_query text;
+  end if;
+  
+  if not exists (
+    select 1 from information_schema.columns 
+    where table_name='strategic_spots' and column_name='wd_weights'
+  ) then
+    alter table public.strategic_spots add column wd_weights jsonb;
+  end if;
+  
+  if not exists (
+    select 1 from information_schema.columns 
+    where table_name='strategic_spots' and column_name='we_weights'
+  ) then
+    alter table public.strategic_spots add column we_weights jsonb;
+  end if;
+  
+  if not exists (
+    select 1 from information_schema.columns 
+    where table_name='strategic_spots' and column_name='active_day_types'
+  ) then
+    alter table public.strategic_spots add column active_day_types text[];
+  end if;
+end $$;
+
+-- 9) RLS: Pastikan tetap safe
 -- Read: authenticated users boleh lihat semua strategic_spots
 drop policy if exists "spots_select_public" on public.strategic_spots;
 create policy "spots_select_public"
@@ -72,7 +132,22 @@ create policy "spots_select_public"
   to anon, authenticated
   using (true);
 
--- 9) RLS: Write via service_role/backend job only (tidak dari frontend)
--- Policy insert/update/delete tidak dibuat di sini (server-only access)
+-- 10) RLS: Service Role Access (Backend/Scripts only)
+drop policy if exists "spots_service_role_all" on public.strategic_spots;
+create policy "spots_service_role_all"
+  on public.strategic_spots
+  for all
+  to service_role
+  using (true)
+  with check (true);
+
+-- 11) Block write dari authenticated user (safety)
+drop policy if exists "spots_block_user_write" on public.strategic_spots;
+create policy "spots_block_user_write"
+  on public.strategic_spots
+  for all
+  to authenticated
+  using (false)
+  with check (false);
 
 commit;

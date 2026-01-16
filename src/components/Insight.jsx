@@ -140,8 +140,9 @@ export default function Insight({ showToast }) {
     const [activeTab, setActiveTab] = useState('now');
     const [userLocation, setUserLocation] = useState(null);
     const [expandedSection, setExpandedSection] = useState(null);
+    const [geoWatchId, setGeoWatchId] = useState(null);
 
-    // Fetch data
+    // Fetch data with robust error handling
     useEffect(() => {
         const fetchData = async () => {
             if (!session?.user) {
@@ -153,36 +154,68 @@ export default function Insight({ showToast }) {
                 setLoading(true);
                 const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
                 
+                // Safe fetch pattern: individual queries with try/catch handled per query or globally but allowing partial success
+                const ordersPromise = supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('user_id', session.user.id)
+                    .gte('created_at', thirtyDaysAgo)
+                    .order('created_at', { ascending: false });
+                
+                const expensesPromise = supabase
+                    .from('expenses')
+                    .select('*')
+                    .eq('user_id', session.user.id)
+                    .gte('created_at', thirtyDaysAgo)
+                    .order('created_at', { ascending: false });
+                
+                const spotsPromise = supabase
+                    .from('strategic_spots')
+                    .select('*')
+                    .eq('geocode_status', 'OK'); // Only fetch valid geocoded spots
+
+                // Await all and handle results explicitly
                 const [ordersRes, expensesRes, spotsRes] = await Promise.all([
-                    supabase.from('orders').select('*').eq('user_id', session.user.id)
-                        .gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }),
-                    supabase.from('expenses').select('*').eq('user_id', session.user.id)
-                        .gte('created_at', thirtyDaysAgo).order('created_at', { ascending: false }),
-                    supabase.from('strategic_spots').select('*')
+                   ordersPromise,
+                   expensesPromise,
+                   spotsPromise
                 ]);
+
+                // Log specific errors but don't crash whole page
+                if (ordersRes.error) console.error('Orders fetch error:', ordersRes.error);
+                if (expensesRes.error) console.error('Expenses fetch error:', expensesRes.error);
+                if (spotsRes.error) console.error('Spots fetch error:', spotsRes.error);
 
                 setOrders(ordersRes.data || []);
                 setExpenses(expensesRes.data || []);
                 setStrategicSpots(spotsRes.data || []);
+
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Critical Data Fetch Error:', error);
+                if (showToast) showToast('Gagal memuat beberapa data. Periksa koneksi.', 'error');
             } finally {
                 setLoading(false);
             }
         };
 
         fetchData();
-    }, [session]);
+    }, [session, showToast]);
 
-    // Get location
+    // Improved Geolocation with cleanup
     useEffect(() => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-                () => {},
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
-            );
-        }
+        if (!navigator.geolocation) return;
+
+        const id = navigator.geolocation.watchPosition(
+            (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            (err) => console.warn('Geolocation access denied or error:', err),
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+        );
+        
+        setGeoWatchId(id);
+
+        return () => {
+            if (id) navigator.geolocation.clearWatch(id);
+        };
     }, []);
 
     // Helpers
@@ -192,6 +225,9 @@ export default function Insight({ showToast }) {
     const formatRp = (v) => new Intl.NumberFormat('id-ID').format(Math.round(v));
     
     const calcDistance = (lat1, lon1, lat2, lon2) => {
+        if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+        if (isNaN(lat1) || isNaN(lon1) || isNaN(lat2) || isNaN(lon2)) return null;
+
         const R = 6371;
         const dLat = (lat2 - lat1) * Math.PI / 180;
         const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -201,41 +237,54 @@ export default function Insight({ showToast }) {
 
     // Hot Spots Logic
     const hotSpots = useMemo(() => {
-        if (!strategicSpots.length) return { active: [], upcoming: [] };
+        if (!strategicSpots.length) return { active: [], upcoming: [], hour: new Date().getHours() };
         
         const now = new Date();
         const hour = now.getHours();
         const isWeekend = [0, 6].includes(now.getDay());
 
         const enrich = (spot) => {
+            // Safety checks
+            if (!spot.start_hour || !spot.end_hour) return null;
+
             const start = parseInt(spot.start_hour, 10);
             const end = parseInt(spot.end_hour, 10);
+            
+            if (isNaN(start) || isNaN(end)) return null;
+
             const hoursRemaining = end - hour;
             const distance = userLocation && spot.latitude && spot.longitude
                 ? calcDistance(userLocation.lat, userLocation.lng, parseFloat(spot.latitude), parseFloat(spot.longitude))
                 : null;
-            const score = (distance ? Math.max(0, 10 - distance) : 5) + Math.min(hoursRemaining * 2, 10);
+            
+            const score = (distance !== null ? Math.max(0, 10 - distance) : 5) + Math.min(hoursRemaining * 2, 10);
             return { ...spot, distance, hoursRemaining, score, timeWindow: `${start}:00-${end}:00` };
         };
 
         const active = strategicSpots
             .filter(s => {
+                if (!s.start_hour || !s.end_hour) return false;
                 if (s.is_weekend_only && !isWeekend) return false;
                 const start = parseInt(s.start_hour, 10);
                 const end = parseInt(s.end_hour, 10);
+                if (isNaN(start) || isNaN(end)) return false;
                 return hour >= start && hour < end;
             })
             .map(enrich)
+            .filter(Boolean) // Remove nulls from failures
             .sort((a, b) => b.score - a.score);
 
         const upcoming = strategicSpots
             .filter(s => {
+                if (!s.start_hour || !s.end_hour) return false;
                 if (s.is_weekend_only && !isWeekend) return false;
                 const start = parseInt(s.start_hour, 10);
+                if (isNaN(start)) return false;
                 const diff = start - hour;
                 return diff > 0 && diff <= 3;
             })
             .map(enrich)
+            .filter(Boolean)
             .sort((a, b) => parseInt(a.start_hour, 10) - parseInt(b.start_hour, 10));
 
         return { active: active.slice(0, 4), upcoming: upcoming.slice(0, 2), hour, isWeekend };
