@@ -1,13 +1,17 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSettings } from '../context/SettingsContext';
-import { supabase } from '../lib/supabaseClient';
+import {
+    fetchOrdersInRange,
+    fetchExpensesInRange,
+    fetchStrategicSpots,
+} from '../lib/db';
+import { watchLocation, haversineDistance, checkLocationPermission } from '../lib/location';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     TrendingUp,
     TrendingDown,
     Clock,
     Target,
-    Zap,
     Flame,
     Coffee,
     MapPin,
@@ -20,9 +24,9 @@ import {
     Users,
     ChevronDown,
     ChevronUp,
-    ExternalLink,
     BarChart2,
-    Calendar
+    AlertTriangle,
+    RefreshCw
 } from 'lucide-react';
 import {
     format,
@@ -34,7 +38,6 @@ import {
     differenceInDays,
     isSameDay
 } from 'date-fns';
-import { id } from 'date-fns/locale';
 import Card from './Card';
 
 /**
@@ -150,7 +153,7 @@ const SpotCard = ({ spot, isTop, onNavigate }) => {
 };
 
 export default function Insight({ showToast }) {
-    const { settings, session } = useSettings();
+    const { session } = useSettings();
     const [orders, setOrders] = useState([]);
     const [expenses, setExpenses] = useState([]);
     const [strategicSpots, setStrategicSpots] = useState([]);
@@ -158,87 +161,108 @@ export default function Insight({ showToast }) {
     const [activeTab, setActiveTab] = useState('now');
     const [userLocation, setUserLocation] = useState(null);
     const [expandedSection, setExpandedSection] = useState(null);
-    const [geoWatchId, setGeoWatchId] = useState(null);
+    
+    // Location state
+    const [locationStatus, setLocationStatus] = useState('prompt'); // 'granted' | 'denied' | 'prompt' | 'unsupported' | 'error'
+    const [locationError, setLocationError] = useState(null);
+    
+    // Data fetch error states for retry
+    const [spotsError, setSpotsError] = useState(null);
 
-    // Fetch data with robust error handling
+    // Fetch data with robust error handling and AbortController
     useEffect(() => {
-        const fetchData = async () => {
-            if (!session?.user) {
-                setLoading(false);
-                return;
-            }
+        if (!session?.user) {
+            setLoading(false);
+            return;
+        }
 
+        const controller = new AbortController();
+        let alive = true;
+
+        const fetchData = async () => {
             try {
                 setLoading(true);
+                setSpotsError(null);
                 const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
+                const now = new Date().toISOString();
                 
-                // Safe fetch pattern: individual queries with try/catch handled per query or globally but allowing partial success
-                const ordersPromise = supabase
-                    .from('orders')
-                    .select('*')
-                    .eq('user_id', session.user.id)
-                    .gte('created_at', thirtyDaysAgo)
-                    .order('created_at', { ascending: false });
-                
-                const expensesPromise = supabase
-                    .from('expenses')
-                    .select('*')
-                    .eq('user_id', session.user.id)
-                    .gte('created_at', thirtyDaysAgo)
-                    .order('created_at', { ascending: false });
-                
-                const fetchSpots = async () => {
-                   // Coba fetch normal dulu (tanpa filter geocode) agar data tetap muncul walau belum digeocode
-                   // Supaya user tidak melihat layar kosong saat migrasi database belum jalan sempurna
-                    const { data, error } = await supabase
-                        .from('strategic_spots')
-                        .select('*');
-                    
-                    return { data, error };
-                };
-
-                // Await all and handle results explicitly
-                const [ordersRes, expensesRes, spotsRes] = await Promise.all([
-                   ordersPromise,
-                   expensesPromise,
-                   fetchSpots()
+                // Fetch orders and expenses using centralized db functions
+                const [ordersData, expensesData, spotsData] = await Promise.all([
+                    fetchOrdersInRange(session.user.id, thirtyDaysAgo, now, { signal: controller.signal })
+                        .catch(err => { console.error('Orders fetch error:', err); return []; }),
+                    fetchExpensesInRange(session.user.id, thirtyDaysAgo, now, { signal: controller.signal })
+                        .catch(err => { console.error('Expenses fetch error:', err); return []; }),
+                    fetchStrategicSpots({ signal: controller.signal })
+                        .catch(err => { 
+                            console.error('Spots fetch error:', err); 
+                            if (alive) setSpotsError(err.message || 'Gagal memuat spot');
+                            return []; 
+                        }),
                 ]);
 
-                // Log specific errors but don't crash whole page
-                if (ordersRes.error) console.error('Orders fetch error:', ordersRes.error);
-                if (expensesRes.error) console.error('Expenses fetch error:', expensesRes.error);
-                if (spotsRes.error) console.error('Spots fetch error:', spotsRes.error);
+                if (!alive) return;
 
-                setOrders(ordersRes.data || []);
-                setExpenses(expensesRes.data || []);
-                setStrategicSpots(spotsRes.data || []);
-
+                setOrders(ordersData);
+                setExpenses(expensesData);
+                setStrategicSpots(spotsData);
             } catch (error) {
+                if (!alive) return;
+                if (error.name === 'AbortError') return;
                 console.error('Critical Data Fetch Error:', error);
                 if (showToast) showToast('Gagal memuat beberapa data. Periksa koneksi.', 'error');
             } finally {
-                setLoading(false);
+                if (alive) setLoading(false);
             }
         };
 
         fetchData();
-    }, [session, showToast]);
-
-    // Improved Geolocation with cleanup
-    useEffect(() => {
-        if (!navigator.geolocation) return;
-
-        const id = navigator.geolocation.watchPosition(
-            (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-            (err) => console.warn('Geolocation access denied or error:', err),
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
-        );
-        
-        setGeoWatchId(id);
 
         return () => {
-            if (id) navigator.geolocation.clearWatch(id);
+            alive = false;
+            controller.abort();
         };
+    }, [session, showToast]);
+
+    // Retry fetch spots
+    const retryFetchSpots = useCallback(async () => {
+        try {
+            setSpotsError(null);
+            const data = await fetchStrategicSpots();
+            setStrategicSpots(data);
+        } catch (err) {
+            console.error('Retry spots fetch error:', err);
+            setSpotsError(err.message || 'Gagal memuat spot');
+        }
+    }, []);
+
+    // Improved Geolocation with location service
+    useEffect(() => {
+        // Check permission first
+        checkLocationPermission().then(status => {
+            setLocationStatus(status);
+        });
+
+        const stopWatching = watchLocation({
+            onUpdate: (loc) => {
+                setUserLocation({ lat: loc.latitude, lng: loc.longitude });
+                setLocationStatus('granted');
+                setLocationError(null);
+            },
+            onError: (err) => {
+                console.warn('Location error:', err.message);
+                setLocationError(err.message);
+                if (err.code === 'PERMISSION_DENIED') {
+                    setLocationStatus('denied');
+                } else if (err.code === 'NOT_SUPPORTED') {
+                    setLocationStatus('unsupported');
+                } else {
+                    setLocationStatus('error');
+                }
+            },
+            throttleMs: 4000, // Only update every 4 seconds
+        });
+
+        return stopWatching;
     }, []);
 
     // Helpers
@@ -247,15 +271,9 @@ export default function Insight({ showToast }) {
     const getGrossPrice = (o) => parseFloat(o.gross_price) || parseFloat(o.price) || 0;
     const formatRp = (v) => new Intl.NumberFormat('id-ID').format(Math.round(v));
     
+    // Use the centralized haversine function
     const calcDistance = (lat1, lon1, lat2, lon2) => {
-        if (!lat1 || !lon1 || !lat2 || !lon2) return null;
-        if (isNaN(lat1) || isNaN(lon1) || isNaN(lat2) || isNaN(lon2)) return null;
-
-        const R = 6371;
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return haversineDistance(lat1, lon1, lat2, lon2);
     };
 
     // Hot Spots Logic
@@ -439,6 +457,47 @@ export default function Insight({ showToast }) {
             </div>
 
             <div className="flex-1 px-4 pb-6 overflow-y-auto">
+                {/* Location Status Banner */}
+                {locationStatus === 'denied' && (
+                    <div className="mb-3 p-3 bg-ui-warning/10 border border-ui-warning/30 rounded-ui-lg flex items-center gap-2">
+                        <AlertTriangle size={16} className="text-ui-warning shrink-0" />
+                        <p className="text-xs text-ui-warning flex-1">
+                            Izin lokasi ditolak. Aktifkan di pengaturan browser/HP untuk fitur jarak.
+                        </p>
+                    </div>
+                )}
+                
+                {locationStatus === 'unsupported' && (
+                    <div className="mb-3 p-3 bg-ui-muted/10 border border-ui-border rounded-ui-lg flex items-center gap-2">
+                        <MapPin size={16} className="text-ui-muted shrink-0" />
+                        <p className="text-xs text-ui-muted flex-1">
+                            Geolocation tidak didukung di perangkat ini.
+                        </p>
+                    </div>
+                )}
+
+                {locationStatus === 'error' && locationError && (
+                    <div className="mb-3 p-3 bg-ui-danger/10 border border-ui-danger/30 rounded-ui-lg flex items-center gap-2">
+                        <AlertTriangle size={16} className="text-ui-danger shrink-0" />
+                        <p className="text-xs text-ui-danger flex-1">{locationError}</p>
+                    </div>
+                )}
+
+                {/* Spots Fetch Error Banner */}
+                {spotsError && (
+                    <div className="mb-3 p-3 bg-ui-danger/10 border border-ui-danger/30 rounded-ui-lg flex items-center gap-2">
+                        <AlertTriangle size={16} className="text-ui-danger shrink-0" />
+                        <p className="text-xs text-ui-danger flex-1">{spotsError}</p>
+                        <button
+                            onClick={retryFetchSpots}
+                            className="text-xs text-ui-danger font-medium flex items-center gap-1 shrink-0"
+                        >
+                            <RefreshCw size={12} />
+                            Coba lagi
+                        </button>
+                    </div>
+                )}
+
                 <AnimatePresence mode="wait">
                     {/* ==================== TAB: SEKARANG ==================== */}
                     {activeTab === 'now' && (

@@ -1,6 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { supabase } from '../lib/supabaseClient';
+import {
+    fetchOrdersAndExpenses,
+    monthRangeLocal,
+    clearUserCache,
+} from '../lib/db';
+import { toLocalDayKey, getTodayKey } from '../lib/dateUtils';
 import {
     BarChart,
     Bar,
@@ -12,13 +18,9 @@ import {
 import {
     format,
     subDays,
-    startOfMonth,
-    endOfMonth,
     isSameDay,
     parseISO,
     isValid,
-    startOfDay,
-    endOfDay
 } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Plus, Minus, TrendingUp, TrendingDown, Wallet, AlertCircle, Trash2, Edit2 } from 'lucide-react';
@@ -65,14 +67,59 @@ export default function Riwayat() {
         expensesCount: 0
     });
 
+    // Status for unified fetch: 'idle' | 'loading' | 'success' | 'error'
+    const [fetchStatus, setFetchStatus] = useState('idle');
+    const [fetchError, setFetchError] = useState(null);
+
+    // Main data fetch effect with AbortController and stale result protection
     useEffect(() => {
-        let isMounted = true;
-        const fetchDataWithMountCheck = async () => {
-            await fetchData(() => isMounted);
+        if (!session?.user) {
+            setLoading(false);
+            return;
+        }
+
+        const controller = new AbortController();
+        let alive = true;
+
+        const loadData = async () => {
+            setFetchStatus('loading');
+            setFetchError(null);
+            setLoading(true);
+
+            try {
+                const { startISO, endISO } = monthRangeLocal();
+                const { orders, expenses } = await fetchOrdersAndExpenses(
+                    session.user.id,
+                    startISO,
+                    endISO,
+                    { signal: controller.signal }
+                );
+
+                if (!alive) return;
+
+                setFetchStatus('success');
+                processFinancials(orders, expenses);
+            } catch (error) {
+                if (!alive) return;
+                // Ignore abort errors
+                if (error.name === 'AbortError' || error.message?.includes('aborted')) {
+                    return;
+                }
+                console.error('Error fetching data:', error);
+                setFetchStatus('error');
+                setFetchError(error?.message || 'Terjadi kesalahan saat memuat data');
+            } finally {
+                if (alive) {
+                    setLoading(false);
+                }
+            }
         };
-        if (session) fetchDataWithMountCheck();
+
+        loadData();
+
         return () => {
-            isMounted = false;
+            alive = false;
+            controller.abort();
         };
     }, [session, settings.defaultCommission, settings.fuelEfficiency, settings.maintenanceFee]);
 
@@ -80,30 +127,6 @@ export default function Riwayat() {
         if (!value) return null;
         const parsed = parseISO(value);
         return isValid(parsed) ? parsed : null;
-    };
-
-    const toUtcIsoString = (date) => {
-        if (!date) return null;
-        const utcTime = date.getTime() - date.getTimezoneOffset() * 60000;
-        return new Date(utcTime).toISOString();
-    };
-
-    const getLocalDateRanges = (date = new Date()) => {
-        const startToday = startOfDay(date);
-        const endToday = endOfDay(date);
-        const startMonth = startOfMonth(date);
-        const endMonth = endOfMonth(date);
-        return {
-            startToday,
-            endToday,
-            startMonth,
-            endMonth
-        };
-    };
-
-    const isWithinLocalRange = (value, start, end) => {
-        const parsed = parseDate(value);
-        return parsed ? parsed >= start && parsed <= end : false;
     };
 
     const parseNumber = (value) => {
@@ -188,12 +211,13 @@ export default function Riwayat() {
     };
 
     const calculateFinancials = (orders, expenses) => {
-        const { startToday, endToday } = getLocalDateRanges();
+        // Use consistent local day key for "today" filtering
+        const todayKey = getTodayKey();
         const todayOrders = orders.filter((order) =>
-            isWithinLocalRange(order.created_at, startToday, endToday)
+            toLocalDayKey(order.created_at) === todayKey
         );
         const todayExpenses = expenses.filter((expense) =>
-            isWithinLocalRange(expense.created_at, startToday, endToday)
+            toLocalDayKey(expense.created_at) === todayKey
         );
         const monthOrders = orders;
         const monthExpenses = expenses;
@@ -223,60 +247,31 @@ export default function Riwayat() {
         };
     };
 
-    const fetchData = async (shouldUpdate = () => true) => {
+    // Refetch function for use after mutations (delete, update, insert)
+    const refetchData = useCallback(async () => {
+        if (!session?.user) return;
+        
         try {
-            if (shouldUpdate()) setLoading(true);
-            if (!session?.user) {
-                if (shouldUpdate()) setLoading(false);
-                return;
-            }
-            const userIdColumn = 'user_id';
-            const { startMonth, endMonth } = getLocalDateRanges();
-            const startMonthIso = toUtcIsoString(startMonth);
-            const endMonthIso = toUtcIsoString(endMonth);
-
-            console.log('Fetching orders for user:', session.user.id);
-            console.log('Date range:', startMonthIso, 'to', endMonthIso);
-
-            const { data: ordersData, error: ordersError } = await supabase
-                .from('orders')
-                .select('*')
-                .eq(userIdColumn, session.user.id)
-                .gte('created_at', startMonthIso)
-                .lte('created_at', endMonthIso)
-                .order('created_at', { ascending: false });
-
-            if (ordersError) {
-                console.error('Orders fetch error:', ordersError);
-                throw ordersError;
-            }
-
-            console.log('Total Orders Fetched:', ordersData?.length ?? 0);
-            if (ordersData && ordersData.length > 0) {
-                console.log('Sample order:', ordersData[0]);
-            }
-
-            const { data: expensesData, error: expensesError } = await supabase
-                .from('expenses')
-                .select('*')
-                .eq(userIdColumn, session.user.id)
-                .gte('created_at', startMonthIso)
-                .lte('created_at', endMonthIso)
-                .order('created_at', { ascending: false });
-
-            if (expensesError) throw expensesError;
-
-            processFinancials(ordersData || [], expensesData || [], shouldUpdate);
-
+            setLoading(true);
+            // Clear cache for this user since data changed
+            clearUserCache(session.user.id);
+            
+            const { startISO, endISO } = monthRangeLocal();
+            const { orders, expenses } = await fetchOrdersAndExpenses(
+                session.user.id,
+                startISO,
+                endISO
+            );
+            
+            processFinancials(orders, expenses);
         } catch (error) {
-            console.error('Error fetching data:', error);
+            console.error('Error refetching data:', error);
         } finally {
-            if (shouldUpdate()) setLoading(false);
+            setLoading(false);
         }
-    };
+    }, [session]);
 
-    const processFinancials = (orders, expenses, shouldUpdate = () => true) => {
-        if (!shouldUpdate()) return;
+    const processFinancials = (orders, expenses) => {
         const {
             todayNetProfit,
             todayExpense,
@@ -290,13 +285,11 @@ export default function Riwayat() {
             monthExpenses
         } = calculateFinancials(orders, expenses);
 
-        if (shouldUpdate()) {
-            setTodayRecap({
+        setTodayRecap({
             income: todayNetProfit,
             expense: todayExpense,
             net: todayNet
-            });
-        }
+        });
         
         // Kalkulasi Estimasi (Bensin & Potongan)
         const totalFuelCost = monthOrders.reduce((sum, order) => sum + getFuelCost(order), 0);
@@ -307,8 +300,7 @@ export default function Riwayat() {
             efficiency = (monthlyNetProfit / monthlyGross) * 100;
         }
 
-        if (shouldUpdate()) {
-            setMetrics({
+        setMetrics({
             grossIncome: monthlyGross,
             actualExpenses: monthlyExpense,
             netCash: monthlyNet,
@@ -318,8 +310,7 @@ export default function Riwayat() {
             maintenanceTotal: totalMaintenanceCost,
             ordersCount: monthOrders.length,
             expensesCount: monthExpenses.length
-            });
-        }
+        });
 
         // Data Chart 7 Hari Terakhir
         const last7Days = Array.from({ length: 7 }, (_, i) => {
@@ -344,12 +335,13 @@ export default function Riwayat() {
             const dailyExpense = dayExpenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
             return { ...day, net: dailyIncome - dailyExpense };
         });
-        if (shouldUpdate()) setChartData(chart);
+        setChartData(chart);
 
+        // Use consistent local day key for daily recap grouping
         const dailyRecap = monthOrders.reduce((acc, order) => {
+            const key = toLocalDayKey(order.created_at);
+            if (!key) return acc;
             const orderDate = parseDate(order.created_at);
-            if (!orderDate) return acc;
-            const key = format(orderDate, 'yyyy-MM-dd');
             if (!acc[key]) {
                 acc[key] = {
                     date: orderDate,
@@ -362,9 +354,9 @@ export default function Riwayat() {
         }, {});
 
         monthExpenses.forEach((expense) => {
+            const key = toLocalDayKey(expense.created_at);
+            if (!key) return;
             const expenseDate = parseDate(expense.created_at);
-            if (!expenseDate) return;
-            const key = format(expenseDate, 'yyyy-MM-dd');
             if (!dailyRecap[key]) {
                 dailyRecap[key] = {
                     date: expenseDate,
@@ -382,7 +374,7 @@ export default function Riwayat() {
                 net: item.income - item.expense
             }));
 
-        if (shouldUpdate()) setDailyRecapData(dailyRecapList);
+        setDailyRecapData(dailyRecapList);
 
         const combined = [
             ...monthOrders.map(o => ({ ...o, type: 'income', displayAmount: getNetProfit(o) })),
@@ -393,10 +385,8 @@ export default function Riwayat() {
             return (dateB?.getTime() || 0) - (dateA?.getTime() || 0);
         });
 
-        if (shouldUpdate()) {
-            setTransactions(combined);
-            setVisibleCount(pageSize);
-        }
+        setTransactions(combined);
+        setVisibleCount(pageSize);
     };
 
     const formatCurrency = (val) => new Intl.NumberFormat('id-ID').format(val);
@@ -430,7 +420,7 @@ export default function Riwayat() {
             const table = deleteTargetType === 'income' ? 'orders' : 'expenses';
             const { error } = await supabase.from(table).delete().eq('id', deleteTargetId);
             if (error) throw error;
-            await fetchData();
+            await refetchData();
             closeDeleteModal();
             showToast('Data berhasil dihapus!', 'success');
         } catch (error) {
@@ -469,7 +459,7 @@ export default function Riwayat() {
 
             if (error) throw error;
 
-            await fetchData();
+            await refetchData();
 
             setEditingOrder(null);
             showToast('Data berhasil disimpan!', 'success');
@@ -486,8 +476,6 @@ export default function Riwayat() {
         }
 
         try {
-            console.log("Mengirim data pengeluaran:", expenseData);
-
             const { error } = await supabase
                 .from('expenses')
                 .insert([{
@@ -500,7 +488,7 @@ export default function Riwayat() {
 
             if (error) throw error;
 
-            await fetchData();
+            await refetchData();
 
             setShowExpenseModal(false);
             showToast('Data berhasil disimpan!', 'success');
