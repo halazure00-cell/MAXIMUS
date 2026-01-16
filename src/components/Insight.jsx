@@ -5,7 +5,7 @@ import {
     fetchExpensesInRange,
     fetchStrategicSpots,
 } from '../lib/db';
-import { watchLocation, haversineDistance, checkLocationPermission } from '../lib/location';
+import { watchLocation, haversineDistance, checkLocationPermission, getCurrentPosition } from '../lib/location';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     TrendingUp,
@@ -232,6 +232,26 @@ export default function Insight({ showToast }) {
         } catch (err) {
             console.error('Retry spots fetch error:', err);
             setSpotsError(err.message || 'Gagal memuat spot');
+        }
+    }, []);
+
+    // Retry get location (for timeout/position unavailable errors)
+    const retryLocation = useCallback(async () => {
+        setLocationError(null);
+        setLocationStatus('prompt');
+        try {
+            const loc = await getCurrentPosition();
+            setUserLocation({ lat: loc.latitude, lng: loc.longitude });
+            setLocationStatus('granted');
+        } catch (err) {
+            setLocationError(err.message);
+            if (err.code === 'PERMISSION_DENIED') {
+                setLocationStatus('denied');
+            } else if (err.code === 'NOT_SUPPORTED') {
+                setLocationStatus('unsupported');
+            } else {
+                setLocationStatus('error');
+            }
         }
     }, []);
 
@@ -480,6 +500,13 @@ export default function Insight({ showToast }) {
                     <div className="mb-3 p-3 bg-ui-danger/10 border border-ui-danger/30 rounded-ui-lg flex items-center gap-2">
                         <AlertTriangle size={16} className="text-ui-danger shrink-0" />
                         <p className="text-xs text-ui-danger flex-1">{locationError}</p>
+                        <button
+                            onClick={retryLocation}
+                            className="text-xs text-ui-danger font-medium flex items-center gap-1 shrink-0"
+                        >
+                            <RefreshCw size={12} />
+                            Coba lagi
+                        </button>
                     </div>
                 )}
 
