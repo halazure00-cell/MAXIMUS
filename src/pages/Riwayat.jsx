@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { useSyncContext } from '../context/SyncContext';
 import { 
@@ -57,6 +57,12 @@ export default function Riwayat() {
     const [deleteTargetType, setDeleteTargetType] = useState(null);
     const pageSize = 20;
     
+    // Refs untuk tracking operasi async
+    const abortControllerRef = useRef(null);
+    const isMountedRef = useRef(true);
+    const isLoadingRef = useRef(false);
+    const lastFetchTimeRef = useRef(0);
+    
     // State untuk Rekap Harian (Setoran)
     const [todayRecap, setTodayRecap] = useState({
         income: 0,
@@ -76,138 +82,213 @@ export default function Riwayat() {
         expensesCount: 0
     });
 
-    // Status for unified fetch: 'idle' | 'loading' | 'success' | 'error'
+    // Status untuk unified fetch: 'idle' | 'loading' | 'success' | 'error'
     const [fetchStatus, setFetchStatus] = useState('idle');
     const [fetchError, setFetchError] = useState(null);
 
-    // Main data fetch effect with AbortController and stale result protection
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            isMountedRef.current = false;
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
+    }, []);
+
+    // Helper: safely update state
+    const safeSetState = useCallback((setter, value) => {
+        if (isMountedRef.current) {
+            setter(value);
+        }
+    }, []);
+
+    // Main data fetch effect dengan AbortController dan proper error handling
     useEffect(() => {
         if (!session?.user || !isInitialized) {
-            setLoading(false);
+            safeSetState(setLoading, false);
             return;
         }
 
+        // Prevent duplicate simultaneous fetches
+        if (isLoadingRef.current) {
+            logger.debug('Fetch already in progress, skipping...');
+            return;
+        }
+
+        const now = Date.now();
+        const timeSinceLastFetch = now - lastFetchTimeRef.current;
+        if (timeSinceLastFetch < 500) {
+            logger.debug('Fetch called too soon, debouncing...');
+            return;
+        }
+
+        // Create new abort controller for this fetch
         const controller = new AbortController();
-        let alive = true;
+        abortControllerRef.current = controller;
+        isLoadingRef.current = true;
+        lastFetchTimeRef.current = now;
 
         const loadData = async () => {
-            setFetchStatus('loading');
-            setFetchError(null);
-            setLoading(true);
+            safeSetState(setFetchStatus, 'loading');
+            safeSetState(setFetchError, null);
+            safeSetState(setLoading, true);
 
             try {
-                // Try to import initial data (with built-in guards to prevent duplicates)
+                // Step 1: Import initial data (dengan guards untuk prevent duplicates)
+                logger.debug('Starting import initial data...');
                 const importResult = await importInitialData();
+                
+                if (!isMountedRef.current) {
+                    logger.debug('Component unmounted during import, aborting...');
+                    return;
+                }
+
                 logger.debug('Import result:', importResult);
 
-                // Read from local cache
+                // Step 2: Read dari local cache
+                logger.debug('Reading from local cache...');
                 const orders = await getCachedOrders(session.user.id);
                 const expenses = await getCachedExpenses(session.user.id);
 
-                if (!alive) return;
-
-                setFetchStatus('success');
-                processFinancials(orders, expenses);
-            } catch (error) {
-                if (!alive) return;
-                // Ignore abort errors
-                if (error.name === 'AbortError' || error.message?.includes('aborted')) {
+                if (!isMountedRef.current) {
+                    logger.debug('Component unmounted during data fetch, aborting...');
                     return;
                 }
-                logger.error('Error fetching data from cache', error);
-                setFetchStatus('error');
-                setFetchError(error?.message || 'Terjadi kesalahan saat memuat data');
-            } finally {
-                if (alive) {
-                    setLoading(false);
+
+                logger.debug('Data fetched from cache:', {
+                    ordersCount: orders.length,
+                    expensesCount: expenses.length
+                });
+
+                // Step 3: Process data
+                processFinancials(orders, expenses);
+                safeSetState(setFetchStatus, 'success');
+
+            } catch (error) {
+                if (!isMountedRef.current) {
+                    logger.debug('Component unmounted during error handling');
+                    return;
                 }
+
+                // Ignore abort errors
+                if (error.name === 'AbortError' || error.message?.includes('aborted')) {
+                    logger.debug('Fetch aborted by user');
+                    return;
+                }
+
+                logger.error('Error loading data', {
+                    message: error?.message,
+                    stack: error?.stack
+                });
+                
+                safeSetState(setFetchStatus, 'error');
+                safeSetState(setFetchError, error?.message || 'Terjadi kesalahan saat memuat data');
+                showToast('Gagal memuat data: ' + (error?.message || 'Coba lagi nanti'), 'error');
+            } finally {
+                if (isMountedRef.current) {
+                    safeSetState(setLoading, false);
+                }
+                isLoadingRef.current = false;
             }
         };
 
         loadData();
 
         return () => {
-            alive = false;
-            controller.abort();
+            if (controller) {
+                controller.abort();
+            }
         };
-    }, [session, isInitialized, settings.defaultCommission, settings.fuelEfficiency, settings.maintenanceFee]);
+    }, [session?.user?.id, isInitialized, settings.defaultCommission, settings.fuelEfficiency, settings.maintenanceFee, safeSetState, showToast, importInitialData]);
 
     const parseDate = (value) => {
         if (!value) return null;
-        const parsed = parseISO(value);
-        return isValid(parsed) ? parsed : null;
+        try {
+            const parsed = parseISO(String(value));
+            return isValid(parsed) ? parsed : null;
+        } catch {
+            return null;
+        }
     };
 
     const parseNumber = (value) => {
+        if (value === null || value === undefined || value === '') return 0;
         const parsed = parseFloat(value);
         return Number.isFinite(parsed) ? parsed : 0;
     };
 
     const getCommissionRate = (order) => {
-        const storedRate = parseFloat(order.commission_rate);
-        if (Number.isFinite(storedRate)) return storedRate;
-        return parseFloat(settings.defaultCommission) || 0;
+        if (!order) return 0;
+        const storedRate = parseNumber(order.commission_rate);
+        if (storedRate > 0) return storedRate;
+        return parseNumber(settings.defaultCommission) || 0;
     };
 
     const getGrossPrice = (order) => {
-        const storedGross = parseFloat(order.gross_price);
-        if (Number.isFinite(storedGross)) return storedGross;
-        const fallbackPrice = parseFloat(order.price);
-        if (!Number.isFinite(fallbackPrice) || fallbackPrice <= 0) return 0;
+        if (!order) return 0;
+        const storedGross = parseNumber(order.gross_price);
+        if (storedGross > 0) return storedGross;
+        const fallbackPrice = parseNumber(order.price);
+        if (fallbackPrice <= 0) return 0;
         const rate = getCommissionRate(order);
-        if (rate >= 0 && rate < 1) return fallbackPrice / (1 - rate);
+        if (rate > 0 && rate < 1) return fallbackPrice / (1 - rate);
         return fallbackPrice;
     };
 
     const getNetProfit = (order) => {
-        const storedNet = parseFloat(order.net_profit);
-        if (Number.isFinite(storedNet)) return storedNet;
-        const fallbackPrice = parseFloat(order.price);
-        if (Number.isFinite(fallbackPrice)) return fallbackPrice;
+        if (!order) return 0;
+        const storedNet = parseNumber(order.net_profit);
+        if (storedNet !== 0) return storedNet;
+        const fallbackPrice = parseNumber(order.price);
+        if (Number.isFinite(fallbackPrice) && fallbackPrice > 0) return fallbackPrice;
         const gross = getGrossPrice(order);
         const rate = getCommissionRate(order);
         return gross * (1 - rate);
     };
 
     const getAppFee = (order) => {
-        const storedFee = parseFloat(order.app_fee);
-        if (Number.isFinite(storedFee)) return storedFee;
-        const legacyFee = parseFloat(order.fee);
-        if (Number.isFinite(legacyFee)) return legacyFee;
+        if (!order) return 0;
+        const storedFee = parseNumber(order.app_fee);
+        if (storedFee > 0) return storedFee;
+        const legacyFee = parseNumber(order.fee);
+        if (legacyFee > 0) return legacyFee;
         const gross = getGrossPrice(order);
         const rate = getCommissionRate(order);
         return gross * rate;
     };
 
     const getFuelCost = (order) => {
-        const storedFuelCost = parseFloat(order.fuel_cost);
-        if (Number.isFinite(storedFuelCost)) return storedFuelCost;
-        const distance = parseFloat(order.distance);
-        if (!Number.isFinite(distance)) return 0;
-        const storedEfficiency = parseFloat(order.fuel_efficiency_at_time);
-        const efficiency = Number.isFinite(storedEfficiency)
+        if (!order) return 0;
+        const storedFuelCost = parseNumber(order.fuel_cost);
+        if (storedFuelCost > 0) return storedFuelCost;
+        const distance = parseNumber(order.distance);
+        if (distance <= 0) return 0;
+        const storedEfficiency = parseNumber(order.fuel_efficiency_at_time);
+        const efficiency = storedEfficiency > 0
             ? storedEfficiency
-            : parseFloat(settings.fuelEfficiency) || 0;
+            : parseNumber(settings.fuelEfficiency) || 0;
         return distance * efficiency;
     };
 
     const getMaintenanceCost = (order) => {
-        const storedMaintenance = parseFloat(order.maintenance_fee ?? order.maintenance_cost);
-        if (Number.isFinite(storedMaintenance)) return storedMaintenance;
-        return parseFloat(settings.maintenanceFee) || 0;
+        if (!order) return 0;
+        const storedMaintenance = parseNumber(order.maintenance_fee ?? order.maintenance_cost);
+        if (storedMaintenance > 0) return storedMaintenance;
+        return parseNumber(settings.maintenanceFee) || 0;
     };
 
     const getUpdatedFinancials = (order) => {
-        const grossFromOrder = parseFloat(order.gross_price);
-        const fallbackGross = parseFloat(order.price);
-        const grossPrice = Number.isFinite(grossFromOrder)
+        if (!order) return { grossPrice: 0, commissionRate: 0, appFee: 0, netProfit: 0 };
+        
+        const grossFromOrder = parseNumber(order.gross_price);
+        const fallbackGross = parseNumber(order.price);
+        const grossPrice = grossFromOrder > 0
             ? grossFromOrder
-            : Number.isFinite(fallbackGross)
+            : fallbackGross > 0
                 ? fallbackGross
                 : 0;
-        const commissionRate = Number.isFinite(parseFloat(order.commission_rate))
-            ? parseFloat(order.commission_rate)
-            : parseFloat(settings.defaultCommission) || 0;
+        const commissionRate = getCommissionRate(order);
         const appFee = grossPrice * commissionRate;
         const netProfit = grossPrice - appFee;
 
@@ -219,21 +300,31 @@ export default function Riwayat() {
         };
     };
 
-    const calculateFinancials = (orders, expenses) => {
-        // Use consistent local day key for "today" filtering
+    const calculateFinancials = useCallback((orders, expenses) => {
+        if (!Array.isArray(orders)) orders = [];
+        if (!Array.isArray(expenses)) expenses = [];
+
         const todayKey = getTodayKey();
         const todayOrders = orders.filter((order) =>
-            toLocalDayKey(order.created_at) === todayKey
+            order && toLocalDayKey(order.created_at) === todayKey
         );
         const todayExpenses = expenses.filter((expense) =>
-            toLocalDayKey(expense.created_at) === todayKey
+            expense && toLocalDayKey(expense.created_at) === todayKey
         );
         const monthOrders = orders;
         const monthExpenses = expenses;
+
         const sumValues = (items, key) =>
-            items.reduce((sum, item) => sum + parseNumber(item[key]), 0);
+            items.reduce((sum, item) => sum + parseNumber(item?.[key]), 0);
         const sumBy = (items, getter) =>
-            items.reduce((sum, item) => sum + getter(item), 0);
+            items.reduce((sum, item) => {
+                try {
+                    return sum + getter(item);
+                } catch (e) {
+                    logger.warn('Error in sumBy getter:', e);
+                    return sum;
+                }
+            }, 0);
 
         const todayNetProfit = sumBy(todayOrders, getNetProfit);
         const todayExpense = sumValues(todayExpenses, 'amount');
@@ -243,188 +334,245 @@ export default function Riwayat() {
         const monthlyPotongan = sumBy(monthOrders, getAppFee);
 
         return {
-            todayNetProfit,
-            todayExpense,
-            todayNet: todayNetProfit - todayExpense,
-            monthlyGross,
-            monthlyNetProfit,
-            monthlyExpense,
-            monthlyNet: monthlyNetProfit - monthlyExpense,
-            monthlyPotongan,
+            todayNetProfit: parseNumber(todayNetProfit),
+            todayExpense: parseNumber(todayExpense),
+            todayNet: parseNumber(todayNetProfit - todayExpense),
+            monthlyGross: parseNumber(monthlyGross),
+            monthlyNetProfit: parseNumber(monthlyNetProfit),
+            monthlyExpense: parseNumber(monthlyExpense),
+            monthlyNet: parseNumber(monthlyNetProfit - monthlyExpense),
+            monthlyPotongan: parseNumber(monthlyPotongan),
             monthOrders,
             monthExpenses
         };
-    };
+    }, []);
 
-    // Refetch function for use after mutations (delete, update, insert)
+    // Refetch function untuk use after mutations
     const refetchData = useCallback(async () => {
-        if (!session?.user || !isInitialized) return;
-        
+        if (!session?.user || !isInitialized) {
+            logger.debug('refetchData: Session or initialization not ready');
+            return;
+        }
+
+        if (isLoadingRef.current) {
+            logger.debug('refetchData: Already loading, skipping...');
+            return;
+        }
+
         try {
-            setLoading(true);
+            isLoadingRef.current = true;
+            safeSetState(setLoading, true);
             
-            // Read from local cache
+            logger.debug('Refetching data from cache...');
             const orders = await getCachedOrders(session.user.id);
             const expenses = await getCachedExpenses(session.user.id);
             
             processFinancials(orders, expenses);
 
             // Trigger sync status update
-            if (updateStatus) {
+            if (updateStatus && typeof updateStatus === 'function') {
                 updateStatus();
             }
+
+            logger.debug('Refetch completed successfully');
         } catch (error) {
             logger.error('Error refetching data from cache', error);
+            showToast('Gagal memperbarui data: ' + (error?.message || 'Coba lagi'), 'error');
         } finally {
-            setLoading(false);
+            safeSetState(setLoading, false);
+            isLoadingRef.current = false;
         }
-    }, [session, isInitialized, updateStatus]);
+    }, [session?.user?.id, isInitialized, updateStatus, safeSetState, showToast]);
 
-    const processFinancials = (orders, expenses) => {
-        const {
-            todayNetProfit,
-            todayExpense,
-            todayNet,
-            monthlyGross,
-            monthlyNetProfit,
-            monthlyExpense,
-            monthlyNet,
-            monthlyPotongan,
-            monthOrders,
-            monthExpenses
-        } = calculateFinancials(orders, expenses);
+    const processFinancials = useCallback((orders, expenses) => {
+        try {
+            logger.debug('Processing financials...', {
+                ordersCount: orders?.length || 0,
+                expensesCount: expenses?.length || 0
+            });
 
-        setTodayRecap({
-            income: todayNetProfit,
-            expense: todayExpense,
-            net: todayNet
-        });
-        
-        // Kalkulasi Estimasi (Bensin & Potongan)
-        const totalFuelCost = monthOrders.reduce((sum, order) => sum + getFuelCost(order), 0);
-        const totalMaintenanceCost = monthOrders.reduce((sum, order) => sum + getMaintenanceCost(order), 0);
+            const {
+                todayNetProfit,
+                todayExpense,
+                todayNet,
+                monthlyGross,
+                monthlyNetProfit,
+                monthlyExpense,
+                monthlyNet,
+                monthlyPotongan,
+                monthOrders,
+                monthExpenses
+            } = calculateFinancials(orders, expenses);
 
-        let efficiency = 0;
-        if (monthlyGross > 0) {
-            efficiency = (monthlyNetProfit / monthlyGross) * 100;
+            if (!isMountedRef.current) return;
+
+            safeSetState(setTodayRecap, {
+                income: todayNetProfit,
+                expense: todayExpense,
+                net: todayNet
+            });
+            
+            // Kalkulasi Estimasi (Bensin & Potongan)
+            const totalFuelCost = monthOrders.reduce((sum, order) => {
+                try {
+                    return sum + getFuelCost(order);
+                } catch (e) {
+                    logger.warn('Error calculating fuel cost:', e);
+                    return sum;
+                }
+            }, 0);
+
+            const totalMaintenanceCost = monthOrders.reduce((sum, order) => {
+                try {
+                    return sum + getMaintenanceCost(order);
+                } catch (e) {
+                    logger.warn('Error calculating maintenance cost:', e);
+                    return sum;
+                }
+            }, 0);
+
+            let efficiency = 0;
+            if (monthlyGross > 0) {
+                efficiency = (monthlyNetProfit / monthlyGross) * 100;
+            }
+
+            safeSetState(setMetrics, {
+                grossIncome: monthlyGross,
+                actualExpenses: monthlyExpense,
+                netCash: monthlyNet,
+                efficiencyScore: efficiency,
+                appFeeTotal: monthlyPotongan,
+                fuelCostTotal: totalFuelCost,
+                maintenanceTotal: totalMaintenanceCost,
+                ordersCount: monthOrders.length,
+                expensesCount: monthExpenses.length
+            });
+
+            // Data Chart 7 Hari Terakhir
+            const last7Days = Array.from({ length: 7 }, (_, i) => {
+                const d = subDays(new Date(), 6 - i);
+                return {
+                    date: d,
+                    label: format(d, 'dd/MM', { locale: id }),
+                    net: 0
+                };
+            });
+
+            const chart = last7Days.map(day => {
+                try {
+                    const dayOrders = monthOrders.filter((o) => {
+                        if (!o) return false;
+                        const orderDate = parseDate(o.created_at);
+                        return orderDate ? isSameDay(orderDate, day.date) : false;
+                    });
+                    const dayExpenses = monthExpenses.filter((e) => {
+                        if (!e) return false;
+                        const expenseDate = parseDate(e.created_at);
+                        return expenseDate ? isSameDay(expenseDate, day.date) : false;
+                    });
+                    const dailyIncome = dayOrders.reduce((s, o) => s + getNetProfit(o), 0);
+                    const dailyExpense = dayExpenses.reduce((s, e) => s + parseNumber(e?.amount), 0);
+                    return { ...day, net: dailyIncome - dailyExpense };
+                } catch (e) {
+                    logger.warn('Error processing chart data for day:', e);
+                    return day;
+                }
+            });
+            
+            safeSetState(setChartData, chart);
+
+            // Rekap Harian dengan consistent local day key
+            const dailyRecap = monthOrders.reduce((acc, order) => {
+                if (!order) return acc;
+                const key = toLocalDayKey(order.created_at);
+                if (!key) return acc;
+                const orderDate = parseDate(order.created_at);
+                if (!acc[key]) {
+                    acc[key] = {
+                        date: orderDate,
+                        income: 0,
+                        expense: 0
+                    };
+                }
+                acc[key].income += getNetProfit(order);
+                return acc;
+            }, {});
+
+            monthExpenses.forEach((expense) => {
+                if (!expense) return;
+                const key = toLocalDayKey(expense.created_at);
+                if (!key) return;
+                const expenseDate = parseDate(expense.created_at);
+                if (!dailyRecap[key]) {
+                    dailyRecap[key] = {
+                        date: expenseDate,
+                        income: 0,
+                        expense: 0
+                    };
+                }
+                dailyRecap[key].expense += parseNumber(expense?.amount) || 0;
+            });
+
+            const dailyRecapList = Object.values(dailyRecap)
+                .filter(item => item && item.date)
+                .sort((a, b) => (b?.date?.getTime() || 0) - (a?.date?.getTime() || 0))
+                .map((item) => ({
+                    ...item,
+                    net: (item?.income || 0) - (item?.expense || 0)
+                }));
+
+            safeSetState(setDailyRecapData, dailyRecapList);
+
+            // Combined transactions
+            const combined = [
+                ...monthOrders.map(o => {
+                    if (!o) return null;
+                    if (!o.client_tx_id) {
+                        logger.warn('Order missing client_tx_id, using id as fallback', { id: o.id });
+                    }
+                    return { 
+                        ...o, 
+                        type: 'income', 
+                        displayAmount: getNetProfit(o),
+                        client_tx_id: o.client_tx_id || `legacy-${o.id}`, 
+                    };
+                }).filter(Boolean),
+                ...monthExpenses.map(e => {
+                    if (!e) return null;
+                    if (!e.client_tx_id) {
+                        logger.warn('Expense missing client_tx_id, using id as fallback', { id: e.id });
+                    }
+                    return { 
+                        ...e, 
+                        type: 'expense', 
+                        displayAmount: parseNumber(e.amount),
+                        client_tx_id: e.client_tx_id || `legacy-${e.id}`,
+                    };
+                }).filter(Boolean)
+            ].sort((a, b) => {
+                const dateA = parseDate(a?.created_at);
+                const dateB = parseDate(b?.created_at);
+                return (dateB?.getTime() || 0) - (dateA?.getTime() || 0);
+            });
+
+            safeSetState(setTransactions, combined);
+            safeSetState(setVisibleCount, pageSize);
+
+            logger.debug('Financial processing completed', {
+                transactionsCount: combined.length,
+                todayNet: todayNet,
+                monthlyNet: monthlyNet
+            });
+        } catch (error) {
+            logger.error('Error processing financials:', error);
+            showToast('Terjadi kesalahan dalam memproses data', 'error');
         }
+    }, [calculateFinancials, safeSetState, showToast, pageSize]);
 
-        setMetrics({
-            grossIncome: monthlyGross,
-            actualExpenses: monthlyExpense,
-            netCash: monthlyNet,
-            efficiencyScore: efficiency,
-            appFeeTotal: monthlyPotongan,
-            fuelCostTotal: totalFuelCost,
-            maintenanceTotal: totalMaintenanceCost,
-            ordersCount: monthOrders.length,
-            expensesCount: monthExpenses.length
-        });
-
-        // Data Chart 7 Hari Terakhir
-        const last7Days = Array.from({ length: 7 }, (_, i) => {
-            const d = subDays(new Date(), 6 - i);
-            return {
-                date: d,
-                label: format(d, 'dd/MM', { locale: id }),
-                net: 0
-            };
-        });
-
-        const chart = last7Days.map(day => {
-            const dayOrders = monthOrders.filter((o) => {
-                const orderDate = parseDate(o.created_at);
-                return orderDate ? isSameDay(orderDate, day.date) : false;
-            });
-            const dayExpenses = monthExpenses.filter((e) => {
-                const expenseDate = parseDate(e.created_at);
-                return expenseDate ? isSameDay(expenseDate, day.date) : false;
-            });
-            const dailyIncome = dayOrders.reduce((s, o) => s + getNetProfit(o), 0);
-            const dailyExpense = dayExpenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
-            return { ...day, net: dailyIncome - dailyExpense };
-        });
-        setChartData(chart);
-
-        // Use consistent local day key for daily recap grouping
-        const dailyRecap = monthOrders.reduce((acc, order) => {
-            const key = toLocalDayKey(order.created_at);
-            if (!key) return acc;
-            const orderDate = parseDate(order.created_at);
-            if (!acc[key]) {
-                acc[key] = {
-                    date: orderDate,
-                    income: 0,
-                    expense: 0
-                };
-            }
-            acc[key].income += getNetProfit(order);
-            return acc;
-        }, {});
-
-        monthExpenses.forEach((expense) => {
-            const key = toLocalDayKey(expense.created_at);
-            if (!key) return;
-            const expenseDate = parseDate(expense.created_at);
-            if (!dailyRecap[key]) {
-                dailyRecap[key] = {
-                    date: expenseDate,
-                    income: 0,
-                    expense: 0
-                };
-            }
-            dailyRecap[key].expense += parseFloat(expense.amount) || 0;
-        });
-
-        const dailyRecapList = Object.values(dailyRecap)
-            .sort((a, b) => b.date - a.date)
-            .map((item) => ({
-                ...item,
-                net: item.income - item.expense
-            }));
-
-        setDailyRecapData(dailyRecapList);
-
-        const combined = [
-            ...monthOrders.map(o => {
-                // Validate client_tx_id exists
-                if (!o.client_tx_id) {
-                    logger.warn('Order missing client_tx_id, using id as fallback', { id: o.id });
-                }
-                
-                return { 
-                    ...o, 
-                    type: 'income', 
-                    displayAmount: getNetProfit(o),
-                    // Use client_tx_id if available, fallback to id
-                    client_tx_id: o.client_tx_id || `legacy-${o.id}`, 
-                };
-            }),
-            ...monthExpenses.map(e => {
-                // Validate client_tx_id exists
-                if (!e.client_tx_id) {
-                    logger.warn('Expense missing client_tx_id, using id as fallback', { id: e.id });
-                }
-                
-                return { 
-                    ...e, 
-                    type: 'expense', 
-                    displayAmount: e.amount,
-                    // Use client_tx_id if available, fallback to id
-                    client_tx_id: e.client_tx_id || `legacy-${e.id}`,
-                };
-            })
-        ].sort((a, b) => {
-            const dateA = parseDate(a.created_at);
-            const dateB = parseDate(b.created_at);
-            return (dateB?.getTime() || 0) - (dateA?.getTime() || 0);
-        });
-
-        setTransactions(combined);
-        setVisibleCount(pageSize);
+    const formatCurrency = (val) => {
+        const num = parseNumber(val);
+        return new Intl.NumberFormat('id-ID').format(num);
     };
-
-    const formatCurrency = (val) => new Intl.NumberFormat('id-ID').format(val);
     const formatTime = (iso) => {
         const parsed = iso ? parseISO(iso) : null;
         if (!parsed || !isValid(parsed)) return '--:--';
@@ -523,6 +671,26 @@ export default function Riwayat() {
         return (
             <div className="flex h-full items-center justify-center bg-ui-background">
                 <div className="animate-spin rounded-full h-8 w-8 border-2 border-ui-primary border-t-transparent"></div>
+            </div>
+        );
+    }
+
+    if (fetchStatus === 'error' && fetchError) {
+        return (
+            <div className="flex flex-col h-full items-center justify-center bg-ui-background px-4">
+                <AlertCircle className="w-12 h-12 text-ui-danger mb-4" />
+                <h2 className="text-lg font-bold text-ui-text mb-2">Gagal Memuat Data</h2>
+                <p className="text-sm text-ui-muted text-center mb-4">{fetchError}</p>
+                <PrimaryButton
+                    type="button"
+                    onClick={() => {
+                        setFetchStatus('idle');
+                        setFetchError(null);
+                    }}
+                    className="bg-ui-primary text-ui-inverse"
+                >
+                    Coba Lagi
+                </PrimaryButton>
             </div>
         );
     }
