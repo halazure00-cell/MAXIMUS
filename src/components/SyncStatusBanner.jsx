@@ -14,11 +14,14 @@ export default function SyncStatusBanner() {
     isOnline, 
     syncStatus, 
     lastSyncAt, 
-    pendingOps, 
+    pendingOps,
+    failedOps,
     triggerSync,
     conflicts,
+    clearConflicts,
   } = useSyncContext();
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showConflictDetails, setShowConflictDetails] = useState(false);
 
   const handleManualSync = async () => {
     setIsSyncing(true);
@@ -29,8 +32,8 @@ export default function SyncStatusBanner() {
     }
   };
 
-  // Don't show banner if online and synced with no pending ops
-  if (isOnline && syncStatus === 'idle' && pendingOps === 0 && conflicts.length === 0) {
+  // Don't show banner if online and synced with no pending ops, failed ops, or conflicts
+  if (isOnline && syncStatus === 'idle' && pendingOps === 0 && failedOps === 0 && conflicts.length === 0) {
     return null;
   }
 
@@ -46,6 +49,7 @@ export default function SyncStatusBanner() {
     if (!isOnline) return 'Offline';
     if (syncStatus === 'syncing' || isSyncing) return 'Syncing...';
     if (syncStatus === 'error') return 'Sync Error';
+    if (failedOps > 0) return `${failedOps} failed`;
     if (pendingOps > 0) return `${pendingOps} pending`;
     if (conflicts.length > 0) return `${conflicts.length} conflicts`;
     return 'Synced';
@@ -73,34 +77,89 @@ export default function SyncStatusBanner() {
 
   const getBgColor = () => {
     if (!isOnline) return 'bg-ui-warning/10 border-ui-warning/30';
-    if (syncStatus === 'error') return 'bg-ui-danger/10 border-ui-danger/30';
+    if (syncStatus === 'error' || failedOps > 0) return 'bg-ui-danger/10 border-ui-danger/30';
     if (pendingOps > 0) return 'bg-ui-info/10 border-ui-info/30';
+    if (conflicts.length > 0) return 'bg-ui-warning/10 border-ui-warning/30';
     return 'bg-ui-surface border-ui-border';
   };
 
   return (
-    <div className={`flex items-center justify-between px-4 py-2 border-b ${getBgColor()}`}>
-      <div className="flex items-center gap-2">
-        {getStatusIcon()}
-        <div className="flex flex-col">
-          <span className="text-xs font-semibold text-ui-text">{getStatusText()}</span>
-          {lastSyncAt && (
-            <span className="text-[10px] text-ui-muted">
-              Last: {getLastSyncText()}
-            </span>
+    <>
+      <div className={`flex items-center justify-between px-4 py-2 border-b ${getBgColor()}`}>
+        <div className="flex items-center gap-2">
+          {getStatusIcon()}
+          <div className="flex flex-col">
+            <span className="text-xs font-semibold text-ui-text">{getStatusText()}</span>
+            {lastSyncAt && (
+              <span className="text-[10px] text-ui-muted">
+                Last: {getLastSyncText()}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          {conflicts.length > 0 && (
+            <button
+              onClick={() => setShowConflictDetails(!showConflictDetails)}
+              className="flex items-center gap-1 px-3 py-1 text-xs font-semibold bg-ui-warning text-ui-background rounded-ui-md hover:bg-ui-warning/90 press-effect"
+            >
+              <AlertCircle size={12} />
+              {showConflictDetails ? 'Hide' : 'Details'}
+            </button>
+          )}
+          
+          {isOnline && syncStatus !== 'syncing' && !isSyncing && (
+            <button
+              onClick={handleManualSync}
+              className="flex items-center gap-1 px-3 py-1 text-xs font-semibold bg-ui-primary text-ui-background rounded-ui-md hover:bg-ui-primary/90 press-effect"
+            >
+              <RefreshCw size={12} />
+              Sync Now
+            </button>
           )}
         </div>
       </div>
 
-      {isOnline && syncStatus !== 'syncing' && !isSyncing && (
-        <button
-          onClick={handleManualSync}
-          className="flex items-center gap-1 px-3 py-1 text-xs font-semibold bg-ui-primary text-ui-background rounded-ui-md hover:bg-ui-primary/90 press-effect"
-        >
-          <RefreshCw size={12} />
-          Sync Now
-        </button>
+      {/* Conflict details */}
+      {showConflictDetails && conflicts.length > 0 && (
+        <div className="bg-ui-warning/5 border-b border-ui-warning/30 px-4 py-3">
+          <p className="text-xs text-ui-text font-semibold mb-2">
+            ⚠️ Data Conflicts ({conflicts.length})
+          </p>
+          <p className="text-[10px] text-ui-muted mb-2">
+            Perubahan Anda bentrok dengan update dari device lain. Data dari server diterapkan (server-wins).
+          </p>
+          {conflicts.slice(0, 3).map((conflict, idx) => (
+            <div key={idx} className="text-[10px] text-ui-muted bg-ui-surface/50 p-2 rounded mb-1">
+              <strong>{conflict.table}</strong> - {conflict.clientTxId?.substring(0, 8)}
+            </div>
+          ))}
+          {conflicts.length > 3 && (
+            <p className="text-[9px] text-ui-muted italic">
+              ... dan {conflicts.length - 3} konflik lainnya
+            </p>
+          )}
+          <button
+            onClick={clearConflicts}
+            className="mt-2 text-[10px] text-ui-primary underline hover:no-underline"
+          >
+            Tutup pemberitahuan ini
+          </button>
+        </div>
       )}
-    </div>
+
+      {/* Failed operations warning */}
+      {failedOps > 0 && (
+        <div className="bg-ui-danger/10 border-b border-ui-danger/30 px-4 py-2">
+          <p className="text-xs text-ui-danger font-semibold">
+            ⚠️ {failedOps} operasi gagal setelah 3x percobaan
+          </p>
+          <p className="text-[10px] text-ui-muted mt-1">
+            Periksa koneksi internet atau login ulang jika masalah berlanjut.
+          </p>
+        </div>
+      )}
+    </>
   );
 }

@@ -6,7 +6,7 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'maximus_local';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Bumped to add failed_ops store
 
 let dbPromise = null;
 
@@ -33,7 +33,7 @@ export async function initLocalDb() {
   if (dbPromise) return dbPromise;
 
   dbPromise = openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
+    upgrade(db, oldVersion) {
       // Create orders_cache store
       if (!db.objectStoreNames.contains('orders_cache')) {
         const ordersStore = db.createObjectStore('orders_cache', { 
@@ -69,6 +69,17 @@ export async function initLocalDb() {
       // Create meta store for sync metadata
       if (!db.objectStoreNames.contains('meta')) {
         db.createObjectStore('meta', { keyPath: 'key' });
+      }
+
+      // V2: Create failed_ops store (for operations that exceeded max retries)
+      if (oldVersion < 2 && !db.objectStoreNames.contains('failed_ops')) {
+        const failedOpsStore = db.createObjectStore('failed_ops', { 
+          keyPath: 'op_id',
+          autoIncrement: true 
+        });
+        failedOpsStore.createIndex('created_at', 'created_at');
+        failedOpsStore.createIndex('table', 'table');
+        failedOpsStore.createIndex('failed_at', 'failed_at');
       }
     },
   });
@@ -342,6 +353,73 @@ export async function getOplogCount() {
   return await db.count('oplog');
 }
 
+// ==================== FAILED OPS OPERATIONS ====================
+
+/**
+ * Move operation to failed_ops (max retries exceeded)
+ */
+export async function moveToFailedOps(op) {
+  const db = await getDb();
+  const failedOp = {
+    ...op,
+    failed_at: new Date().toISOString(),
+  };
+  await db.add('failed_ops', failedOp);
+}
+
+/**
+ * Get all failed operations
+ */
+export async function getFailedOps() {
+  const db = await getDb();
+  return await db.getAll('failed_ops');
+}
+
+/**
+ * Get failed ops count
+ */
+export async function getFailedOpsCount() {
+  const db = await getDb();
+  return await db.count('failed_ops');
+}
+
+/**
+ * Remove failed operation
+ */
+export async function removeFailedOp(opId) {
+  const db = await getDb();
+  await db.delete('failed_ops', opId);
+}
+
+/**
+ * Retry a failed operation (move back to oplog)
+ */
+export async function retryFailedOp(opId) {
+  const db = await getDb();
+  const failedOp = await db.get('failed_ops', opId);
+  if (failedOp) {
+    // Reset retry count and move back to oplog
+    const op = {
+      ...failedOp,
+      retry_count: 0,
+      last_error: null,
+    };
+    delete op.failed_at;
+    delete op.op_id; // Let auto-increment assign new ID
+    
+    await db.add('oplog', op);
+    await db.delete('failed_ops', opId);
+  }
+}
+
+/**
+ * Clear all failed operations
+ */
+export async function clearFailedOps() {
+  const db = await getDb();
+  await db.clear('failed_ops');
+}
+
 // ==================== UTILITY ====================
 
 /**
@@ -353,6 +431,7 @@ export async function clearAllLocalData() {
     db.clear('orders_cache'),
     db.clear('expenses_cache'),
     db.clear('oplog'),
+    db.clear('failed_ops'),
     db.clear('meta'),
   ]);
 }
@@ -362,16 +441,18 @@ export async function clearAllLocalData() {
  */
 export async function getDbStats() {
   const db = await getDb();
-  const [ordersCount, expensesCount, oplogCount] = await Promise.all([
+  const [ordersCount, expensesCount, oplogCount, failedOpsCount] = await Promise.all([
     db.count('orders_cache'),
     db.count('expenses_cache'),
     db.count('oplog'),
+    db.count('failed_ops'),
   ]);
   
   return {
     ordersCount,
     expensesCount,
     oplogCount,
+    failedOpsCount,
     lastSync: await getLastSyncAt(),
     syncStatus: await getSyncStatus(),
   };

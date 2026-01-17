@@ -16,6 +16,7 @@ import {
   getSyncStatus,
   getLastSyncAt,
   getOplogCount,
+  getFailedOpsCount,
   clearAllLocalData,
 } from '../lib/localDb';
 import { importFromSupabase } from '../lib/offlineOps';
@@ -39,6 +40,7 @@ export const SyncProvider = ({ children }) => {
   const [syncStatus, setSyncStatus] = useState('idle');
   const [lastSyncAt, setLastSyncAt] = useState(null);
   const [pendingOps, setPendingOps] = useState(0);
+  const [failedOps, setFailedOps] = useState(0);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [conflicts, setConflicts] = useState([]);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -75,16 +77,18 @@ export const SyncProvider = ({ children }) => {
     if (!isInitialized) return;
     
     try {
-      const [status, lastSync, opCount] = await Promise.all([
+      const [status, lastSync, opCount, failedCount] = await Promise.all([
         getSyncStatus(),
         getLastSyncAt(),
         getOplogCount(),
+        getFailedOpsCount(),
       ]);
       
       if (isMountedRef.current) {
         setSyncStatus(status);
         setLastSyncAt(lastSync);
         setPendingOps(opCount);
+        setFailedOps(failedCount);
       }
     } catch (error) {
       logger.error('Failed to update sync status', error);
@@ -129,6 +133,10 @@ export const SyncProvider = ({ children }) => {
         if (isMountedRef.current) {
           setConflicts(prev => [...prev, state]);
         }
+      } else if (state.type === 'operation_failed') {
+        logger.error('Operation permanently failed', state);
+        // Update failed ops count
+        updateStatus();
       }
     });
     
@@ -226,6 +234,7 @@ export const SyncProvider = ({ children }) => {
     setSyncStatus('idle');
     setLastSyncAt(null);
     setPendingOps(0);
+    setFailedOps(0);
     setConflicts([]);
   }, []);
 
@@ -234,6 +243,7 @@ export const SyncProvider = ({ children }) => {
     syncStatus,
     lastSyncAt,
     pendingOps,
+    failedOps,
     isOnline,
     conflicts,
     isInitialized,

@@ -8,6 +8,7 @@ import {
   getPendingOps,
   removeFromOplog,
   updateOplogRetry,
+  moveToFailedOps,
   setLastSyncAt,
   setSyncStatus,
   getLastSyncAt,
@@ -18,6 +19,9 @@ import {
   getCachedOrder,
   getCachedExpense,
 } from './localDb';
+import { createLogger } from './logger';
+
+const logger = createLogger('syncEngine');
 
 // Maximum retry count before giving up
 const MAX_RETRIES = 3;
@@ -95,10 +99,19 @@ export async function pushToSupabase(userId) {
       // Update retry count
       await updateOplogRetry(op.op_id, error.message);
       
-      // If max retries exceeded, remove from queue
-      if ((op.retry_count || 0) >= MAX_RETRIES) {
-        console.error('[syncEngine] Max retries exceeded, removing op:', op);
+      // If max retries exceeded, move to failed_ops
+      if ((op.retry_count || 0) >= MAX_RETRIES - 1) {
+        logger.error('Max retries exceeded, moving to failed_ops', { op });
+        await moveToFailedOps(op);
         await removeFromOplog(op.op_id);
+        
+        // Notify about failed operation
+        notifyListeners({
+          type: 'operation_failed',
+          table: op.table,
+          clientTxId: op.client_tx_id,
+          error: error.message,
+        });
       }
       
       errors.push({ op, error: error.message });
@@ -210,19 +223,34 @@ export async function pullFromSupabase(userId) {
     // Apply to cache
     let ordersUpdated = 0;
     let expensesUpdated = 0;
+    let maxUpdatedAt = sinceTimestamp; // Track max updated_at for server time
     
     for (const order of orders || []) {
       await applyOrderToCache(order);
       ordersUpdated++;
+      
+      // Track the latest updated_at from server
+      if (order.updated_at && order.updated_at > maxUpdatedAt) {
+        maxUpdatedAt = order.updated_at;
+      }
     }
     
     for (const expense of expenses || []) {
       await applyExpenseToCache(expense);
       expensesUpdated++;
+      
+      // Track the latest updated_at from server
+      if (expense.updated_at && expense.updated_at > maxUpdatedAt) {
+        maxUpdatedAt = expense.updated_at;
+      }
     }
     
-    // Update last sync timestamp
-    await setLastSyncAt(new Date().toISOString());
+    // Use server time from the latest record, or current time if no records
+    // This prevents clock skew issues
+    const serverTime = maxUpdatedAt !== sinceTimestamp ? maxUpdatedAt : new Date().toISOString();
+    await setLastSyncAt(serverTime);
+    
+    logger.info('Pull complete', { ordersUpdated, expensesUpdated, serverTime });
     
     return {
       success: true,
@@ -230,7 +258,7 @@ export async function pullFromSupabase(userId) {
       expensesUpdated,
     };
   } catch (error) {
-    console.error('[syncEngine] Pull failed:', error);
+    logger.error('Pull failed', error);
     throw error;
   }
 }
@@ -248,13 +276,19 @@ async function applyOrderToCache(order) {
     
     if (localTime > serverTime) {
       // Local is newer - potential conflict
-      // Strategy: Last-Write-Wins (server wins)
-      console.warn('[syncEngine] Conflict detected for order:', order.client_tx_id, 'Server wins');
+      // Strategy: Server-wins (server data overwrites local)
+      logger.warn('Conflict detected for order - server wins', { 
+        clientTxId: order.client_tx_id,
+        localTime: new Date(localTime).toISOString(),
+        serverTime: new Date(serverTime).toISOString(),
+      });
       notifyListeners({
         type: 'conflict',
         table: 'orders',
         clientTxId: order.client_tx_id,
         resolution: 'server-wins',
+        localData: existing,
+        serverData: order,
       });
     }
   }
@@ -279,12 +313,18 @@ async function applyExpenseToCache(expense) {
     const localTime = new Date(existing.updated_at).getTime();
     
     if (localTime > serverTime) {
-      console.warn('[syncEngine] Conflict detected for expense:', expense.client_tx_id, 'Server wins');
+      logger.warn('Conflict detected for expense - server wins', { 
+        clientTxId: expense.client_tx_id,
+        localTime: new Date(localTime).toISOString(),
+        serverTime: new Date(serverTime).toISOString(),
+      });
       notifyListeners({
         type: 'conflict',
         table: 'expenses',
         clientTxId: expense.client_tx_id,
         resolution: 'server-wins',
+        localData: existing,
+        serverData: expense,
       });
     }
   }
