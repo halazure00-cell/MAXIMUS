@@ -1,9 +1,9 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { isSupabaseConfigured, supabaseConfigError } from './lib/supabaseClient';
 import Auth from './components/Auth';
 import ProfitEngine from './components/ProfitEngine';
-import Insight from './components/Insight';
 import Riwayat from './pages/Riwayat';
 import ProfileSettings from './components/ProfileSettings';
 import BottomNavigation from './components/BottomNavigation';
@@ -12,6 +12,22 @@ import ToastContainer from './components/ToastContainer';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { useSettings } from './context/SettingsContext';
+import { SyncProvider } from './context/SyncContext';
+
+// Lazy load heavy component with Leaflet
+const Insight = lazy(() => import('./components/Insight'));
+
+// Loading fallback for lazy components
+function LazyLoadingFallback() {
+    return (
+        <div className="flex items-center justify-center min-h-screen">
+            <div className="text-center">
+                <div className="inline-block w-8 h-8 border-4 border-ui-primary border-t-transparent rounded-full animate-spin mb-2"></div>
+                <p className="text-sm text-ui-muted">Loading...</p>
+            </div>
+        </div>
+    );
+}
 
 function AnimatedRoutes({ showToast }) {
     const location = useLocation();
@@ -31,7 +47,9 @@ function AnimatedRoutes({ showToast }) {
                     path="/insight"
                     element={
                         <PageTransition>
-                            <Insight showToast={showToast} />
+                            <Suspense fallback={<LazyLoadingFallback />}>
+                                <Insight showToast={showToast} />
+                            </Suspense>
                         </PageTransition>
                     }
                 />
@@ -140,8 +158,10 @@ function App() {
     return (
         <ErrorBoundary>
             <ToastProvider>
-                <ToastContainer />
-                <AppContent session={session} loading={loading} />
+                <SyncProvider>
+                    <ToastContainer />
+                    <AppContent session={session} loading={loading} />
+                </SyncProvider>
             </ToastProvider>
         </ErrorBoundary>
     );

@@ -1,11 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSettings } from '../context/SettingsContext';
-import { supabase } from '../lib/supabaseClient';
-import {
-    fetchOrdersAndExpenses,
-    monthRangeLocal,
-    clearUserCache,
-} from '../lib/db';
+import { useSyncContext } from '../context/SyncContext';
+import { 
+    getCachedOrders, 
+    getCachedExpenses,
+} from '../lib/localDb';
+import { 
+    updateOrder,
+    deleteOrder,
+    deleteExpense,
+} from '../lib/offlineOps';
+import { createLogger } from '../lib/logger';
 import { toLocalDayKey, getTodayKey } from '../lib/dateUtils';
 import {
     BarChart,
@@ -32,10 +37,14 @@ import { useToast } from '../context/ToastContext';
 import Card from '../components/Card';
 import PrimaryButton from '../components/PrimaryButton';
 import SectionTitle from '../components/SectionTitle';
+import SyncStatusBanner from '../components/SyncStatusBanner';
+
+const logger = createLogger('Riwayat');
 
 export default function Riwayat() {
     const { settings, session } = useSettings();
     const { showToast } = useToast();
+    const { updateStatus, isInitialized, importInitialData } = useSyncContext();
     const [transactions, setTransactions] = useState([]);
     const [visibleCount, setVisibleCount] = useState(20);
     const [loading, setLoading] = useState(true);
@@ -73,7 +82,7 @@ export default function Riwayat() {
 
     // Main data fetch effect with AbortController and stale result protection
     useEffect(() => {
-        if (!session?.user) {
+        if (!session?.user || !isInitialized) {
             setLoading(false);
             return;
         }
@@ -87,13 +96,14 @@ export default function Riwayat() {
             setLoading(true);
 
             try {
-                const { startISO, endISO } = monthRangeLocal();
-                const { orders, expenses } = await fetchOrdersAndExpenses(
-                    session.user.id,
-                    startISO,
-                    endISO,
-                    { signal: controller.signal }
-                );
+                // Try to import initial data if not already done
+                if (importInitialData) {
+                    await importInitialData();
+                }
+
+                // Read from local cache
+                const orders = await getCachedOrders(session.user.id);
+                const expenses = await getCachedExpenses(session.user.id);
 
                 if (!alive) return;
 
@@ -105,7 +115,7 @@ export default function Riwayat() {
                 if (error.name === 'AbortError' || error.message?.includes('aborted')) {
                     return;
                 }
-                console.error('Error fetching data:', error);
+                logger.error('Error fetching data from cache', error);
                 setFetchStatus('error');
                 setFetchError(error?.message || 'Terjadi kesalahan saat memuat data');
             } finally {
@@ -121,7 +131,7 @@ export default function Riwayat() {
             alive = false;
             controller.abort();
         };
-    }, [session, settings.defaultCommission, settings.fuelEfficiency, settings.maintenanceFee]);
+    }, [session, isInitialized, importInitialData, settings.defaultCommission, settings.fuelEfficiency, settings.maintenanceFee]);
 
     const parseDate = (value) => {
         if (!value) return null;
@@ -249,27 +259,27 @@ export default function Riwayat() {
 
     // Refetch function for use after mutations (delete, update, insert)
     const refetchData = useCallback(async () => {
-        if (!session?.user) return;
+        if (!session?.user || !isInitialized) return;
         
         try {
             setLoading(true);
-            // Clear cache for this user since data changed
-            clearUserCache(session.user.id);
             
-            const { startISO, endISO } = monthRangeLocal();
-            const { orders, expenses } = await fetchOrdersAndExpenses(
-                session.user.id,
-                startISO,
-                endISO
-            );
+            // Read from local cache
+            const orders = await getCachedOrders(session.user.id);
+            const expenses = await getCachedExpenses(session.user.id);
             
             processFinancials(orders, expenses);
+
+            // Trigger sync status update
+            if (updateStatus) {
+                updateStatus();
+            }
         } catch (error) {
-            console.error('Error refetching data:', error);
+            logger.error('Error refetching data from cache', error);
         } finally {
             setLoading(false);
         }
-    }, [session]);
+    }, [session, isInitialized, updateStatus]);
 
     const processFinancials = (orders, expenses) => {
         const {
@@ -377,8 +387,34 @@ export default function Riwayat() {
         setDailyRecapData(dailyRecapList);
 
         const combined = [
-            ...monthOrders.map(o => ({ ...o, type: 'income', displayAmount: getNetProfit(o) })),
-            ...monthExpenses.map(e => ({ ...e, type: 'expense', displayAmount: e.amount }))
+            ...monthOrders.map(o => {
+                // Validate client_tx_id exists
+                if (!o.client_tx_id) {
+                    logger.warn('Order missing client_tx_id, using id as fallback', { id: o.id });
+                }
+                
+                return { 
+                    ...o, 
+                    type: 'income', 
+                    displayAmount: getNetProfit(o),
+                    // Use client_tx_id if available, fallback to id
+                    client_tx_id: o.client_tx_id || `legacy-${o.id}`, 
+                };
+            }),
+            ...monthExpenses.map(e => {
+                // Validate client_tx_id exists
+                if (!e.client_tx_id) {
+                    logger.warn('Expense missing client_tx_id, using id as fallback', { id: e.id });
+                }
+                
+                return { 
+                    ...e, 
+                    type: 'expense', 
+                    displayAmount: e.amount,
+                    // Use client_tx_id if available, fallback to id
+                    client_tx_id: e.client_tx_id || `legacy-${e.id}`,
+                };
+            })
         ].sort((a, b) => {
             const dateA = parseDate(a.created_at);
             const dateB = parseDate(b.created_at);
@@ -404,8 +440,8 @@ export default function Riwayat() {
         return { text: "Boros banget hari ini! Kurangi jajan kopi.", color: "text-ui-danger" };
     };
 
-    const requestDelete = (id, type) => {
-        setDeleteTargetId(id);
+    const requestDelete = (clientTxId, type) => {
+        setDeleteTargetId(clientTxId);
         setDeleteTargetType(type);
     };
 
@@ -417,20 +453,29 @@ export default function Riwayat() {
     const confirmDelete = async () => {
         if (!deleteTargetId || !deleteTargetType) return;
         try {
-            const table = deleteTargetType === 'income' ? 'orders' : 'expenses';
-            const { error } = await supabase.from(table).delete().eq('id', deleteTargetId);
-            if (error) throw error;
+            // Use offline-first delete (soft delete)
+            if (deleteTargetType === 'income') {
+                await deleteOrder(deleteTargetId);
+            } else {
+                await deleteExpense(deleteTargetId);
+            }
+            
+            logger.info('Transaction deleted offline', { 
+                id: deleteTargetId, 
+                type: deleteTargetType 
+            });
+
             await refetchData();
             closeDeleteModal();
             showToast('Data berhasil dihapus!', 'success');
         } catch (error) {
-            console.error('Error deleting transaction:', error);
+            logger.error('Error deleting transaction', error);
             showToast('Terjadi kesalahan: ' + (error.message || 'Gagal menghapus transaksi.'), 'error');
         }
     };
 
     const handleUpdateOrder = async (updatedOrder) => {
-        if (!updatedOrder.id) {
+        if (!updatedOrder.client_tx_id) {
             showToast('Terjadi kesalahan: ID Order tidak ditemukan.', 'error');
             return;
         }
@@ -443,60 +488,29 @@ export default function Riwayat() {
         const { grossPrice, commissionRate, appFee, netProfit } = getUpdatedFinancials(updatedOrder);
 
         try {
-            const { error } = await supabase
-                .from('orders')
-                .update({
-                    price: netProfit,
-                    gross_price: grossPrice,
-                    commission_rate: commissionRate,
-                    app_fee: appFee,
-                    net_profit: netProfit,
-                    distance: updatedOrder.distance,
-                    created_at: updatedOrder.created_at
-                })
-                .eq('id', updatedOrder.id)
-                .select();
+            // Use offline-first update
+            await updateOrder(updatedOrder.client_tx_id, {
+                price: netProfit,
+                gross_price: grossPrice,
+                commission_rate: commissionRate,
+                app_fee: appFee,
+                net_profit: netProfit,
+                distance: updatedOrder.distance,
+                created_at: updatedOrder.created_at
+            });
 
-            if (error) throw error;
+            logger.info('Order updated offline', { client_tx_id: updatedOrder.client_tx_id });
 
             await refetchData();
 
             setEditingOrder(null);
             showToast('Data berhasil disimpan!', 'success');
         } catch (error) {
-            console.error('Gagal update:', error);
+            logger.error('Failed to update order', error);
             showToast('Terjadi kesalahan: ' + (error.message || 'Terjadi kesalahan sistem'), 'error');
         }
     };
 
-    const handleSaveExpense = async (expenseData) => {
-        if (!session?.user) {
-            showToast('Terjadi kesalahan: Sesi habis. Silakan login ulang.', 'error');
-            return;
-        }
-
-        try {
-            const { error } = await supabase
-                .from('expenses')
-                .insert([{
-                    user_id: session.user.id,
-                    amount: parseFloat(expenseData.amount || expenseData.price || 0),
-                    category: expenseData.category || 'Lainnya',
-                    note: expenseData.note || '',
-                    created_at: new Date().toISOString()
-                }]);
-
-            if (error) throw error;
-
-            await refetchData();
-
-            setShowExpenseModal(false);
-            showToast('Data berhasil disimpan!', 'success');
-        } catch (error) {
-            console.error('Error saving expense:', error);
-            showToast('Terjadi kesalahan: ' + (error.message || JSON.stringify(error)), 'error');
-        }
-    };
 
     const insight = getInsight();
     const visibleTransactions = transactions.slice(0, visibleCount);
@@ -516,6 +530,9 @@ export default function Riwayat() {
 
     return (
         <div className="flex flex-col min-h-full bg-ui-background relative">
+            {/* Sync Status Banner */}
+            <SyncStatusBanner />
+            
             {/* Header */}
             <div className="px-4 pt-5 pb-3 bg-ui-background sticky top-0 z-10">
                 <h1 className="text-2xl font-bold text-ui-text font-display">Financial Board</h1>
@@ -837,7 +854,7 @@ export default function Riwayat() {
                                             )}
                                             <button 
                                                 type="button"
-                                                onClick={() => requestDelete(t.id, t.type)}
+                                                onClick={() => requestDelete(t.client_tx_id, t.type)}
                                                 className="text-xs text-ui-muted hover:text-ui-danger flex items-center gap-1 min-h-[44px] px-2 press-effect"
                                                 style={{ minHeight: '44px', touchAction: 'manipulation' }}
                                             >
@@ -895,8 +912,10 @@ export default function Riwayat() {
 
             <ExpenseModal
                 isOpen={showExpenseModal}
-                onClose={() => setShowExpenseModal(false)}
-                onSave={handleSaveExpense}
+                onClose={() => {
+                    setShowExpenseModal(false);
+                    refetchData(); // Refresh after expense added
+                }}
                 showToast={showToast}
             />
 
