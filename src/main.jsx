@@ -5,6 +5,14 @@ import 'leaflet/dist/leaflet.css'
 import App from './App.jsx'
 import { SettingsProvider } from './context/SettingsContext'
 
+// Load sync debug utilities in development
+if (import.meta.env.DEV) {
+    import('./lib/syncDebug').then(module => {
+        console.log('🔧 Development mode: Sync debug utils loaded');
+        console.log('💡 Use syncDebug.checkHealth() in console to check sync status');
+    });
+}
+
 createRoot(document.getElementById('root')).render(
     <StrictMode>
         <SettingsProvider>

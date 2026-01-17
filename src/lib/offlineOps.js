@@ -246,6 +246,14 @@ export async function deleteExpense(clientTxId) {
  * @param {Array} expenses - Expenses from Supabase
  */
 export async function importFromSupabase(orders, expenses) {
+  console.log('[offlineOps] Starting import', { 
+    ordersCount: orders?.length || 0, 
+    expensesCount: expenses?.length || 0 
+  });
+  
+  let ordersImported = 0;
+  let expensesImported = 0;
+  
   // Import orders
   for (const order of orders) {
     const cacheOrder = {
@@ -264,6 +272,7 @@ export async function importFromSupabase(orders, expenses) {
       deleted_at: order.deleted_at || null,
     };
     await putCachedOrder(cacheOrder);
+    ordersImported++;
   }
   
   // Import expenses
@@ -283,5 +292,11 @@ export async function importFromSupabase(orders, expenses) {
       deleted_at: expense.deleted_at || null,
     };
     await putCachedExpense(cacheExpense);
+    expensesImported++;
   }
+  
+  console.log('[offlineOps] Import completed', { 
+    ordersImported, 
+    expensesImported 
+  });
 }

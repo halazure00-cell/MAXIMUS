@@ -96,10 +96,9 @@ export default function Riwayat() {
             setLoading(true);
 
             try {
-                // Try to import initial data if not already done
-                if (importInitialData) {
-                    await importInitialData();
-                }
+                // Try to import initial data (with built-in guards to prevent duplicates)
+                const importResult = await importInitialData();
+                logger.debug('Import result:', importResult);
 
                 // Read from local cache
                 const orders = await getCachedOrders(session.user.id);
@@ -131,7 +130,7 @@ export default function Riwayat() {
             alive = false;
             controller.abort();
         };
-    }, [session, isInitialized, importInitialData, settings.defaultCommission, settings.fuelEfficiency, settings.maintenanceFee]);
+    }, [session, isInitialized, settings.defaultCommission, settings.fuelEfficiency, settings.maintenanceFee]);
 
     const parseDate = (value) => {
         if (!value) return null;

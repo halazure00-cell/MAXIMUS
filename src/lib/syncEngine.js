@@ -200,6 +200,8 @@ export async function pullFromSupabase(userId) {
   const sinceTimestamp = lastSync || '2000-01-01T00:00:00.000Z'; // Far past if never synced
   
   try {
+    logger.info('Starting pull from Supabase', { lastSync, sinceTimestamp });
+    
     // Fetch orders changed since last sync
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
@@ -219,6 +221,11 @@ export async function pullFromSupabase(userId) {
       .order('updated_at', { ascending: true });
     
     if (expensesError) throw expensesError;
+    
+    logger.info('Fetched changes from Supabase', { 
+      orders: orders?.length || 0, 
+      expenses: expenses?.length || 0 
+    });
     
     // Apply to cache
     let ordersUpdated = 0;

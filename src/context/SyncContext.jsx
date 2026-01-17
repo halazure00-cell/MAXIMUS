@@ -46,6 +46,8 @@ export const SyncProvider = ({ children }) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const isMountedRef = useRef(false);
   const syncInProgressRef = useRef(false);
+  const importInProgressRef = useRef(false);
+  const hasImportedRef = useRef(false);
 
   // Initialize IndexedDB
   useEffect(() => {
@@ -200,7 +202,24 @@ export const SyncProvider = ({ children }) => {
 
   // Initial data import
   const importInitialData = useCallback(async () => {
-    if (!session?.user || !isInitialized) return;
+    if (!session?.user || !isInitialized) {
+      logger.debug('Cannot import: no session or not initialized');
+      return { success: false, reason: 'not_ready' };
+    }
+    
+    // Prevent concurrent imports
+    if (importInProgressRef.current) {
+      logger.warn('Import already in progress, skipping');
+      return { success: false, reason: 'in_progress' };
+    }
+    
+    // Check if already imported
+    if (hasImportedRef.current) {
+      logger.debug('Data already imported, skipping');
+      return { success: true, reason: 'already_imported' };
+    }
+    
+    importInProgressRef.current = true;
     
     try {
       logger.info('Importing initial data from Supabase');
@@ -213,12 +232,19 @@ export const SyncProvider = ({ children }) => {
       
       await importFromSupabase(orders, expenses);
       await updateStatus();
+      
+      hasImportedRef.current = true;
       logger.info('Initial data import completed', { 
         orders: orders.length, 
         expenses: expenses.length 
       });
+      
+      return { success: true, orders: orders.length, expenses: expenses.length };
     } catch (error) {
       logger.error('Failed to import initial data', error);
+      return { success: false, error: error.message };
+    } finally {
+      importInProgressRef.current = false;
     }
   }, [session, isInitialized, updateStatus]);
 
@@ -236,7 +262,16 @@ export const SyncProvider = ({ children }) => {
     setPendingOps(0);
     setFailedOps(0);
     setConflicts([]);
+    hasImportedRef.current = false;
+    importInProgressRef.current = false;
   }, []);
+
+  // Force reimport data (untuk debugging atau refresh manual)
+  const forceReimport = useCallback(async () => {
+    logger.info('Forcing data reimport');
+    hasImportedRef.current = false;
+    return await importInitialData();
+  }, [importInitialData]);
 
   const value = {
     // State
@@ -251,6 +286,7 @@ export const SyncProvider = ({ children }) => {
     // Actions
     triggerSync,
     importInitialData,
+    forceReimport,
     clearConflicts,
     handleLogout,
     updateStatus,
