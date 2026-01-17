@@ -6,6 +6,9 @@ import Card from './Card';
 import PrimaryButton from './PrimaryButton';
 import SectionTitle from './SectionTitle';
 
+// Import version from package.json
+const APP_VERSION = '1.1.0'; // Offline-First Update
+
 export default function ProfileSettings({ showToast }) {
     const { settings, updateSettings, session } = useSettings();
     const [loading, setLoading] = useState(true);
@@ -372,7 +375,9 @@ export default function ProfileSettings({ showToast }) {
             </Card>
 
             <div className="text-center mt-4 pb-4">
-                <p className="text-[10px] text-ui-muted mb-3">Maximus Driver (Cloud Sync) v1.3</p>
+                <p className="text-[10px] text-ui-muted mb-3">
+                    MAXIMUS v{APP_VERSION} - Offline-First PWA
+                </p>
                 <PrimaryButton
                     type="button"
                     className="bg-ui-danger text-ui-inverse hover:bg-ui-danger/90 press-effect w-full min-h-[48px] sm:max-w-xs sm:mx-auto"

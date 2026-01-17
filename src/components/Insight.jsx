@@ -1,11 +1,14 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import {
-    fetchOrdersInRange,
-    fetchExpensesInRange,
     fetchStrategicSpots,
 } from '../lib/db';
+import { getCachedOrders, getCachedExpenses } from '../lib/localDb';
+import { useSyncContext } from '../context/SyncContext';
 import { watchLocation, haversineDistance, checkLocationPermission, getCurrentPosition } from '../lib/location';
+import { createLogger } from '../lib/logger';
+
+const logger = createLogger('Insight');
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     TrendingUp,
@@ -154,6 +157,7 @@ const SpotCard = ({ spot, isTop, onNavigate }) => {
 
 export default function Insight({ showToast }) {
     const { session } = useSettings();
+    const { isInitialized } = useSyncContext();
     const [orders, setOrders] = useState([]);
     const [expenses, setExpenses] = useState([]);
     const [strategicSpots, setStrategicSpots] = useState([]);
@@ -169,9 +173,44 @@ export default function Insight({ showToast }) {
     // Data fetch error states for retry
     const [spotsError, setSpotsError] = useState(null);
 
+    // Strategic spots caching with TTL (1 day)
+    const SPOTS_CACHE_KEY = 'spots_v1';
+    const SPOTS_CACHE_TTL = 24 * 60 * 60 * 1000; // 1 day in milliseconds
+
+    const getCachedSpots = useCallback(() => {
+        try {
+            const cached = localStorage.getItem(SPOTS_CACHE_KEY);
+            if (!cached) return null;
+            
+            const { data, timestamp } = JSON.parse(cached);
+            const age = Date.now() - timestamp;
+            
+            if (age > SPOTS_CACHE_TTL) {
+                localStorage.removeItem(SPOTS_CACHE_KEY);
+                return null;
+            }
+            
+            return data;
+        } catch (error) {
+            logger.warn('Failed to read cached spots', error);
+            return null;
+        }
+    }, [SPOTS_CACHE_KEY, SPOTS_CACHE_TTL]);
+
+    const setCachedSpots = useCallback((data) => {
+        try {
+            localStorage.setItem(SPOTS_CACHE_KEY, JSON.stringify({
+                data,
+                timestamp: Date.now(),
+            }));
+        } catch (error) {
+            logger.warn('Failed to cache spots', error);
+        }
+    }, [SPOTS_CACHE_KEY]);
+
     // Fetch data with robust error handling and AbortController
     useEffect(() => {
-        if (!session?.user) {
+        if (!session?.user || !isInitialized) {
             setLoading(false);
             return;
         }
@@ -183,19 +222,34 @@ export default function Insight({ showToast }) {
             try {
                 setLoading(true);
                 setSpotsError(null);
-                const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
-                const now = new Date().toISOString();
                 
-                // Fetch orders and expenses using centralized db functions
-                const [ordersData, expensesData, spotsData] = await Promise.all([
-                    fetchOrdersInRange(session.user.id, thirtyDaysAgo, now, { signal: controller.signal })
-                        .catch(err => { console.error('Orders fetch error:', err); return []; }),
-                    fetchExpensesInRange(session.user.id, thirtyDaysAgo, now, { signal: controller.signal })
-                        .catch(err => { console.error('Expenses fetch error:', err); return []; }),
-                    fetchStrategicSpots({ signal: controller.signal })
+                // Read transactions from local cache (last 30 days)
+                const thirtyDaysAgo = subDays(new Date(), 30);
+                const [ordersData, expensesData] = await Promise.all([
+                    getCachedOrders(session.user.id)
+                        .then(orders => {
+                            // Filter to last 30 days and non-deleted
+                            return orders.filter(o => {
+                                if (o.deleted_at) return false;
+                                const createdAt = new Date(o.created_at);
+                                return createdAt >= thirtyDaysAgo;
+                            });
+                        })
                         .catch(err => { 
-                            console.error('Spots fetch error:', err); 
-                            if (alive) setSpotsError(err.message || 'Gagal memuat spot');
+                            logger.error('Orders cache read error', err); 
+                            return []; 
+                        }),
+                    getCachedExpenses(session.user.id)
+                        .then(expenses => {
+                            // Filter to last 30 days and non-deleted
+                            return expenses.filter(e => {
+                                if (e.deleted_at) return false;
+                                const createdAt = new Date(e.created_at);
+                                return createdAt >= thirtyDaysAgo;
+                            });
+                        })
+                        .catch(err => { 
+                            logger.error('Expenses cache read error', err); 
                             return []; 
                         }),
                 ]);
@@ -204,11 +258,34 @@ export default function Insight({ showToast }) {
 
                 setOrders(ordersData);
                 setExpenses(expensesData);
-                setStrategicSpots(spotsData);
+                logger.info('Loaded transactions from cache', { 
+                    orders: ordersData.length, 
+                    expenses: expensesData.length 
+                });
+
+                // Fetch strategic spots with caching
+                const cachedSpots = getCachedSpots();
+                if (cachedSpots) {
+                    logger.info('Using cached strategic spots', { count: cachedSpots.length });
+                    if (alive) setStrategicSpots(cachedSpots);
+                } else {
+                    // Fetch from Supabase and cache
+                    try {
+                        const spotsData = await fetchStrategicSpots({ signal: controller.signal });
+                        if (alive) {
+                            setStrategicSpots(spotsData);
+                            setCachedSpots(spotsData);
+                            logger.info('Fetched and cached strategic spots', { count: spotsData.length });
+                        }
+                    } catch (err) {
+                        logger.error('Spots fetch error', err);
+                        if (alive) setSpotsError(err.message || 'Gagal memuat spot');
+                    }
+                }
             } catch (error) {
                 if (!alive) return;
                 if (error.name === 'AbortError') return;
-                console.error('Critical Data Fetch Error:', error);
+                logger.error('Critical Data Fetch Error', error);
                 if (showToast) showToast('Gagal memuat beberapa data. Periksa koneksi.', 'error');
             } finally {
                 if (alive) setLoading(false);
@@ -221,7 +298,7 @@ export default function Insight({ showToast }) {
             alive = false;
             controller.abort();
         };
-    }, [session, showToast]);
+    }, [session, isInitialized, showToast, getCachedSpots, setCachedSpots]);
 
     // Retry fetch spots
     const retryFetchSpots = useCallback(async () => {
@@ -229,11 +306,13 @@ export default function Insight({ showToast }) {
             setSpotsError(null);
             const data = await fetchStrategicSpots();
             setStrategicSpots(data);
+            setCachedSpots(data);
+            logger.info('Retry: Fetched and cached strategic spots', { count: data.length });
         } catch (err) {
-            console.error('Retry spots fetch error:', err);
+            logger.error('Retry spots fetch error', err);
             setSpotsError(err.message || 'Gagal memuat spot');
         }
-    }, []);
+    }, [setCachedSpots]);
 
     // Retry get location (for timeout/position unavailable errors)
     const retryLocation = useCallback(async () => {
