@@ -68,6 +68,32 @@ Buka browser dan akses alamat yang tertera (biasanya `http://localhost:5173`).
 
 ---
 
+## 🌐 Develop in Codespaces
+
+MAXIMUS mendukung development langsung dari browser menggunakan GitHub Codespaces:
+
+### Quick Start
+1. Klik tombol **Code** → **Create codespace on main**
+2. Tunggu container setup selesai (~2 menit)
+3. Buat file `.env` dengan environment variables:
+   ```env
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   VITE_SITE_URL=https://your-codespace-url.github.dev
+   ```
+4. Jalankan development server:
+   ```bash
+   npm run dev -- --host 0.0.0.0 --port 5173
+   ```
+5. Buka tab **Ports** (panel bawah) → klik ikon globe di port 5173
+
+### Tips
+- Port 5173 akan otomatis terbuka di browser
+- Gunakan VS Code extension Copilot untuk bantuan coding
+- ESLint aktif otomatis untuk menjaga kualitas kode
+
+---
+
 ## 📦 Deployment
 
 Aplikasi ini siap dideploy ke platform cloud seperti **Netlify** atau **Vercel**. Pastikan untuk mengatur *Environment Variables* di dashboard hosting Anda sesuai dengan file `.env`.
