@@ -1,0 +1,31 @@
+{
+      "editor.formatOnPaste": false,
+        "editor.formatOnType": false,
+          "editor.minimap.enabled": false,
+            "editor.codeLens": false,
+              "editor.bracketPairColorization.enabled": false,
+                "editor.guides.indentation": false,
+                  "editor.renderWhitespace": "none",
+                    "editor.smoothScrolling": false,
+                      "editor.hover.enabled": false,
+                        "editor.lightbulb.enabled": false,
+                          "editor.stickyScroll.enabled": false,
+
+                            "diffEditor.renderSideBySide": false,
+                              "diffEditor.ignoreTrimWhitespace": true,
+
+                                "workbench.editor.enablePreview": false,
+                                  "workbench.reduceMotion": true,
+
+                                    "files.watcherExclude": {
+                                        "**/node_modules/**": true,
+                                            "**/.git/**": true,
+                                                "**/dist/**": true
+                                                  },
+                                                    "search.exclude": {
+                                                        "**/node_modules/**": true,
+                                                            "**/dist/**": true,
+                                                                "**/.git/**": true
+                                                                  }
+                                                                  }
+}
