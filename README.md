@@ -44,8 +44,10 @@ Clone repositori ini atau download source codenya, lalu jalankan perintah beriku
 # Masuk ke direktori projek
 cd MAXIMUS
 
-# Instal dependensi
-npm install
+# Instal dependensi (lebih stabil jika ada package-lock.json)
+npm ci
+# jika npm ci gagal, gunakan:
+# npm install
 ```
 
 ### 3. Konfigurasi Environment
@@ -54,6 +56,8 @@ Buat file `.env` di direktori utama dan isi dengan kredensial Supabase Anda:
 ```env
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+# URL tujuan redirect magic link (disarankan: domain Vercel/production)
+VITE_SITE_URL=https://your-production-domain
 ```
 
 > **Catatan Supabase**: Database schema dan migrations dikelola melalui folder `supabase/migrations/`. File SQL di folder `legacy_sql/` hanya untuk arsip dan tidak digunakan dalam produksi.
@@ -70,27 +74,28 @@ Buka browser dan akses alamat yang tertera (biasanya `http://localhost:5173`).
 
 ## 🌐 Develop in Codespaces
 
-MAXIMUS mendukung development langsung dari browser menggunakan GitHub Codespaces:
+MAXIMUS mendukung development langsung dari browser menggunakan GitHub Codespaces.
 
 ### Quick Start
-1. Klik tombol **Code** → **Create codespace on main**
-2. Tunggu container setup selesai (~2 menit)
-3. Buat file `.env` dengan environment variables:
+1. Klik tombol **Code** → **Codespaces** → **Create codespace on main**
+2. Tunggu container setup selesai (dependency akan otomatis ter-install via `npm ci`)
+3. Buat file `.env` (jangan commit) dengan environment variables:
    ```env
    VITE_SUPABASE_URL=your_supabase_url
    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-   VITE_SITE_URL=https://your-codespace-url.github.dev
+   # Disarankan isi dengan domain production (Vercel) agar Magic Link stabil di HP
+   VITE_SITE_URL=https://your-production-domain
    ```
-4. Jalankan development server:
+4. Jalankan development server (wajib pakai host 0.0.0.0 agar bisa dibuka dari browser/HP):
    ```bash
    npm run dev -- --host 0.0.0.0 --port 5173
    ```
-5. Buka tab **Ports** (panel bawah) → klik ikon globe di port 5173
+5. Buka tab **Ports** → cari port 5173 → klik ikon globe / "Open in Browser"
 
-### Tips
-- Port 5173 akan otomatis terbuka di browser
-- Gunakan VS Code extension Copilot untuk bantuan coding
-- ESLint aktif otomatis untuk menjaga kualitas kode
+### Tips (Mobile Friendly)
+- Jika Chrome di HP sering crash, tutup tab lain dan jalankan agent dalam tugas kecil (1–3 file per run).
+- Copilot & ESLint direkomendasikan otomatis lewat `.vscode/extensions.json`.
+- Mengapa `VITE_SITE_URL` diarahkan ke domain produksi (Vercel)? Karena Anda login dari HP. Kalau `VITE_SITE_URL` mengarah ke localhost/codespace preview, Anda akan sering "nyangkut" ketika link dibuka dari device yang berbeda. Dengan domain produksi, magic link paling stabil.
 
 ---
 
