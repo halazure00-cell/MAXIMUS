@@ -70,6 +70,14 @@ npm run dev
 ```
 Buka browser dan akses alamat yang tertera (biasanya `http://localhost:5173`).
 
+> **Catatan Magic Link**: Jika Anda login via Magic Link dari perangkat berbeda (mis. klik email di HP, tapi app berjalan di laptop localhost), redirect ke `localhost` akan gagal. Untuk login dari HP, gunakan domain production (Vercel) sebagai `VITE_SITE_URL`.
+>
+> **Akses dari Perangkat Lain**: Jika ingin mengakses dari HP yang terhubung jaringan WiFi yang sama, jalankan:
+> ```bash
+> npm run dev -- --host 0.0.0.0 --port 5173
+> ```
+> Lalu buka `http://<laptop-ip>:5173` di HP (cari IP laptop dengan `ipconfig` atau `ifconfig`).
+
 ---
 
 ## 🌐 Develop in Codespaces
@@ -84,7 +92,8 @@ MAXIMUS mendukung development langsung dari browser menggunakan GitHub Codespace
    VITE_SUPABASE_URL=your_supabase_url
    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
    # Disarankan isi dengan domain production (Vercel) agar Magic Link stabil di HP
-   VITE_SITE_URL=https://your-production-domain
+   VITE_SITE_URL=https://maximus-beta.vercel.app
+   # (atau domain Vercel Anda)
    ```
 4. Jalankan development server (wajib pakai host 0.0.0.0 agar bisa dibuka dari browser/HP):
    ```bash
@@ -95,7 +104,7 @@ MAXIMUS mendukung development langsung dari browser menggunakan GitHub Codespace
 ### Tips (Mobile Friendly)
 - Jika Chrome di HP sering crash, tutup tab lain dan jalankan agent dalam tugas kecil (1–3 file per run).
 - Copilot & ESLint direkomendasikan otomatis lewat `.vscode/extensions.json`.
-- Mengapa `VITE_SITE_URL` diarahkan ke domain produksi (Vercel)? Karena Anda login dari HP. Kalau `VITE_SITE_URL` mengarah ke localhost/codespace preview, Anda akan sering "nyangkut" ketika link dibuka dari device yang berbeda. Dengan domain produksi, magic link paling stabil.
+- Untuk login Magic Link dari HP, arahkan `VITE_SITE_URL` ke domain produksi (Vercel). Hindari `localhost`/URL preview Codespaces agar tidak nyangkut saat link dibuka dari device berbeda.
 
 ---
 
