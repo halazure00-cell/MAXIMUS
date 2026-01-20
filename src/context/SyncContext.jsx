@@ -10,6 +10,7 @@ import {
   startAutoSync, 
   stopAutoSync,
   onSyncStateChange,
+  syncNow,
 } from '../lib/syncEngine';
 import { 
   initLocalDb,
@@ -44,6 +45,9 @@ export const SyncProvider = ({ children }) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [conflicts, setConflicts] = useState([]);
   const [isInitialized, setIsInitialized] = useState(false);
+  // New state for manual sync observability
+  const [lastError, setLastError] = useState(null);
+  const [queueLength, setQueueLength] = useState(0);
   const isMountedRef = useRef(false);
   const syncInProgressRef = useRef(false);
   const importInProgressRef = useRef(false);
@@ -91,6 +95,7 @@ export const SyncProvider = ({ children }) => {
         setLastSyncAt(lastSync);
         setPendingOps(opCount);
         setFailedOps(failedCount);
+        setQueueLength(opCount); // Update queue length
       }
     } catch (error) {
       logger.error('Failed to update sync status', error);
@@ -176,27 +181,55 @@ export const SyncProvider = ({ children }) => {
   const triggerSync = useCallback(async () => {
     if (!session?.user) {
       logger.warn('Cannot sync: no user session');
-      return { success: false, error: 'No user session' };
+      const error = 'No user session';
+      setLastError(error);
+      return { success: false, error };
     }
     
     if (syncInProgressRef.current) {
       logger.warn('Sync already in progress');
-      return { success: false, error: 'Sync already in progress' };
+      const error = 'Sync already in progress';
+      setLastError(error);
+      return { success: false, error };
     }
     
     syncInProgressRef.current = true;
+    setLastError(null); // Clear previous error
     
     try {
-      logger.info('Manual sync triggered');
-      const result = await syncAll(session.user.id);
-      await updateStatus();
-      logger.info('Manual sync completed', result);
-      return result;
+      logger.info('Manual sync triggered via syncNow');
+      const result = await syncNow({ reason: 'manual', userId: session.user.id });
+      
+      if (result.ok) {
+        // Update state with successful sync
+        if (isMountedRef.current) {
+          setLastSyncAt(result.serverTime);
+          setSyncStatus('idle');
+          setLastError(null);
+        }
+        logger.info('Manual sync completed', result);
+        return { success: true, ...result };
+      } else {
+        // Sync failed
+        if (isMountedRef.current) {
+          setLastError(result.error);
+          setSyncStatus('error');
+        }
+        logger.error('Manual sync failed', result);
+        return { success: false, error: result.error, ...result };
+      }
     } catch (error) {
-      logger.error('Manual sync failed', error);
-      return { success: false, error: error.message };
+      const errorMsg = error.message || 'Unknown error';
+      if (isMountedRef.current) {
+        setLastError(errorMsg);
+        setSyncStatus('error');
+      }
+      logger.error('Manual sync exception', error);
+      return { success: false, error: errorMsg };
     } finally {
       syncInProgressRef.current = false;
+      // Update queue length after sync
+      await updateStatus();
     }
   }, [session, updateStatus]);
 
@@ -262,6 +295,8 @@ export const SyncProvider = ({ children }) => {
     setPendingOps(0);
     setFailedOps(0);
     setConflicts([]);
+    setQueueLength(0);
+    setLastError(null);
     hasImportedRef.current = false;
     importInProgressRef.current = false;
   }, []);
@@ -282,6 +317,8 @@ export const SyncProvider = ({ children }) => {
     isOnline,
     conflicts,
     isInitialized,
+    queueLength,
+    lastError,
     
     // Actions
     triggerSync,
