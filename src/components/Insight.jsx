@@ -15,7 +15,8 @@ import {
 import { 
     generateRecommendations, 
     createContext, 
-    needsFallback 
+    needsFallback,
+    getTimePeriod
 } from '../lib/heatmapEngine';
 
 const logger = createLogger('Insight');
@@ -462,10 +463,10 @@ export default function Insight({ showToast }) {
 
                 // Try to load from cache
                 const now = new Date();
-                const hour = now.getHours();
+                const timePeriod = getTimePeriod(now);
                 const dayType = now.getDay() === 0 || now.getDay() === 6 ? 'weekend' : 'weekday';
                 
-                const cached = await getCachedHeatmapCells({ hour_bucket: hour, day_type: dayType });
+                const cached = await getCachedHeatmapCells({ time_period: timePeriod, day_type: dayType });
                 
                 if (cached.length > 0) {
                     logger.info('Using cached heatmap cells', { count: cached.length });
@@ -480,7 +481,7 @@ export default function Insight({ showToast }) {
                             baselineNPH: baseline.baselineNPH,
                         });
                         
-                        const recs = generateRecommendations(cached, context, { limit: 5 });
+                        const recs = generateRecommendations(cached, context, { limit: 5, debugMode: false });
                         setRecommendations(recs);
                         
                         // Check if we should use heatmap (if we have enough data)
@@ -513,7 +514,7 @@ export default function Insight({ showToast }) {
                             baselineNPH: baseline.baselineNPH,
                         });
                         
-                        const recs = generateRecommendations(cells, context, { limit: 5 });
+                        const recs = generateRecommendations(cells, context, { limit: 5, debugMode: false });
                         setRecommendations(recs);
                         
                         const shouldFallback = needsFallback(recs, orders.length);
