@@ -26,6 +26,40 @@ const logger = createLogger('syncEngine');
 // Maximum retry count before giving up
 const MAX_RETRIES = 3;
 
+// Conflict resolution messages
+const CONFLICT_MESSAGES = {
+  TOMBSTONE_PRESERVED: 'Data dihapus di perangkat Anda; penghapusan dipertahankan (tidak dikembalikan).',
+  SERVER_WINS: 'Perubahan Anda bentrok dengan update dari device lain. Data dari server diterapkan (server-wins).',
+};
+
+// Helper: Apply soft delete for a table
+const softDeleteByTable = {
+  orders: softDeleteCachedOrder,
+  expenses: softDeleteCachedExpense,
+};
+
+// Helper: Put cached record for a table
+const putCachedByTable = {
+  orders: putCachedOrder,
+  expenses: putCachedExpense,
+};
+
+// Helper: Get cached record for a table
+const getCachedByTable = {
+  orders: getCachedOrder,
+  expenses: getCachedExpense,
+};
+
+/**
+ * Compare timestamps between server and local records
+ * @returns {number} - Positive if server is newer, negative if local is newer, 0 if equal
+ */
+function compareTimestamps(serverRecord, localRecord, field = 'updated_at') {
+  const serverTime = new Date(serverRecord[field] || serverRecord.updated_at).getTime();
+  const localTime = new Date(localRecord[field] || localRecord.updated_at).getTime();
+  return serverTime - localTime;
+}
+
 /**
  * Check if an error is a permanent error that shouldn't be retried
  * Includes schema errors (missing columns/tables) and RLS/permission errors
@@ -116,8 +150,7 @@ function notifyListeners(state) {
  */
 function coalesceOplog(ops) {
   const createOps = new Map(); // client_tx_id -> op_id
-  const deleteOps = new Set(); // op_ids of deletes to skip
-  const upsertOps = new Set(); // op_ids of upserts/creates to skip
+  const skippedOps = new Set(); // op_ids to skip (both creates and deletes)
   
   // First pass: identify creates/upserts for each client_tx_id
   for (const op of ops) {
@@ -134,8 +167,8 @@ function coalesceOplog(ops) {
       const createOpId = createOps.get(op.client_tx_id);
       if (createOpId !== undefined) {
         // Found a create-delete pair - skip both
-        upsertOps.add(createOpId);
-        deleteOps.add(op.op_id);
+        skippedOps.add(createOpId);
+        skippedOps.add(op.op_id);
         logger.info('Coalescing create-delete pair', { 
           clientTxId: op.client_tx_id,
           createOpId,
@@ -145,8 +178,8 @@ function coalesceOplog(ops) {
     }
   }
   
-  // Filter out coalesced operations
-  return ops.filter(op => !upsertOps.has(op.op_id) && !deleteOps.has(op.op_id));
+  // Filter out coalesced operations (O(1) Set lookup instead of O(n) array includes)
+  return ops.filter(op => !skippedOps.has(op.op_id));
 }
 
 /**
@@ -172,9 +205,10 @@ export async function pushToSupabase(userId) {
       skipped: skippedCount,
     });
     
-    // Remove coalesced operations from oplog
+    // Remove coalesced operations from oplog using Set for O(1) lookup
+    const coalescedSet = new Set(coalescedOps);
     for (const op of ops) {
-      if (!coalescedOps.includes(op)) {
+      if (!coalescedSet.has(op)) {
         await removeFromOplog(op.op_id);
       }
     }
@@ -339,10 +373,10 @@ async function pushDelete(op) {
       clientTxId: client_tx_id,
     });
     
-    if (table === 'orders') {
-      await softDeleteCachedOrder(client_tx_id);
-    } else if (table === 'expenses') {
-      await softDeleteCachedExpense(client_tx_id);
+    // Ensure local cache is marked as deleted (use helper)
+    const softDeleteFn = softDeleteByTable[table];
+    if (softDeleteFn) {
+      await softDeleteFn(client_tx_id);
     }
     
     return; // Success - nothing to delete on server
@@ -360,11 +394,10 @@ async function pushDelete(op) {
   
   if (error) throw error;
   
-  // Ensure local cache is also marked as deleted
-  if (table === 'orders') {
-    await softDeleteCachedOrder(client_tx_id);
-  } else if (table === 'expenses') {
-    await softDeleteCachedExpense(client_tx_id);
+  // Ensure local cache is also marked as deleted (use helper)
+  const softDeleteFn = softDeleteByTable[table];
+  if (softDeleteFn) {
+    await softDeleteFn(client_tx_id);
   }
 }
 
@@ -460,155 +493,106 @@ export async function pullFromSupabase(userId) {
 }
 
 /**
- * Apply order from Supabase to local cache
+ * Generic function to apply record from Supabase to local cache
+ * Handles tombstone preservation and conflict resolution
+ * @param {Object} serverRecord - Record from server
+ * @param {string} table - Table name ('orders' or 'expenses')
  */
-async function applyOrderToCache(order) {
-  const existing = await getCachedOrder(order.client_tx_id);
+async function applyRecordToCache(serverRecord, table) {
+  const getCachedFn = getCachedByTable[table];
+  const softDeleteFn = softDeleteByTable[table];
+  const putCachedFn = putCachedByTable[table];
+  
+  if (!getCachedFn || !softDeleteFn || !putCachedFn) {
+    throw new Error(`Invalid table: ${table}`);
+  }
+  
+  const existing = await getCachedFn(serverRecord.client_tx_id);
   
   // CRITICAL: Prevent resurrection of locally deleted records
   // If local tombstone exists (deleted_at not null), never overwrite with non-deleted server row
   if (existing && existing.deleted_at) {
     // Local is deleted
-    if (!order.deleted_at) {
+    if (!serverRecord.deleted_at) {
       // Server has non-deleted version - local deletion wins (tombstone preservation)
       logger.warn('Preventing resurrection - local tombstone wins over server non-deleted', { 
-        clientTxId: order.client_tx_id,
+        table,
+        clientTxId: serverRecord.client_tx_id,
         localDeletedAt: existing.deleted_at,
-        serverDeletedAt: order.deleted_at,
+        serverDeletedAt: serverRecord.deleted_at,
       });
       notifyListeners({
         type: 'conflict',
-        table: 'orders',
-        clientTxId: order.client_tx_id,
+        table,
+        clientTxId: serverRecord.client_tx_id,
         resolution: 'tombstone-preserved',
         localData: existing,
-        serverData: order,
-        message: 'Data dihapus di perangkat Anda; penghapusan dipertahankan (tidak dikembalikan).',
+        serverData: serverRecord,
+        message: CONFLICT_MESSAGES.TOMBSTONE_PRESERVED,
       });
       // Keep local tombstone, do not resurrect
       return;
     } else {
       // Both deleted - keep the one with later deleted_at/updated_at
-      const serverTime = new Date(order.deleted_at || order.updated_at).getTime();
-      const localTime = new Date(existing.deleted_at || existing.updated_at).getTime();
-      if (localTime > serverTime) {
-        logger.info('Both deleted - local tombstone is newer, keeping it', { 
-          clientTxId: order.client_tx_id,
+      const timeDiff = compareTimestamps(serverRecord, existing, 'deleted_at');
+      if (timeDiff <= 0) {
+        // Local tombstone is newer or same age, keep it
+        logger.info('Both deleted - local tombstone is newer or equal, keeping it', { 
+          table,
+          clientTxId: serverRecord.client_tx_id,
         });
         return;
       }
       // Apply server tombstone (it's newer)
-      await softDeleteCachedOrder(order.client_tx_id);
+      await softDeleteFn(serverRecord.client_tx_id);
       return;
     }
   }
   
-  // Conflict detection: server updated_at > local updated_at
+  // Conflict detection: compare updated_at timestamps
   if (existing && existing.updated_at) {
-    const serverTime = new Date(order.updated_at).getTime();
-    const localTime = new Date(existing.updated_at).getTime();
+    const timeDiff = compareTimestamps(serverRecord, existing);
     
-    if (localTime > serverTime) {
-      // Local is newer - potential conflict
-      // Strategy: Server-wins (server data overwrites local)
-      logger.warn('Conflict detected for order - server wins', { 
-        clientTxId: order.client_tx_id,
-        localTime: new Date(localTime).toISOString(),
-        serverTime: new Date(serverTime).toISOString(),
+    if (timeDiff < 0) {
+      // Local is newer - potential conflict, server-wins strategy
+      logger.warn('Conflict detected - server wins', { 
+        table,
+        clientTxId: serverRecord.client_tx_id,
+        localTime: existing.updated_at,
+        serverTime: serverRecord.updated_at,
       });
       notifyListeners({
         type: 'conflict',
-        table: 'orders',
-        clientTxId: order.client_tx_id,
+        table,
+        clientTxId: serverRecord.client_tx_id,
         resolution: 'server-wins',
         localData: existing,
-        serverData: order,
-        message: 'Perubahan Anda bentrok dengan update dari device lain. Data dari server diterapkan (server-wins).',
+        serverData: serverRecord,
+        message: CONFLICT_MESSAGES.SERVER_WINS,
       });
     }
   }
   
   // Apply server version to cache
-  if (order.deleted_at) {
-    await softDeleteCachedOrder(order.client_tx_id);
+  if (serverRecord.deleted_at) {
+    await softDeleteFn(serverRecord.client_tx_id);
   } else {
-    await putCachedOrder(order);
+    await putCachedFn(serverRecord);
   }
+}
+
+/**
+ * Apply order from Supabase to local cache
+ */
+async function applyOrderToCache(order) {
+  return applyRecordToCache(order, 'orders');
 }
 
 /**
  * Apply expense from Supabase to local cache
  */
 async function applyExpenseToCache(expense) {
-  const existing = await getCachedExpense(expense.client_tx_id);
-  
-  // CRITICAL: Prevent resurrection of locally deleted records
-  // If local tombstone exists (deleted_at not null), never overwrite with non-deleted server row
-  if (existing && existing.deleted_at) {
-    // Local is deleted
-    if (!expense.deleted_at) {
-      // Server has non-deleted version - local deletion wins (tombstone preservation)
-      logger.warn('Preventing resurrection - local tombstone wins over server non-deleted', { 
-        clientTxId: expense.client_tx_id,
-        localDeletedAt: existing.deleted_at,
-        serverDeletedAt: expense.deleted_at,
-      });
-      notifyListeners({
-        type: 'conflict',
-        table: 'expenses',
-        clientTxId: expense.client_tx_id,
-        resolution: 'tombstone-preserved',
-        localData: existing,
-        serverData: expense,
-        message: 'Data dihapus di perangkat Anda; penghapusan dipertahankan (tidak dikembalikan).',
-      });
-      // Keep local tombstone, do not resurrect
-      return;
-    } else {
-      // Both deleted - keep the one with later deleted_at/updated_at
-      const serverTime = new Date(expense.deleted_at || expense.updated_at).getTime();
-      const localTime = new Date(existing.deleted_at || existing.updated_at).getTime();
-      if (localTime > serverTime) {
-        logger.info('Both deleted - local tombstone is newer, keeping it', { 
-          clientTxId: expense.client_tx_id,
-        });
-        return;
-      }
-      // Apply server tombstone (it's newer)
-      await softDeleteCachedExpense(expense.client_tx_id);
-      return;
-    }
-  }
-  
-  // Conflict detection
-  if (existing && existing.updated_at) {
-    const serverTime = new Date(expense.updated_at).getTime();
-    const localTime = new Date(existing.updated_at).getTime();
-    
-    if (localTime > serverTime) {
-      logger.warn('Conflict detected for expense - server wins', { 
-        clientTxId: expense.client_tx_id,
-        localTime: new Date(localTime).toISOString(),
-        serverTime: new Date(serverTime).toISOString(),
-      });
-      notifyListeners({
-        type: 'conflict',
-        table: 'expenses',
-        clientTxId: expense.client_tx_id,
-        resolution: 'server-wins',
-        localData: existing,
-        serverData: expense,
-        message: 'Perubahan Anda bentrok dengan update dari device lain. Data dari server diterapkan (server-wins).',
-      });
-    }
-  }
-  
-  // Apply server version to cache
-  if (expense.deleted_at) {
-    await softDeleteCachedExpense(expense.client_tx_id);
-  } else {
-    await putCachedExpense(expense);
-  }
+  return applyRecordToCache(expense, 'expenses');
 }
 
 // ==================== FULL SYNC ====================
