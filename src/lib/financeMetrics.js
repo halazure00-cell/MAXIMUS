@@ -26,28 +26,24 @@ export function sumExpensesByCategory(expenses, category, options = {}) {
   if (!Array.isArray(expenses)) return 0;
   
   const { scope } = options;
-  let filteredExpenses = expenses;
   
-  // Apply scope filter
+  // First, filter out deleted expenses
+  let filteredExpenses = expenses.filter(expense => {
+    return expense && !expense.deleted_at;
+  });
+  
+  // Apply scope filter if needed
   if (scope === 'day') {
     const todayKey = getTodayKey();
-    filteredExpenses = expenses.filter(expense => {
-      if (!expense || expense.deleted_at) return false;
+    filteredExpenses = filteredExpenses.filter(expense => {
       return toLocalDayKey(expense.created_at) === todayKey;
     });
-  } else if (scope === 'month') {
-    // For month scope, just filter out deleted expenses
-    // The expenses array should already be scoped to current month
-    filteredExpenses = expenses.filter(expense => {
-      if (!expense || expense.deleted_at) return false;
-      return true;
-    });
   }
+  // For month scope, expenses array should already be scoped to current month
   
   // Filter by category and sum amounts
   return filteredExpenses
     .filter(expense => {
-      if (!expense) return false;
       // Case-insensitive category comparison
       return expense.category?.toLowerCase() === category?.toLowerCase();
     })
