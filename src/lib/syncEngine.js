@@ -26,6 +26,24 @@ const logger = createLogger('syncEngine');
 // Maximum retry count before giving up
 const MAX_RETRIES = 3;
 
+/**
+ * Check if an error is a schema-related error that shouldn't be retried
+ * @param {Error} error - The error to check
+ * @returns {boolean} True if the error is a non-retryable schema error
+ */
+function isSchemaError(error) {
+  const errorMsg = error?.message?.toLowerCase() || '';
+  const errorCode = error?.code || '';
+  
+  // PostgreSQL error codes and messages for missing columns/tables
+  return (
+    errorMsg.includes('column') && errorMsg.includes('does not exist') ||
+    errorMsg.includes('relation') && errorMsg.includes('does not exist') ||
+    errorCode === '42703' || // undefined_column
+    errorCode === '42P01'    // undefined_table
+  );
+}
+
 // Sync state listeners
 const listeners = new Set();
 
@@ -94,6 +112,29 @@ export async function pushToSupabase(userId) {
         errors.push({ op, error: 'Authentication error - please re-login' });
         failed++;
         break; // Stop processing
+      }
+      
+      // Check if it's a schema error (non-retryable, permanent issue)
+      if (isSchemaError(error)) {
+        const schemaError = 'Database schema error. Migration required. Contact administrator.';
+        logger.error('Schema error detected - non-retryable', { op, error: error.message });
+        
+        // Immediately move to failed_ops without retrying
+        await moveToFailedOps(op);
+        await removeFromOplog(op.op_id);
+        
+        // Notify about schema error
+        notifyListeners({
+          type: 'operation_failed',
+          table: op.table,
+          clientTxId: op.client_tx_id,
+          error: schemaError,
+          schemaError: true,
+        });
+        
+        errors.push({ op, error: schemaError, schemaError: true });
+        failed++;
+        continue; // Continue processing other ops
       }
       
       // Update retry count
@@ -266,6 +307,15 @@ export async function pullFromSupabase(userId) {
     };
   } catch (error) {
     logger.error('Pull failed', error);
+    
+    // Check if it's a schema error and provide clear message
+    if (isSchemaError(error)) {
+      const schemaError = new Error('Database schema missing required columns (updated_at). Please ensure migrations are applied.');
+      schemaError.isSchemaError = true;
+      schemaError.originalError = error.message;
+      throw schemaError;
+    }
+    
     throw error;
   }
 }
@@ -609,16 +659,24 @@ export async function syncNow({ reason = 'manual', userId } = {}) {
     }
     
     await setSyncStatus('error');
+    
+    // Provide user-friendly error message for schema errors
+    const errorMessage = error.isSchemaError 
+      ? error.message 
+      : error.message || 'Unknown sync error';
+    
     notifyListeners({ 
       type: 'status', 
       status: 'error',
-      error: error.message,
+      error: errorMessage,
+      isSchemaError: error.isSchemaError || false,
     });
     
     return {
       ok: false,
       stage,
-      error: error.message,
+      error: errorMessage,
+      isSchemaError: error.isSchemaError || false,
       stats: { pushed: 0, pulled: 0, failed: 0 },
       serverTime,
     };
