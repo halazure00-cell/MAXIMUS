@@ -7,6 +7,7 @@ import {
     generateDailyFeedback, 
     generateMonthlyFeedback,
     formatRupiah,
+    formatRupiahWithSign,
     getStatusColor
 } from '../lib/feedbackEngine';
 
@@ -180,7 +181,7 @@ function DetailRow({ label, value, sublabel, positive, bold }) {
                 )}
             </div>
             <p className={`text-xs ${bold ? 'font-bold' : 'font-medium'} ${valueColor}`}>
-                {value < 0 ? '-' : ''}Rp {formatRupiah(Math.abs(value))}
+                {formatRupiahWithSign(value)}
             </p>
         </div>
     );

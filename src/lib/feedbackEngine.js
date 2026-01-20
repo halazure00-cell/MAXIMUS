@@ -11,6 +11,17 @@ export function formatRupiah(value) {
 }
 
 /**
+ * Format number to Rupiah with sign handling
+ * @param {number} value - The numeric value
+ * @returns {string} Formatted string with Rp prefix (e.g., "Rp 12.500" or "-Rp 12.500")
+ */
+export function formatRupiahWithSign(value) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return 'Rp 0';
+    const sign = value < 0 ? '-' : '';
+    return `${sign}Rp ${formatRupiah(Math.abs(value))}`;
+}
+
+/**
  * Safe ratio calculation with fallback
  * @param {number} numerator
  * @param {number} denominator
@@ -173,8 +184,9 @@ export function buildDailyMetrics(orders, expenses, settings) {
 
 /**
  * Build monthly metrics from orders and expenses
- * @param {Array} orders - All orders
- * @param {Array} expenses - All expenses
+ * Note: Assumes orders/expenses are already filtered to current month by the caller
+ * @param {Array} orders - All orders (pre-filtered to current month)
+ * @param {Array} expenses - All expenses (pre-filtered to current month)
  * @param {Object} settings - User settings
  * @returns {Object} Monthly metrics
  */
@@ -183,7 +195,7 @@ export function buildMonthlyMetrics(orders, expenses, settings) {
     if (!Array.isArray(expenses)) expenses = [];
     if (!settings) settings = {};
 
-    // Monthly = all data (assuming data is already filtered by month elsewhere)
+    // Monthly = all provided data (caller is responsible for month filtering)
     const pemasukan = orders.reduce((sum, order) => 
         sum + getNetProfit(order, settings.defaultCommission), 0
     );
