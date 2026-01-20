@@ -19,6 +19,8 @@ export default function SyncStatusBanner() {
     triggerSync,
     conflicts,
     clearConflicts,
+    queueLength,
+    lastError,
   } = useSyncContext();
   const [isSyncing, setIsSyncing] = useState(false);
   const [showConflictDetails, setShowConflictDetails] = useState(false);
@@ -32,15 +34,15 @@ export default function SyncStatusBanner() {
     }
   };
 
-  // Don't show banner if online and synced with no pending ops, failed ops, or conflicts
-  if (isOnline && syncStatus === 'idle' && pendingOps === 0 && failedOps === 0 && conflicts.length === 0) {
+  // Don't show banner if online and synced with no pending ops, failed ops, conflicts, or errors
+  if (isOnline && syncStatus === 'idle' && pendingOps === 0 && failedOps === 0 && conflicts.length === 0 && !lastError) {
     return null;
   }
 
   const getStatusIcon = () => {
     if (!isOnline) return <WifiOff size={16} className="text-ui-warning" />;
     if (syncStatus === 'syncing' || isSyncing) return <RefreshCw size={16} className="text-ui-primary animate-spin" />;
-    if (syncStatus === 'error') return <AlertCircle size={16} className="text-ui-danger" />;
+    if (syncStatus === 'error' || lastError) return <AlertCircle size={16} className="text-ui-danger" />;
     if (pendingOps > 0) return <Clock size={16} className="text-ui-info" />;
     return <CheckCircle size={16} className="text-ui-success" />;
   };
@@ -48,9 +50,9 @@ export default function SyncStatusBanner() {
   const getStatusText = () => {
     if (!isOnline) return 'Offline';
     if (syncStatus === 'syncing' || isSyncing) return 'Syncing...';
-    if (syncStatus === 'error') return 'Sync Error';
+    if (syncStatus === 'error' || lastError) return 'Sync Error';
     if (failedOps > 0) return `${failedOps} failed`;
-    if (pendingOps > 0) return `${pendingOps} pending`;
+    if (queueLength > 0) return `${queueLength} in queue`;
     if (conflicts.length > 0) return `${conflicts.length} conflicts`;
     return 'Synced';
   };
@@ -77,8 +79,8 @@ export default function SyncStatusBanner() {
 
   const getBgColor = () => {
     if (!isOnline) return 'bg-ui-warning/10 border-ui-warning/30';
-    if (syncStatus === 'error' || failedOps > 0) return 'bg-ui-danger/10 border-ui-danger/30';
-    if (pendingOps > 0) return 'bg-ui-info/10 border-ui-info/30';
+    if (syncStatus === 'error' || failedOps > 0 || lastError) return 'bg-ui-danger/10 border-ui-danger/30';
+    if (pendingOps > 0 || queueLength > 0) return 'bg-ui-info/10 border-ui-info/30';
     if (conflicts.length > 0) return 'bg-ui-warning/10 border-ui-warning/30';
     return 'bg-ui-surface border-ui-border';
   };
@@ -95,6 +97,11 @@ export default function SyncStatusBanner() {
                 Last: {getLastSyncText()}
               </span>
             )}
+            {queueLength > 0 && (
+              <span className="text-[10px] text-ui-info">
+                Queue: {queueLength} ops
+              </span>
+            )}
           </div>
         </div>
 
@@ -109,17 +116,28 @@ export default function SyncStatusBanner() {
             </button>
           )}
           
-          {isOnline && syncStatus !== 'syncing' && !isSyncing && (
-            <button
-              onClick={handleManualSync}
-              className="flex items-center gap-1 px-3 py-1 text-xs font-semibold bg-ui-primary text-ui-background rounded-ui-md hover:bg-ui-primary/90 press-effect"
-            >
-              <RefreshCw size={12} />
-              Sync Now
-            </button>
-          )}
+          <button
+            onClick={handleManualSync}
+            disabled={!isOnline || syncStatus === 'syncing' || isSyncing}
+            className="flex items-center gap-1 px-3 py-1 text-xs font-semibold bg-ui-primary text-ui-background rounded-ui-md hover:bg-ui-primary/90 press-effect disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RefreshCw size={12} />
+            Sync sekarang
+          </button>
         </div>
       </div>
+
+      {/* Error display */}
+      {lastError && (
+        <div className="bg-ui-danger/10 border-b border-ui-danger/30 px-4 py-2">
+          <p className="text-xs text-ui-danger font-semibold">
+            ❌ Sync Error
+          </p>
+          <p className="text-[10px] text-ui-muted mt-1">
+            {lastError}
+          </p>
+        </div>
+      )}
 
       {/* Conflict details */}
       {showConflictDetails && conflicts.length > 0 && (
