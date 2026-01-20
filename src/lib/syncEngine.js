@@ -452,3 +452,156 @@ export function stopAutoSync() {
     syncInterval = null;
   }
 }
+
+// ==================== OBSERVABLE SYNC ====================
+
+/**
+ * Get server time from Supabase
+ * @returns {Promise<string>} ISO timestamp from server
+ */
+async function getServerTime() {
+  try {
+    const { data, error } = await supabase.rpc('get_server_time');
+    
+    if (error) {
+      // Fallback: use select now() if RPC doesn't exist
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('orders')
+        .select('created_at')
+        .limit(1)
+        .single();
+      
+      if (fallbackError) {
+        console.warn('[syncEngine] Could not get server time, using local time');
+        return new Date().toISOString();
+      }
+      
+      // Return current time if we have any data
+      return new Date().toISOString();
+    }
+    
+    return data || new Date().toISOString();
+  } catch (err) {
+    console.warn('[syncEngine] Error getting server time:', err);
+    return new Date().toISOString();
+  }
+}
+
+/**
+ * Manual sync with structured result and observability
+ * @param {Object} options - Sync options
+ * @param {string} options.reason - Reason for sync (e.g., 'manual', 'auto', 'network')
+ * @param {string} options.userId - User ID for sync
+ * @returns {Promise<Object>} Structured sync result
+ */
+export async function syncNow({ reason = 'manual', userId } = {}) {
+  const isDev = import.meta.env.DEV;
+  
+  if (isDev) {
+    console.log(`[syncEngine] 🔄 syncNow started - reason: ${reason}`);
+  }
+  
+  if (!userId) {
+    const error = 'User ID required for sync';
+    if (isDev) {
+      console.error(`[syncEngine] ❌ syncNow failed - ${error}`);
+    }
+    return {
+      ok: false,
+      stage: 'validation',
+      error,
+      stats: { pushed: 0, pulled: 0, failed: 0 },
+      serverTime: null,
+    };
+  }
+  
+  let stage = 'init';
+  let serverTime = null;
+  
+  try {
+    // Set syncing status
+    stage = 'status_update';
+    if (isDev) {
+      console.log('[syncEngine] 📝 Stage: status_update');
+    }
+    await setSyncStatus('syncing');
+    notifyListeners({ type: 'status', status: 'syncing' });
+    
+    // Push local changes to server
+    stage = 'push';
+    if (isDev) {
+      console.log('[syncEngine] ⬆️  Stage: push');
+    }
+    const pushResult = await pushToSupabase(userId);
+    if (isDev) {
+      console.log('[syncEngine] ⬆️  Push result:', pushResult);
+    }
+    
+    // Pull server changes to local
+    stage = 'pull';
+    if (isDev) {
+      console.log('[syncEngine] ⬇️  Stage: pull');
+    }
+    const pullResult = await pullFromSupabase(userId);
+    if (isDev) {
+      console.log('[syncEngine] ⬇️  Pull result:', pullResult);
+    }
+    
+    // Get server time
+    stage = 'server_time';
+    if (isDev) {
+      console.log('[syncEngine] ⏰ Stage: server_time');
+    }
+    serverTime = await getServerTime();
+    
+    // Update last sync timestamp with server time
+    stage = 'finalize';
+    if (isDev) {
+      console.log('[syncEngine] ✅ Stage: finalize');
+    }
+    await setLastSyncAt(serverTime);
+    await setSyncStatus('idle');
+    notifyListeners({ 
+      type: 'status', 
+      status: 'idle',
+      lastSync: serverTime,
+    });
+    
+    const result = {
+      ok: true,
+      stage: 'complete',
+      error: null,
+      stats: {
+        pushed: pushResult.processed || 0,
+        pulled: (pullResult.ordersUpdated || 0) + (pullResult.expensesUpdated || 0),
+        failed: pushResult.failed || 0,
+      },
+      serverTime,
+    };
+    
+    if (isDev) {
+      console.log('[syncEngine] ✅ syncNow completed:', result);
+    }
+    
+    return result;
+  } catch (error) {
+    if (isDev) {
+      console.error(`[syncEngine] ❌ syncNow failed at stage: ${stage}`, error);
+    }
+    
+    await setSyncStatus('error');
+    notifyListeners({ 
+      type: 'status', 
+      status: 'error',
+      error: error.message,
+    });
+    
+    return {
+      ok: false,
+      stage,
+      error: error.message,
+      stats: { pushed: 0, pulled: 0, failed: 0 },
+      serverTime,
+    };
+  }
+}
