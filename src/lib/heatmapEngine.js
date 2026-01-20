@@ -39,6 +39,7 @@ const CONFIG = {
   MIN_SCORE: 5.0, // Minimum viable score
   MAX_DISTANCE_KM: 10, // Hard limit
   EXPLORATION_BONUS: 0.2, // Boost for untried cells
+  AVG_URBAN_SPEED_KPH: 25, // Conservative urban speed for deadhead calculations
 };
 
 /**
@@ -99,8 +100,7 @@ export function computeDeadheadCost(userPos, targetPos, context) {
   const fuelCost = distanceKm * (context.fuelCostPerKm || 2000);
   
   // Opportunity cost: time spent deadheading could be earning
-  const avgSpeedKph = 25; // Conservative urban speed
-  const durationHours = distanceKm / avgSpeedKph;
+  const durationHours = distanceKm / CONFIG.AVG_URBAN_SPEED_KPH;
   const opportunityCost = durationHours * (context.baselineNPH || 30000);
 
   return fuelCost + opportunityCost;

@@ -11,6 +11,11 @@
 import { encodeLocation, getHourBucket, getDayType } from './heatmapEngine';
 import { parseISO, differenceInDays, subDays } from 'date-fns';
 
+// Configuration constants
+const CONFIG = {
+  DEFAULT_ORDER_DURATION_HOURS: 0.5, // Assume 30 minutes per order (Phase 1 proxy)
+};
+
 /**
  * Aggregate orders into cells by hour/day for a specific spot
  * Phase 1: Uses strategic_spots mapping
@@ -116,7 +121,7 @@ function computeCellMetrics(group, options = {}) {
   // Estimate duration (proxy: assume 30 min per order)
   // This is a crude approximation for Phase 1
   // Phase 2+ will use actual location tracking
-  const estimatedDurationHours = orders.length * 0.5; // 30 min per order
+  const estimatedDurationHours = orders.length * CONFIG.DEFAULT_ORDER_DURATION_HOURS;
 
   // Net Per Hour
   const avg_nph = estimatedDurationHours > 0
@@ -130,7 +135,7 @@ function computeCellMetrics(group, options = {}) {
 
   // Volatility (coefficient of variation)
   const nphValues = weightedOrders.map(o => {
-    const nph = (o.net_profit || 0) / 0.5; // Assume 30 min per order
+    const nph = (o.net_profit || 0) / CONFIG.DEFAULT_ORDER_DURATION_HOURS;
     return nph;
   });
   const mean_nph = nphValues.reduce((sum, v) => sum + v, 0) / Math.max(nphValues.length, 1);

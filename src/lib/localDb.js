@@ -551,15 +551,17 @@ export async function getCachedHeatmapCells(filter = {}) {
 export async function clearExpiredHeatmapCache() {
   const db = await getDb();
   const now = Date.now();
-  const index = db.transaction('heatmap_cache').objectStore('heatmap_cache').index('expires_at');
   
-  let cursor = await index.openCursor();
+  // Get all expired entries
   const tx = db.transaction('heatmap_cache', 'readwrite');
   const store = tx.objectStore('heatmap_cache');
+  const index = store.index('expires_at');
+  
+  let cursor = await index.openCursor();
   
   while (cursor) {
     if (cursor.value.expires_at <= now) {
-      await store.delete(cursor.primaryKey);
+      await cursor.delete();
     }
     cursor = await cursor.continue();
   }
