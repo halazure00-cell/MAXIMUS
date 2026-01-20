@@ -12,6 +12,7 @@ import {
 } from '../lib/offlineOps';
 import { createLogger } from '../lib/logger';
 import { toLocalDayKey, getTodayKey } from '../lib/dateUtils';
+import { getFuelMetrics } from '../lib/financeMetrics';
 import {
     BarChart,
     Bar,
@@ -82,6 +83,7 @@ export default function Riwayat() {
         efficiencyScore: 0,
         appFeeTotal: 0,
         fuelCostTotal: 0,
+        fuelActualMonth: 0,
         maintenanceTotal: 0,
         ordersCount: 0,
         expensesCount: 0
@@ -440,6 +442,9 @@ export default function Riwayat() {
                 }
             }, 0);
 
+            // Calculate actual fuel expenses from expense records
+            const { fuelMonth } = getFuelMetrics(monthExpenses);
+
             let efficiency = 0;
             if (monthlyGross > 0) {
                 efficiency = (monthlyNetProfit / monthlyGross) * 100;
@@ -452,6 +457,7 @@ export default function Riwayat() {
                 efficiencyScore: efficiency,
                 appFeeTotal: monthlyPotongan,
                 fuelCostTotal: totalFuelCost,
+                fuelActualMonth: fuelMonth,
                 maintenanceTotal: totalMaintenanceCost,
                 ordersCount: monthOrders.length,
                 expensesCount: monthExpenses.length
@@ -804,7 +810,7 @@ export default function Riwayat() {
                             <div className="mt-2">
                                 <SectionTitle className="text-[8px] !tracking-normal">Potongan</SectionTitle>
                                 <p className="text-xs font-bold text-ui-text truncate mt-0.5">
-                                    {formatCurrency(metrics.appFeeTotal + metrics.fuelCostTotal + metrics.maintenanceTotal)}
+                                    {formatCurrency(metrics.appFeeTotal + (metrics.fuelActualMonth > 0 ? metrics.fuelActualMonth : metrics.fuelCostTotal) + metrics.maintenanceTotal)}
                                 </p>
                             </div>
                         </button>
@@ -877,9 +883,11 @@ export default function Riwayat() {
                                 </span>
                             </div>
                             <div className="flex items-center justify-between text-sm">
-                                <span className="text-ui-muted">Estimasi Bensin</span>
+                                <span className="text-ui-muted">
+                                    {metrics.fuelActualMonth > 0 ? 'Bensin (aktual)' : 'Estimasi Bensin'}
+                                </span>
                                 <span className="font-semibold text-ui-warning">
-                                    -{formatCurrency(metrics.fuelCostTotal)}
+                                    -{formatCurrency(metrics.fuelActualMonth > 0 ? metrics.fuelActualMonth : metrics.fuelCostTotal)}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between text-sm">
