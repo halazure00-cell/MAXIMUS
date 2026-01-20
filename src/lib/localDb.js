@@ -6,7 +6,7 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'maximus_local';
-const DB_VERSION = 2; // Bumped to add failed_ops store
+const DB_VERSION = 3; // Bumped to add heatmap_cache store
 
 let dbPromise = null;
 
@@ -80,6 +80,18 @@ export async function initLocalDb() {
         failedOpsStore.createIndex('created_at', 'created_at');
         failedOpsStore.createIndex('table', 'table');
         failedOpsStore.createIndex('failed_at', 'failed_at');
+      }
+
+      // V3: Create heatmap_cache store (for driver recommendations)
+      if (oldVersion < 3 && !db.objectStoreNames.contains('heatmap_cache')) {
+        const heatmapStore = db.createObjectStore('heatmap_cache', { 
+          keyPath: 'id' 
+        });
+        heatmapStore.createIndex('cell_id', 'cell_id');
+        heatmapStore.createIndex('hour_bucket', 'hour_bucket');
+        heatmapStore.createIndex('day_type', 'day_type');
+        heatmapStore.createIndex('expires_at', 'expires_at');
+        heatmapStore.createIndex('fetched_at', 'fetched_at');
       }
     },
   });
@@ -433,6 +445,7 @@ export async function clearAllLocalData() {
     db.clear('oplog'),
     db.clear('failed_ops'),
     db.clear('meta'),
+    db.clear('heatmap_cache'),
   ]);
 }
 
@@ -441,11 +454,12 @@ export async function clearAllLocalData() {
  */
 export async function getDbStats() {
   const db = await getDb();
-  const [ordersCount, expensesCount, oplogCount, failedOpsCount] = await Promise.all([
+  const [ordersCount, expensesCount, oplogCount, failedOpsCount, heatmapCount] = await Promise.all([
     db.count('orders_cache'),
     db.count('expenses_cache'),
     db.count('oplog'),
     db.count('failed_ops'),
+    db.count('heatmap_cache'),
   ]);
   
   return {
@@ -453,7 +467,109 @@ export async function getDbStats() {
     expensesCount,
     oplogCount,
     failedOpsCount,
+    heatmapCount,
     lastSync: await getLastSyncAt(),
     syncStatus: await getSyncStatus(),
   };
+}
+
+// ==================== HEATMAP CACHE OPERATIONS ====================
+
+/**
+ * Cache heatmap cells
+ * @param {array} cells - Array of cell objects
+ * @param {number} ttlHours - Time to live in hours (default: 1)
+ */
+export async function cacheHeatmapCells(cells, ttlHours = 1) {
+  const db = await getDb();
+  const now = Date.now();
+  const expiresAt = now + (ttlHours * 60 * 60 * 1000);
+  
+  const tx = db.transaction('heatmap_cache', 'readwrite');
+  const store = tx.objectStore('heatmap_cache');
+  
+  for (const cell of cells) {
+    const cachedCell = {
+      id: `cell_${cell.cell_id || cell.spot_id}_${cell.time_period || cell.hour_bucket || 'siang'}_${cell.day_type}`,
+      cell_id: cell.cell_id || cell.spot_id,
+      time_period: cell.time_period || 'siang',
+      day_type: cell.day_type,
+      score: cell.score || 0,
+      avg_nph: cell.avg_nph || 0,
+      confidence: cell.confidence || 0,
+      metadata: {
+        order_count: cell.order_count || 0,
+        conversion_rate: cell.conversion_rate || 0,
+        volatility: cell.volatility || 0,
+        lat: cell.lat || cell.latitude,
+        lon: cell.lon || cell.longitude,
+        spot_name: cell.spot_name || cell.name,
+        category: cell.category,
+        is_estimate: cell.is_estimate || false,
+      },
+      fetched_at: now,
+      expires_at: expiresAt,
+    };
+    
+    await store.put(cachedCell);
+  }
+  
+  await tx.done;
+}
+
+/**
+ * Get cached heatmap cells
+ * @param {object} filter - Filter {time_period, day_type}
+ * @returns {array} Array of cached cells (only non-expired)
+ */
+export async function getCachedHeatmapCells(filter = {}) {
+  const db = await getDb();
+  const now = Date.now();
+  let cells = await db.getAll('heatmap_cache');
+  
+  // Filter expired cells
+  cells = cells.filter(cell => cell.expires_at > now);
+  
+  // Apply filters
+  if (filter.time_period !== undefined) {
+    cells = cells.filter(cell => cell.time_period === filter.time_period);
+  }
+  
+  if (filter.day_type) {
+    cells = cells.filter(cell => cell.day_type === filter.day_type);
+  }
+  
+  return cells;
+}
+
+/**
+ * Clear expired heatmap cache entries
+ */
+export async function clearExpiredHeatmapCache() {
+  const db = await getDb();
+  const now = Date.now();
+  
+  // Get all expired entries
+  const tx = db.transaction('heatmap_cache', 'readwrite');
+  const store = tx.objectStore('heatmap_cache');
+  const index = store.index('expires_at');
+  
+  let cursor = await index.openCursor();
+  
+  while (cursor) {
+    if (cursor.value.expires_at <= now) {
+      await cursor.delete();
+    }
+    cursor = await cursor.continue();
+  }
+  
+  await tx.done;
+}
+
+/**
+ * Clear all heatmap cache
+ */
+export async function clearHeatmapCache() {
+  const db = await getDb();
+  await db.clear('heatmap_cache');
 }

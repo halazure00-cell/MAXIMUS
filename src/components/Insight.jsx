@@ -3,10 +3,21 @@ import { useSettings } from '../context/SettingsContext';
 import {
     fetchStrategicSpots,
 } from '../lib/db';
-import { getCachedOrders, getCachedExpenses } from '../lib/localDb';
+import { getCachedOrders, getCachedExpenses, getCachedHeatmapCells, cacheHeatmapCells, clearExpiredHeatmapCache } from '../lib/localDb';
 import { useSyncContext } from '../context/SyncContext';
 import { watchLocation, haversineDistance, checkLocationPermission, getCurrentPosition } from '../lib/location';
 import { createLogger } from '../lib/logger';
+import { 
+    aggregateOrdersToSpots, 
+    enrichSpotsWithMetrics, 
+    getBaselineMetrics 
+} from '../lib/heatmapAggregator';
+import { 
+    generateRecommendations, 
+    createContext, 
+    needsFallback,
+    getTimePeriod
+} from '../lib/heatmapEngine';
 
 const logger = createLogger('Insight');
 import { motion, AnimatePresence } from 'framer-motion';
@@ -165,6 +176,12 @@ export default function Insight({ showToast }) {
     const [activeTab, setActiveTab] = useState('now');
     const [userLocation, setUserLocation] = useState(null);
     const [expandedSection, setExpandedSection] = useState(null);
+    
+    // Heatmap state
+    const [heatmapCells, setHeatmapCells] = useState([]);
+    const [recommendations, setRecommendations] = useState([]);
+    const [enrichedSpots, setEnrichedSpots] = useState([]);
+    const [useHeatmap, setUseHeatmap] = useState(false); // Toggle between static spots and heatmap
     
     // Location state
     const [locationStatus, setLocationStatus] = useState('prompt'); // 'granted' | 'denied' | 'prompt' | 'unsupported' | 'error'
@@ -429,6 +446,90 @@ export default function Insight({ showToast }) {
 
         return { active: active.slice(0, 4), upcoming: upcoming.slice(0, 2), hour, isWeekend };
     }, [strategicSpots, userLocation]);
+
+    // Heatmap Recommendations (Phase 1 MVP)
+    useEffect(() => {
+        if (!orders.length || !strategicSpots.length) {
+            setHeatmapCells([]);
+            setRecommendations([]);
+            setEnrichedSpots([]);
+            return;
+        }
+
+        async function processHeatmap() {
+            try {
+                // Clear expired cache first
+                await clearExpiredHeatmapCache();
+
+                // Try to load from cache
+                const now = new Date();
+                const timePeriod = getTimePeriod(now);
+                const dayType = now.getDay() === 0 || now.getDay() === 6 ? 'weekend' : 'weekday';
+                
+                const cached = await getCachedHeatmapCells({ time_period: timePeriod, day_type: dayType });
+                
+                if (cached.length > 0) {
+                    logger.info('Using cached heatmap cells', { count: cached.length });
+                    setHeatmapCells(cached);
+                    
+                    // If we have user location, generate recommendations
+                    if (userLocation) {
+                        const baseline = getBaselineMetrics(orders);
+                        const context = createContext({
+                            userLat: userLocation.lat,
+                            userLon: userLocation.lng,
+                            baselineNPH: baseline.baselineNPH,
+                        });
+                        
+                        const recs = generateRecommendations(cached, context, { limit: 5, debugMode: false });
+                        setRecommendations(recs);
+                        
+                        // Check if we should use heatmap (if we have enough data)
+                        const shouldFallback = needsFallback(recs, orders.length);
+                        setUseHeatmap(!shouldFallback);
+                    }
+                } else {
+                    // Aggregate orders to cells
+                    const cells = aggregateOrdersToSpots(orders, strategicSpots, { 
+                        windowDays: 30,
+                        decayDays: 7 
+                    });
+                    
+                    logger.info('Aggregated heatmap cells', { count: cells.length });
+                    setHeatmapCells(cells);
+                    
+                    // Cache the cells
+                    await cacheHeatmapCells(cells, 1); // 1 hour TTL
+                    
+                    // Enrich strategic spots with metrics
+                    const enriched = enrichSpotsWithMetrics(strategicSpots, cells);
+                    setEnrichedSpots(enriched);
+                    
+                    // Generate recommendations if we have user location
+                    if (userLocation) {
+                        const baseline = getBaselineMetrics(orders);
+                        const context = createContext({
+                            userLat: userLocation.lat,
+                            userLon: userLocation.lng,
+                            baselineNPH: baseline.baselineNPH,
+                        });
+                        
+                        const recs = generateRecommendations(cells, context, { limit: 5, debugMode: false });
+                        setRecommendations(recs);
+                        
+                        const shouldFallback = needsFallback(recs, orders.length);
+                        setUseHeatmap(!shouldFallback);
+                    }
+                }
+            } catch (error) {
+                logger.error('Heatmap processing error', error);
+                setHeatmapCells([]);
+                setRecommendations([]);
+            }
+        }
+
+        processHeatmap();
+    }, [orders, strategicSpots, userLocation]);
 
     // Analytics
     const stats = useMemo(() => {

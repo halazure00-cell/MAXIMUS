@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { isSupabaseConfigured, supabaseConfigError } from './lib/supabaseClient';
@@ -6,6 +6,7 @@ import Auth from './components/Auth';
 import ProfitEngine from './components/ProfitEngine';
 import Riwayat from './pages/Riwayat';
 import ProfileSettings from './components/ProfileSettings';
+import HeatmapDebugView from './components/HeatmapDebugView';
 import BottomNavigation from './components/BottomNavigation';
 import PageTransition from './components/PageTransition';
 import ToastContainer from './components/ToastContainer';
@@ -31,6 +32,28 @@ function LazyLoadingFallback() {
 
 function AnimatedRoutes({ showToast }) {
     const location = useLocation();
+    const [showDebug, setShowDebug] = useState(false);
+
+    // Check for debug mode in URL
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        setShowDebug(params.get('debug') === 'heatmap');
+    }, [location.search]);
+
+    // Show debug view if ?debug=heatmap
+    if (showDebug) {
+        return (
+            <div className="min-h-screen bg-ui-background">
+                <div className="max-w-4xl mx-auto">
+                    <div className="p-4 bg-ui-danger/20 border-b border-ui-danger">
+                        <div className="text-sm font-bold text-ui-danger">⚠️ DEBUG MODE ACTIVE</div>
+                        <div className="text-xs text-ui-muted">Remove ?debug=heatmap from URL to return to normal view</div>
+                    </div>
+                    <HeatmapDebugView />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <AnimatePresence mode="sync">
