@@ -32,6 +32,7 @@ import { Plus, Minus, TrendingUp, TrendingDown, Wallet, AlertCircle, Trash2, Edi
 import ExpenseModal from '../components/ExpenseModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 import EditOrderModal from '../components/EditOrderModal';
+import FeedbackCard from '../components/FeedbackCard';
 import { motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 import Card from '../components/Card';
@@ -56,6 +57,10 @@ export default function Riwayat() {
     const [deleteTargetId, setDeleteTargetId] = useState(null);
     const [deleteTargetType, setDeleteTargetType] = useState(null);
     const pageSize = 20;
+    
+    // Raw data for FeedbackCard
+    const [allOrders, setAllOrders] = useState([]);
+    const [allExpenses, setAllExpenses] = useState([]);
     
     // Refs untuk tracking operasi async
     const abortControllerRef = useRef(null);
@@ -391,6 +396,10 @@ export default function Riwayat() {
                 expensesCount: expenses?.length || 0
             });
 
+            // Store raw data for FeedbackCard
+            safeSetState(setAllOrders, orders || []);
+            safeSetState(setAllExpenses, expenses || []);
+
             const {
                 todayNetProfit,
                 todayExpense,
@@ -579,14 +588,6 @@ export default function Riwayat() {
         return format(parsed, 'HH:mm');
     };
 
-    const getInsight = () => {
-        const score = metrics.efficiencyScore;
-        if (metrics.grossIncome === 0) return { text: "Belum ada tarikan. Gas cari orderan!", color: "text-ui-muted" };
-        if (score >= 70) return { text: "Mantap! Efisiensi keuangan sangat bagus.", color: "text-ui-success" };
-        if (score >= 50) return { text: "Not bad. Coba kurangi pengeluaran kecil.", color: "text-ui-warning" };
-        return { text: "Boros banget hari ini! Kurangi jajan kopi.", color: "text-ui-danger" };
-    };
-
     const requestDelete = (clientTxId, type) => {
         setDeleteTargetId(clientTxId);
         setDeleteTargetType(type);
@@ -659,7 +660,6 @@ export default function Riwayat() {
     };
 
 
-    const insight = getInsight();
     const visibleTransactions = transactions.slice(0, visibleCount);
     const canLoadMore = visibleCount < transactions.length;
 
@@ -708,15 +708,13 @@ export default function Riwayat() {
 
             {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto px-4 pb-24">
-                {/* Insight Harian */}
-                <Card className="mb-4 p-3 flex items-center space-x-3">
-                    <div className={`p-2 rounded-full bg-opacity-10 ${insight.color.replace('text', 'bg')}`}>
-                        <AlertCircle className={`w-5 h-5 ${insight.color}`} />
-                    </div>
-                    <p className={`text-sm font-medium flex-1 ${insight.color}`}>
-                        "{insight.text}"
-                    </p>
-                </Card>
+                {/* Feedback Card - Daily-first actionable insights */}
+                <FeedbackCard 
+                    orders={allOrders} 
+                    expenses={allExpenses} 
+                    settings={settings}
+                    onAddTransaction={() => setShowExpenseModal(true)}
+                />
 
                 <div className="space-y-4">
                 {/* --- KARTU REKAP HARIAN (SETORAN) --- */}
