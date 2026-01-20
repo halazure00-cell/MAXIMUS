@@ -37,8 +37,8 @@ function isSchemaError(error) {
   
   // PostgreSQL error codes and messages for missing columns/tables
   return (
-    errorMsg.includes('column') && errorMsg.includes('does not exist') ||
-    errorMsg.includes('relation') && errorMsg.includes('does not exist') ||
+    (errorMsg.includes('column') && errorMsg.includes('does not exist')) ||
+    (errorMsg.includes('relation') && errorMsg.includes('does not exist')) ||
     errorCode === '42703' || // undefined_column
     errorCode === '42P01'    // undefined_table
   );
@@ -116,7 +116,7 @@ export async function pushToSupabase(userId) {
       
       // Check if it's a schema error (non-retryable, permanent issue)
       if (isSchemaError(error)) {
-        const schemaError = 'Database schema error. Migration required. Contact administrator.';
+        const schemaError = 'Database schema error. Migration 0004_offline_first required. Contact administrator.';
         logger.error('Schema error detected - non-retryable', { op, error: error.message });
         
         // Immediately move to failed_ops without retrying
@@ -310,7 +310,7 @@ export async function pullFromSupabase(userId) {
     
     // Check if it's a schema error and provide clear message
     if (isSchemaError(error)) {
-      const schemaError = new Error('Database schema missing required columns (updated_at). Please ensure migrations are applied.');
+      const schemaError = new Error('Database schema error. Migration 0004_offline_first required. Contact administrator.');
       schemaError.isSchemaError = true;
       schemaError.originalError = error.message;
       throw schemaError;

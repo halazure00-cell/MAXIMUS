@@ -129,9 +129,9 @@ supabase db push
 2. Update to latest app version (includes schema error detection)
 3. Press "Sync sekarang" button in app
 
-### Error: "Database schema error. Migration required."
+### Error: "Database schema error. Migration 0004_offline_first required."
 
-**Cause:** Migration 0004 not applied (new error message from v1.1.1+)  
+**Cause:** Migration 0004 not applied (new error message from latest version)  
 **Solution:** Apply migration using Method 1 or 2 above  
 **Note:** This is an improved error message that prevents wasted retries
 
