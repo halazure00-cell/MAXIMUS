@@ -21,33 +21,63 @@ const CONFIG = {
   H3_RESOLUTION: 8, // ~0.46 km² cells (~800m diameter)
   CONFIDENCE_THRESHOLD: 10, // Min orders for full confidence
   MIN_ORDERS_FOR_RECOMMENDATION: 5, // Cold start threshold
-  NPH_MIN: 0, // Normalization bounds
-  NPH_MAX: 100000,
-  CR_MIN: 0,
-  CR_MAX: 4, // Orders per hour
-  DC_MIN: 0,
-  DC_MAX: 50000, // Rupiah
-  V_MIN: 0,
-  V_MAX: 1,
+  
+  // Robust normalization: use percentile clamping instead of fixed bounds
+  PERCENTILE_LOW: 10, // p10 for robust min
+  PERCENTILE_HIGH: 90, // p90 for robust max
+  
   WEIGHTS: {
     NPH: 0.5, // Net Per Hour (primary)
     CR: 0.2, // Conversion Rate
     DC: 0.15, // Deadhead Cost (penalty)
     V: 0.10, // Volatility (penalty)
-    C: 0.05, // Confidence (boost)
+    // Confidence is now multiplicative, not additive
   },
-  MIN_SCORE: 5.0, // Minimum viable score
+  MIN_SCORE: 3.0, // Minimum viable score (lowered since confidence is multiplicative)
   MAX_DISTANCE_KM: 10, // Hard limit
   EXPLORATION_BONUS: 0.2, // Boost for untried cells
   AVG_URBAN_SPEED_KPH: 25, // Conservative urban speed for deadhead calculations
+  
+  // Practical time periods (not 24 hourly buckets)
+  TIME_PERIODS: {
+    'pagi': { start: 5, end: 11, label: 'Pagi (05:00-11:00)' },      // Morning
+    'siang': { start: 11, end: 15, label: 'Siang (11:00-15:00)' },   // Lunch/Afternoon
+    'sore': { start: 15, end: 19, label: 'Sore (15:00-19:00)' },     // Evening commute
+    'malam': { start: 19, end: 23, label: 'Malam (19:00-23:00)' },   // Night
+    'tengah_malam': { start: 23, end: 5, label: 'Tengah Malam (23:00-05:00)' }, // Late night (wraps around)
+  },
 };
 
 /**
- * Min-max normalization
+ * Robust normalization using percentile clamping
+ * More resilient to outliers than min-max normalization
  * @param {number} value - Value to normalize
- * @param {number} min - Minimum value
- * @param {number} max - Maximum value
+ * @param {number[]} allValues - All values in the dataset for percentile calculation
  * @returns {number} Normalized value (0-1)
+ */
+export function normalizeRobust(value, allValues) {
+  if (!allValues || allValues.length === 0) return 0;
+  
+  // Sort values for percentile calculation
+  const sorted = [...allValues].filter(v => v != null && !isNaN(v)).sort((a, b) => a - b);
+  if (sorted.length === 0) return 0;
+  
+  // Calculate p10 and p90
+  const p10Index = Math.floor(sorted.length * CONFIG.PERCENTILE_LOW / 100);
+  const p90Index = Math.floor(sorted.length * CONFIG.PERCENTILE_HIGH / 100);
+  const p10 = sorted[p10Index] || sorted[0];
+  const p90 = sorted[p90Index] || sorted[sorted.length - 1];
+  
+  // Clamp value between p10 and p90, then normalize
+  const clamped = Math.max(p10, Math.min(p90, value));
+  const range = p90 - p10;
+  
+  return range > 0 ? (clamped - p10) / range : 0;
+}
+
+/**
+ * Legacy normalize function (kept for backward compatibility)
+ * Use normalizeRobust for new code
  */
 export function normalize(value, min, max) {
   if (max === min) return 0;
@@ -107,24 +137,23 @@ export function computeDeadheadCost(userPos, targetPos, context) {
 }
 
 /**
- * Calculate cell score
+ * Calculate cell score with robust normalization and multiplicative confidence
  * @param {object} cell - Cell data
- * @param {object} context - Context {userPos, fuelCostPerKm, baselineNPH}
- * @returns {number} Cell score (0-10+)
+ * @param {object} context - Context {userPos, fuelCostPerKm, baselineNPH, allCells}
+ * @returns {object} {score, breakdown} - Score and detailed breakdown for debugging
  */
 export function computeScore(cell, context) {
-  // Normalize metrics
-  const nphNorm = normalize(
-    cell.avg_nph || 0,
-    CONFIG.NPH_MIN,
-    CONFIG.NPH_MAX
-  );
+  const allCells = context.allCells || [];
   
-  const crNorm = normalize(
-    cell.conversion_rate || 0,
-    CONFIG.CR_MIN,
-    CONFIG.CR_MAX
-  );
+  // Extract all values for robust normalization
+  const allNPH = allCells.map(c => c.avg_nph || 0);
+  const allCR = allCells.map(c => c.conversion_rate || 0);
+  const allV = allCells.map(c => c.volatility || 0);
+  
+  // Robust normalize metrics
+  const nphNorm = normalizeRobust(cell.avg_nph || 0, allNPH);
+  const crNorm = normalizeRobust(cell.conversion_rate || 0, allCR);
+  const vNorm = normalizeRobust(cell.volatility || 0, allV);
 
   // Calculate deadhead cost for this cell
   const targetPos = {
@@ -132,26 +161,48 @@ export function computeScore(cell, context) {
     lon: cell.lon || cell.longitude,
   };
   const deadheadCost = computeDeadheadCost(context.userPos, targetPos, context);
-  const dcNorm = normalize(deadheadCost, CONFIG.DC_MIN, CONFIG.DC_MAX);
+  
+  // Deadhead normalization using all computed deadhead costs
+  const allDeadhead = allCells.map(c => {
+    const pos = { lat: c.lat || c.latitude, lon: c.lon || c.longitude };
+    return computeDeadheadCost(context.userPos, pos, context);
+  });
+  const dcNorm = normalizeRobust(deadheadCost, allDeadhead);
 
-  const vNorm = normalize(
-    cell.volatility || 0,
-    CONFIG.V_MIN,
-    CONFIG.V_MAX
-  );
-
+  // Confidence as multiplicative factor (0.3 to 1.0 range)
+  // Prevents low-data cells from getting high scores
   const confidence = cell.confidence || 0;
+  const confidenceMultiplier = 0.3 + (0.7 * confidence); // 30% base + 70% scaled by confidence
 
-  // Weighted score
-  const score =
+  // Weighted score (before confidence multiplier)
+  const baseScore =
     CONFIG.WEIGHTS.NPH * nphNorm +
     CONFIG.WEIGHTS.CR * crNorm -
     CONFIG.WEIGHTS.DC * dcNorm -
-    CONFIG.WEIGHTS.V * vNorm +
-    CONFIG.WEIGHTS.C * confidence;
+    CONFIG.WEIGHTS.V * vNorm;
 
-  // Scale to 0-10 range
-  return score * 10;
+  // Apply confidence as multiplicative factor
+  const score = baseScore * confidenceMultiplier * 10; // Scale to 0-10 range
+
+  // Return score with breakdown for debugging
+  return {
+    score,
+    breakdown: {
+      nph_raw: cell.avg_nph || 0,
+      nph_norm: nphNorm,
+      cr_raw: cell.conversion_rate || 0,
+      cr_norm: crNorm,
+      dc_raw: deadheadCost,
+      dc_norm: dcNorm,
+      v_raw: cell.volatility || 0,
+      v_norm: vNorm,
+      confidence: confidence,
+      confidence_multiplier: confidenceMultiplier,
+      base_score: baseScore,
+      final_score: score,
+      sample_count: cell.order_count || 0,
+    },
+  };
 }
 
 /**
@@ -162,7 +213,7 @@ export function computeScore(cell, context) {
  */
 export function relevantCells(cells, context) {
   const {
-    hour,
+    timePeriod,
     dayType,
     userPos,
     fuelBudget = 50000,
@@ -171,9 +222,9 @@ export function relevantCells(cells, context) {
   } = context;
 
   return cells.filter(cell => {
-    // 1. Time match: ±1 hour window
-    const cellHour = cell.hour_bucket || cell.hour || 0;
-    const hourMatch = Math.abs(cellHour - hour) <= 1;
+    // 1. Time period match
+    const cellPeriod = cell.time_period || cell.timePeriod || 'siang';
+    const periodMatch = cellPeriod === timePeriod;
 
     // 2. Day type match
     const cellDayType = cell.day_type || cell.dayType || 'weekday';
@@ -197,12 +248,13 @@ export function relevantCells(cells, context) {
     const fuelCost = dist * fuelCostPerKm;
     const fuelMatch = fuelCost <= fuelBudget;
 
-    return hourMatch && dayMatch && distMatch && fuelMatch;
+    return periodMatch && dayMatch && distMatch && fuelMatch;
   });
 }
 
 /**
  * Generate explanation text for recommendation
+ * Phase 1: All metrics are estimates, clearly labeled
  * @param {object} cell - Cell data
  * @returns {string} Human-readable explanation
  */
@@ -210,12 +262,15 @@ export function generateReason(cell) {
   const reasons = [];
 
   // Primary reason (highest contributing factor)
+  // Note: All values are estimates in Phase 1 (no location tracking yet)
   if (cell.avg_nph && cell.avg_nph > 40000) {
-    reasons.push(`Net tinggi (Rp${(cell.avg_nph / 1000).toFixed(0)}k/jam)`);
+    reasons.push(`Est. net tinggi (~Rp${(cell.avg_nph / 1000).toFixed(0)}k/jam)`);
   }
 
-  if (cell.avg_wait_min && cell.avg_wait_min < 10) {
-    reasons.push(`wait <${cell.avg_wait_min}min`);
+  // Don't claim specific wait time in minutes unless actually computed
+  // In Phase 1, we only have order count, not actual wait times
+  if (cell.order_count && cell.order_count > 3) {
+    reasons.push(`${cell.order_count} orderan (basis data)`);
   }
 
   if (cell.distance_km && cell.distance_km < 1.5) {
@@ -228,7 +283,7 @@ export function generateReason(cell) {
 
   // Default if no specific reasons
   if (reasons.length === 0) {
-    reasons.push('Spot potensial');
+    reasons.push('Spot potensial (estimasi)');
   }
 
   // Max 3 reasons
@@ -239,23 +294,26 @@ export function generateReason(cell) {
  * Generate top N recommendations
  * @param {array} cells - Array of cell data
  * @param {object} context - Context object
- * @param {object} options - Options {limit, includeExploration}
+ * @param {object} options - Options {limit, includeExploration, debugMode}
  * @returns {array} Ranked recommendations
  */
 export function generateRecommendations(cells, context, options = {}) {
-  const { limit = 5, includeExploration = false } = options;
+  const { limit = 5, includeExploration = false, debugMode = false } = options;
 
   // 1. Filter to relevant cells
   let relevantCellList = relevantCells(cells, context);
 
-  // 2. Score each cell
+  // Add allCells to context for robust normalization
+  const contextWithCells = { ...context, allCells: relevantCellList };
+
+  // 2. Score each cell with breakdown
   relevantCellList = relevantCellList.map(cell => {
     const targetPos = {
       lat: cell.lat || cell.latitude,
       lon: cell.lon || cell.longitude,
     };
     
-    const score = computeScore(cell, context);
+    const scoreResult = computeScore(cell, contextWithCells);
     const distance_km = haversineDistance(
       context.userPos.lat,
       context.userPos.lon,
@@ -266,7 +324,8 @@ export function generateRecommendations(cells, context, options = {}) {
 
     return {
       ...cell,
-      score,
+      score: scoreResult.score,
+      breakdown: scoreResult.breakdown,
       distance_km,
       deadhead_cost,
       reason: '', // Will be generated later
@@ -296,6 +355,11 @@ export function generateRecommendations(cells, context, options = {}) {
   topCells.forEach((cell, idx) => {
     cell.rank = idx + 1;
     cell.reason = generateReason(cell);
+    
+    // In debug mode, keep breakdown; otherwise remove it
+    if (!debugMode) {
+      delete cell.breakdown;
+    }
   });
 
   return topCells;
@@ -328,7 +392,40 @@ export function needsFallback(recommendations, totalOrders) {
 }
 
 /**
- * Get time bucket (hour of day) from date
+ * Get time period (practical buckets instead of hourly)
+ * @param {Date} date - Date object
+ * @returns {string} Time period key ('pagi', 'siang', 'sore', 'malam', 'tengah_malam')
+ */
+export function getTimePeriod(date = new Date()) {
+  const hour = date.getHours();
+  
+  for (const [key, period] of Object.entries(CONFIG.TIME_PERIODS)) {
+    // Handle wrap-around for tengah_malam (23:00-05:00)
+    if (period.start > period.end) {
+      if (hour >= period.start || hour < period.end) {
+        return key;
+      }
+    } else {
+      if (hour >= period.start && hour < period.end) {
+        return key;
+      }
+    }
+  }
+  
+  return 'siang'; // Default fallback
+}
+
+/**
+ * Get time period label
+ * @param {string} periodKey - Time period key
+ * @returns {string} Human-readable label
+ */
+export function getTimePeriodLabel(periodKey) {
+  return CONFIG.TIME_PERIODS[periodKey]?.label || periodKey;
+}
+
+/**
+ * Get time bucket (hour of day) - DEPRECATED, use getTimePeriod instead
  * @param {Date} date - Date object
  * @returns {number} Hour (0-23)
  */
@@ -354,7 +451,7 @@ export function getDayType(date = new Date()) {
 export function createContext({
   userLat,
   userLon,
-  hour,
+  timePeriod,
   dayType,
   fuelCostPerKm = 2000,
   fuelBudget = 50000,
@@ -368,7 +465,7 @@ export function createContext({
       lat: userLat,
       lon: userLon,
     },
-    hour: hour !== undefined ? hour : getHourBucket(now),
+    timePeriod: timePeriod || getTimePeriod(now),
     dayType: dayType || getDayType(now),
     fuelCostPerKm,
     fuelBudget,
@@ -379,6 +476,7 @@ export function createContext({
 
 export default {
   normalize,
+  normalizeRobust,
   encodeLocation,
   decodeLocation,
   getNeighbors,
@@ -389,6 +487,8 @@ export default {
   generateRecommendations,
   needsFallback,
   getHourBucket,
+  getTimePeriod,
+  getTimePeriodLabel,
   getDayType,
   createContext,
   CONFIG,

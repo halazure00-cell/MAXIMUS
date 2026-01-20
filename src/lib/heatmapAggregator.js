@@ -4,21 +4,23 @@
  * This module aggregates order data into heatmap cells for analysis.
  * Implements the aggregation strategy from HEATMAP_DESIGN.md.
  * 
- * Phase 1 (MVP): Simple aggregation from orders without location tracking
- * Phase 2+: Full H3 grid with location events
+ * Phase 1 (MVP): Simple aggregation from orders WITHOUT location tracking
+ * Uses strategic_spots as fallback mapping (time-based + manual spot tagging)
+ * Phase 2+: Full H3 grid with actual pickup coordinates
  */
 
-import { encodeLocation, getHourBucket, getDayType } from './heatmapEngine';
+import { getTimePeriod, getDayType, getTimePeriodLabel } from './heatmapEngine';
 import { parseISO, differenceInDays, subDays } from 'date-fns';
 
 // Configuration constants
 const CONFIG = {
-  DEFAULT_ORDER_DURATION_HOURS: 0.5, // Assume 30 minutes per order (Phase 1 proxy)
+  DEFAULT_ORDER_DURATION_HOURS: 0.5, // Assume 30 minutes per order (Phase 1 proxy - LABELED AS ESTIMATE)
 };
 
 /**
- * Aggregate orders into cells by hour/day for a specific spot
- * Phase 1: Uses strategic_spots mapping
+ * Aggregate orders into cells by time period/day for strategic spots
+ * Phase 1: Uses strategic_spots mapping (NO pickup coordinates available)
+ * This is a realistic fallback until Phase 2 adds location tracking
  * @param {array} orders - Array of order objects
  * @param {array} strategicSpots - Array of strategic spot objects
  * @param {object} options - Options {windowDays, decayDays}
@@ -35,37 +37,40 @@ export function aggregateOrdersToSpots(orders, strategicSpots, options = {}) {
     return orderDate >= cutoffDate;
   });
 
-  // Group by spot + hour + day_type
+  // Group by spot + time_period + day_type
   const groups = {};
 
   strategicSpots.forEach(spot => {
     const spotOrders = recentOrders.filter(order => {
-      // For Phase 1, we don't have exact pickup locations
-      // Use time-based matching with strategic spots
+      // Phase 1 limitation: NO pickup coordinates in orders table
+      // Fallback: Use time-based matching with strategic spots
+      // This is less accurate but realistic given data constraints
       const orderDate = parseISO(order.created_at);
-      const orderHour = getHourBucket(orderDate);
+      const orderPeriod = getTimePeriod(orderDate);
       const orderDayType = getDayType(orderDate);
 
-      // Check if order falls within spot's time window
-      const hourInRange = orderHour >= spot.start_hour && orderHour < spot.end_hour;
+      // Map spot's hourly range to time periods
+      const spotPeriods = getPeriodsForSpot(spot);
+      const periodMatch = spotPeriods.includes(orderPeriod);
       const dayMatch = spot.is_weekend_only ? orderDayType === 'weekend' : true;
 
-      return hourInRange && dayMatch;
+      return periodMatch && dayMatch;
     });
 
-    // Create cells for each hour in the spot's range
-    for (let hour = spot.start_hour; hour < spot.end_hour; hour++) {
+    // Create cells for each time period the spot covers
+    const spotPeriods = getPeriodsForSpot(spot);
+    spotPeriods.forEach(timePeriod => {
       const dayTypes = spot.is_weekend_only ? ['weekend'] : ['weekday', 'weekend'];
 
       dayTypes.forEach(dayType => {
-        const key = `${spot.id}_${hour}_${dayType}`;
+        const key = `${spot.id}_${timePeriod}_${dayType}`;
         
-        // Filter orders for this specific hour/day combination
+        // Filter orders for this specific period/day combination
         const cellOrders = spotOrders.filter(order => {
           const orderDate = parseISO(order.created_at);
-          const orderHour = getHourBucket(orderDate);
+          const orderPeriod = getTimePeriod(orderDate);
           const orderDayType = getDayType(orderDate);
-          return orderHour === hour && orderDayType === dayType;
+          return orderPeriod === timePeriod && orderDayType === dayType;
         });
 
         if (cellOrders.length > 0) {
@@ -75,13 +80,14 @@ export function aggregateOrdersToSpots(orders, strategicSpots, options = {}) {
             category: spot.category,
             lat: spot.latitude,
             lon: spot.longitude,
-            hour_bucket: hour,
+            time_period: timePeriod,
+            time_period_label: getTimePeriodLabel(timePeriod),
             day_type: dayType,
             orders: cellOrders,
           };
         }
       });
-    }
+    });
   });
 
   // Compute metrics for each group
@@ -93,7 +99,39 @@ export function aggregateOrdersToSpots(orders, strategicSpots, options = {}) {
 }
 
 /**
+ * Get time periods that a spot covers based on its start/end hours
+ * Helper function for Phase 1 time-based mapping
+ */
+function getPeriodsForSpot(spot) {
+  const periods = ['pagi', 'siang', 'sore', 'malam', 'tengah_malam'];
+  const periodRanges = {
+    'pagi': { start: 5, end: 11 },
+    'siang': { start: 11, end: 15 },
+    'sore': { start: 15, end: 19 },
+    'malam': { start: 19, end: 23 },
+    'tengah_malam': { start: 23, end: 5 },
+  };
+  
+  const matchedPeriods = [];
+  const spotStart = spot.start_hour;
+  const spotEnd = spot.end_hour;
+  
+  periods.forEach(period => {
+    const range = periodRanges[period];
+    // Check if spot's hours overlap with this period
+    const overlaps = (spotStart < range.end && spotEnd > range.start) ||
+                     (range.start > range.end && (spotStart >= range.start || spotEnd <= range.end));
+    if (overlaps) {
+      matchedPeriods.push(period);
+    }
+  });
+  
+  return matchedPeriods.length > 0 ? matchedPeriods : ['siang']; // Default to siang
+}
+
+/**
  * Compute aggregated metrics for a cell
+ * Phase 1: All duration/wait metrics are ESTIMATES (labeled as such)
  * @param {object} group - Grouped order data
  * @param {object} options - Options {decayDays}
  * @returns {object} Cell metrics
@@ -118,17 +156,17 @@ function computeCellMetrics(group, options = {}) {
     0
   );
 
-  // Estimate duration (proxy: assume 30 min per order)
+  // Estimate duration (LABELED AS ESTIMATE - no location tracking in Phase 1)
   // This is a crude approximation for Phase 1
   // Phase 2+ will use actual location tracking
   const estimatedDurationHours = orders.length * CONFIG.DEFAULT_ORDER_DURATION_HOURS;
 
-  // Net Per Hour
+  // Net Per Hour (ESTIMATE)
   const avg_nph = estimatedDurationHours > 0
     ? totalNetWeighted / totalWeight / estimatedDurationHours
     : 0;
 
-  // Conversion Rate (orders per hour)
+  // Conversion Rate (orders per hour) - ESTIMATE
   const conversion_rate = estimatedDurationHours > 0
     ? orders.length / estimatedDurationHours
     : 0;
@@ -146,8 +184,8 @@ function computeCellMetrics(group, options = {}) {
   // Confidence (based on sample size)
   const confidence = Math.min(1, orders.length / 10);
 
-  // Average wait time (proxy)
-  const avg_wait_min = conversion_rate > 0 ? 60 / conversion_rate : 60;
+  // DO NOT compute avg_wait_min - we don't have actual wait time data in Phase 1
+  // Removed misleading metric
 
   return {
     spot_id: group.spot_id,
@@ -155,15 +193,17 @@ function computeCellMetrics(group, options = {}) {
     category: group.category,
     lat: group.lat,
     lon: group.lon,
-    hour_bucket: group.hour_bucket,
+    time_period: group.time_period,
+    time_period_label: group.time_period_label,
     day_type: group.day_type,
     order_count: orders.length,
-    avg_nph: Math.round(avg_nph),
-    conversion_rate: Math.round(conversion_rate * 100) / 100,
+    avg_nph: Math.round(avg_nph), // Labeled as estimate in UI
+    conversion_rate: Math.round(conversion_rate * 100) / 100, // Labeled as estimate in UI
     volatility: Math.round(volatility * 100) / 100,
     confidence: Math.round(confidence * 100) / 100,
-    avg_wait_min: Math.round(avg_wait_min),
+    // avg_wait_min removed - not computed in Phase 1
     last_aggregated_at: new Date().toISOString(),
+    is_estimate: true, // Flag to indicate all metrics are estimates
   };
 }
 

@@ -490,22 +490,22 @@ export async function cacheHeatmapCells(cells, ttlHours = 1) {
   
   for (const cell of cells) {
     const cachedCell = {
-      id: `cell_${cell.cell_id || cell.spot_id}_${cell.hour_bucket}_${cell.day_type}`,
+      id: `cell_${cell.cell_id || cell.spot_id}_${cell.time_period || cell.hour_bucket || 'siang'}_${cell.day_type}`,
       cell_id: cell.cell_id || cell.spot_id,
-      hour_bucket: cell.hour_bucket,
+      time_period: cell.time_period || 'siang',
       day_type: cell.day_type,
       score: cell.score || 0,
       avg_nph: cell.avg_nph || 0,
       confidence: cell.confidence || 0,
       metadata: {
         order_count: cell.order_count || 0,
-        avg_wait_min: cell.avg_wait_min || 0,
         conversion_rate: cell.conversion_rate || 0,
         volatility: cell.volatility || 0,
         lat: cell.lat || cell.latitude,
         lon: cell.lon || cell.longitude,
         spot_name: cell.spot_name || cell.name,
         category: cell.category,
+        is_estimate: cell.is_estimate || false,
       },
       fetched_at: now,
       expires_at: expiresAt,
@@ -519,7 +519,7 @@ export async function cacheHeatmapCells(cells, ttlHours = 1) {
 
 /**
  * Get cached heatmap cells
- * @param {object} filter - Filter {hour_bucket, day_type}
+ * @param {object} filter - Filter {time_period, day_type}
  * @returns {array} Array of cached cells (only non-expired)
  */
 export async function getCachedHeatmapCells(filter = {}) {
@@ -531,11 +531,8 @@ export async function getCachedHeatmapCells(filter = {}) {
   cells = cells.filter(cell => cell.expires_at > now);
   
   // Apply filters
-  if (filter.hour_bucket !== undefined) {
-    cells = cells.filter(cell => {
-      // Match hour ±1
-      return Math.abs(cell.hour_bucket - filter.hour_bucket) <= 1;
-    });
+  if (filter.time_period !== undefined) {
+    cells = cells.filter(cell => cell.time_period === filter.time_period);
   }
   
   if (filter.day_type) {
