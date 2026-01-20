@@ -26,22 +26,97 @@ const logger = createLogger('syncEngine');
 // Maximum retry count before giving up
 const MAX_RETRIES = 3;
 
+// Conflict resolution messages
+const CONFLICT_MESSAGES = {
+  TOMBSTONE_PRESERVED: 'Data dihapus di perangkat Anda; penghapusan dipertahankan (tidak dikembalikan).',
+  SERVER_WINS: 'Perubahan Anda bentrok dengan update dari device lain. Data dari server diterapkan (server-wins).',
+};
+
+// Helper: Apply soft delete for a table
+const softDeleteByTable = {
+  orders: softDeleteCachedOrder,
+  expenses: softDeleteCachedExpense,
+};
+
+// Helper: Put cached record for a table
+const putCachedByTable = {
+  orders: putCachedOrder,
+  expenses: putCachedExpense,
+};
+
+// Helper: Get cached record for a table
+const getCachedByTable = {
+  orders: getCachedOrder,
+  expenses: getCachedExpense,
+};
+
 /**
- * Check if an error is a schema-related error that shouldn't be retried
- * @param {Error} error - The error to check
- * @returns {boolean} True if the error is a non-retryable schema error
+ * Compare timestamps between server and local records
+ * @returns {number} - Positive if server is newer, negative if local is newer, 0 if equal
  */
-function isSchemaError(error) {
+function compareTimestamps(serverRecord, localRecord, field = 'updated_at') {
+  const serverTimestamp = serverRecord[field] || serverRecord.updated_at || new Date(0).toISOString();
+  const localTimestamp = localRecord[field] || localRecord.updated_at || new Date(0).toISOString();
+  
+  const serverTime = new Date(serverTimestamp).getTime();
+  const localTime = new Date(localTimestamp).getTime();
+  
+  return serverTime - localTime;
+}
+
+/**
+ * Check if an error is a permanent error that shouldn't be retried
+ * Includes schema errors (missing columns/tables) and RLS/permission errors
+ * @param {Error} error - The error to check
+ * @returns {Object} { isPermanent: boolean, errorType: string, message: string }
+ */
+function checkPermanentError(error) {
   const errorMsg = error?.message?.toLowerCase() || '';
   const errorCode = error?.code || '';
   
   // PostgreSQL error codes and messages for missing columns/tables
-  return (
+  if (
     (errorMsg.includes('column') && errorMsg.includes('does not exist')) ||
     (errorMsg.includes('relation') && errorMsg.includes('does not exist')) ||
     errorCode === '42703' || // undefined_column
     errorCode === '42P01'    // undefined_table
-  );
+  ) {
+    return {
+      isPermanent: true,
+      errorType: 'schema',
+      message: 'Database schema error. Migration 0004_offline_first required. Contact administrator.',
+    };
+  }
+  
+  // RLS/Permission denied errors (PostgreSQL error codes and Supabase messages)
+  if (
+    errorCode === '42501' || // insufficient_privilege
+    errorCode === 'PGRST301' || // Supabase RLS violation
+    errorMsg.includes('permission denied') ||
+    errorMsg.includes('policy') ||
+    errorMsg.includes('row-level security') ||
+    errorMsg.includes('rls') ||
+    errorMsg.includes('insufficient privilege')
+  ) {
+    return {
+      isPermanent: true,
+      errorType: 'permission',
+      message: 'Permission denied. Row-level security policy issue. Contact administrator.',
+    };
+  }
+  
+  return { isPermanent: false, errorType: null, message: null };
+}
+
+/**
+ * Check if an error is a schema-related error that shouldn't be retried
+ * @deprecated Use checkPermanentError instead
+ * @param {Error} error - The error to check
+ * @returns {boolean} True if the error is a non-retryable schema error
+ */
+function isSchemaError(error) {
+  const result = checkPermanentError(error);
+  return result.isPermanent && result.errorType === 'schema';
 }
 
 // Sync state listeners
@@ -71,16 +146,79 @@ function notifyListeners(state) {
 // ==================== PUSH (LOCAL → SUPABASE) ====================
 
 /**
+ * Optimize oplog by coalescing create-delete pairs
+ * If a record was created and then deleted before ever being synced,
+ * we can skip both operations and just mark the local tombstone.
+ * @param {Array} ops - All pending operations
+ * @returns {Array} Optimized operations with create-delete pairs removed
+ */
+function coalesceOplog(ops) {
+  const createOps = new Map(); // client_tx_id -> op_id
+  const skippedOps = new Set(); // op_ids to skip (both creates and deletes)
+  
+  // First pass: identify creates/upserts for each client_tx_id
+  for (const op of ops) {
+    if (op.op === 'upsert' && op.client_tx_id) {
+      if (!createOps.has(op.client_tx_id)) {
+        createOps.set(op.client_tx_id, op.op_id);
+      }
+    }
+  }
+  
+  // Second pass: identify delete operations that follow a create for the same client_tx_id
+  for (const op of ops) {
+    if (op.op === 'delete' && op.client_tx_id) {
+      const createOpId = createOps.get(op.client_tx_id);
+      if (createOpId !== undefined) {
+        // Found a create-delete pair - skip both
+        skippedOps.add(createOpId);
+        skippedOps.add(op.op_id);
+        logger.info('Coalescing create-delete pair', { 
+          clientTxId: op.client_tx_id,
+          createOpId,
+          deleteOpId: op.op_id,
+        });
+      }
+    }
+  }
+  
+  // Filter out coalesced operations (O(1) Set lookup instead of O(n) array includes)
+  return ops.filter(op => !skippedOps.has(op.op_id));
+}
+
+/**
  * Push pending operations to Supabase
  * @param {string} userId - User ID for validation
  * @returns {Promise<Object>} Sync result
  */
 export async function pushToSupabase(userId) {
-  const ops = await getPendingOps();
+  let ops = await getPendingOps();
   
   if (ops.length === 0) {
     return { success: true, processed: 0, failed: 0 };
   }
+  
+  // Coalesce create-delete pairs (optimization to avoid pushing never-synced records)
+  const coalescedOps = coalesceOplog(ops);
+  const skippedCount = ops.length - coalescedOps.length;
+  
+  if (skippedCount > 0) {
+    logger.info('Coalesced operations', { 
+      original: ops.length, 
+      optimized: coalescedOps.length,
+      skipped: skippedCount,
+    });
+    
+    // Remove coalesced operations from oplog using Set of op_ids for O(1) lookup
+    const coalescedOpIds = new Set(coalescedOps.map(op => op.op_id));
+    for (const op of ops) {
+      if (!coalescedOpIds.has(op.op_id)) {
+        await removeFromOplog(op.op_id);
+      }
+    }
+  }
+  
+  ops = coalescedOps;
   
   let processed = 0;
   let failed = 0;
@@ -114,25 +252,35 @@ export async function pushToSupabase(userId) {
         break; // Stop processing
       }
       
-      // Check if it's a schema error (non-retryable, permanent issue)
-      if (isSchemaError(error)) {
-        const schemaError = 'Database schema error. Migration 0004_offline_first required. Contact administrator.';
-        logger.error('Schema error detected - non-retryable', { op, error: error.message });
+      // Check if it's a permanent error (schema or RLS/permission)
+      const permErrorCheck = checkPermanentError(error);
+      if (permErrorCheck.isPermanent) {
+        logger.error('Permanent error detected - non-retryable', { 
+          op, 
+          errorType: permErrorCheck.errorType,
+          error: error.message 
+        });
         
         // Immediately move to failed_ops without retrying
         await moveToFailedOps(op);
         await removeFromOplog(op.op_id);
         
-        // Notify about schema error
+        // Notify about permanent error
         notifyListeners({
           type: 'operation_failed',
           table: op.table,
           clientTxId: op.client_tx_id,
-          error: schemaError,
-          schemaError: true,
+          error: permErrorCheck.message,
+          errorType: permErrorCheck.errorType,
+          permanent: true,
         });
         
-        errors.push({ op, error: schemaError, schemaError: true });
+        errors.push({ 
+          op, 
+          error: permErrorCheck.message, 
+          errorType: permErrorCheck.errorType,
+          permanent: true,
+        });
         failed++;
         continue; // Continue processing other ops
       }
@@ -209,7 +357,36 @@ async function pushUpsert(op) {
 async function pushDelete(op) {
   const { table, payload, client_tx_id } = op;
   
-  // Soft delete: update deleted_at
+  // First, check if the row exists on the server
+  // This handles the edge case where a record was created and deleted offline
+  // before ever being synced (though coalesceOplog should catch this)
+  const { data: existing, error: checkError } = await supabase
+    .from(table)
+    .select('id')
+    .eq('user_id', payload.user_id)
+    .eq('client_tx_id', client_tx_id)
+    .maybeSingle();
+  
+  if (checkError) throw checkError;
+  
+  if (!existing) {
+    // Row doesn't exist on server - this is okay, it was never created on server
+    // Just ensure local cache is marked as deleted (tombstone)
+    logger.info('Delete op for non-existent server row - marking local tombstone only', {
+      table,
+      clientTxId: client_tx_id,
+    });
+    
+    // Ensure local cache is marked as deleted (use helper)
+    const softDeleteFn = softDeleteByTable[table];
+    if (softDeleteFn) {
+      await softDeleteFn(client_tx_id);
+    }
+    
+    return; // Success - nothing to delete on server
+  }
+  
+  // Row exists on server - perform soft delete
   const { error } = await supabase
     .from(table)
     .update({
@@ -221,11 +398,10 @@ async function pushDelete(op) {
   
   if (error) throw error;
   
-  // Ensure local cache is also marked as deleted
-  if (table === 'orders') {
-    await softDeleteCachedOrder(client_tx_id);
-  } else if (table === 'expenses') {
-    await softDeleteCachedExpense(client_tx_id);
+  // Ensure local cache is also marked as deleted (use helper)
+  const softDeleteFn = softDeleteByTable[table];
+  if (softDeleteFn) {
+    await softDeleteFn(client_tx_id);
   }
 }
 
@@ -321,77 +497,106 @@ export async function pullFromSupabase(userId) {
 }
 
 /**
- * Apply order from Supabase to local cache
+ * Generic function to apply record from Supabase to local cache
+ * Handles tombstone preservation and conflict resolution
+ * @param {Object} serverRecord - Record from server
+ * @param {string} table - Table name ('orders' or 'expenses')
  */
-async function applyOrderToCache(order) {
-  const existing = await getCachedOrder(order.client_tx_id);
+async function applyRecordToCache(serverRecord, table) {
+  const getCachedFn = getCachedByTable[table];
+  const softDeleteFn = softDeleteByTable[table];
+  const putCachedFn = putCachedByTable[table];
   
-  // Conflict detection: server updated_at > local updated_at
-  if (existing && existing.updated_at) {
-    const serverTime = new Date(order.updated_at).getTime();
-    const localTime = new Date(existing.updated_at).getTime();
-    
-    if (localTime > serverTime) {
-      // Local is newer - potential conflict
-      // Strategy: Server-wins (server data overwrites local)
-      logger.warn('Conflict detected for order - server wins', { 
-        clientTxId: order.client_tx_id,
-        localTime: new Date(localTime).toISOString(),
-        serverTime: new Date(serverTime).toISOString(),
+  if (!getCachedFn || !softDeleteFn || !putCachedFn) {
+    throw new Error(`Unsupported table '${table}'. Missing required cache functions. Supported tables: ${Object.keys(getCachedByTable).join(', ')}`);
+  }
+  
+  const existing = await getCachedFn(serverRecord.client_tx_id);
+  
+  // CRITICAL: Prevent resurrection of locally deleted records
+  // If local tombstone exists (deleted_at not null), never overwrite with non-deleted server row
+  if (existing && existing.deleted_at) {
+    // Local is deleted
+    if (!serverRecord.deleted_at) {
+      // Server has non-deleted version - local deletion wins (tombstone preservation)
+      logger.warn('Preventing resurrection - local tombstone wins over server non-deleted', { 
+        table,
+        clientTxId: serverRecord.client_tx_id,
+        localDeletedAt: existing.deleted_at,
+        serverDeletedAt: serverRecord.deleted_at,
       });
       notifyListeners({
         type: 'conflict',
-        table: 'orders',
-        clientTxId: order.client_tx_id,
+        table,
+        clientTxId: serverRecord.client_tx_id,
+        resolution: 'tombstone-preserved',
+        localData: existing,
+        serverData: serverRecord,
+        message: CONFLICT_MESSAGES.TOMBSTONE_PRESERVED,
+      });
+      // Keep local tombstone, do not resurrect
+      return;
+    } else {
+      // Both deleted - keep the one with later deleted_at/updated_at
+      const timeDiff = compareTimestamps(serverRecord, existing, 'deleted_at');
+      if (timeDiff <= 0) {
+        // Local tombstone is newer or same age, keep it
+        logger.info('Both deleted - local tombstone is newer or equal, keeping it', { 
+          table,
+          clientTxId: serverRecord.client_tx_id,
+        });
+        return;
+      }
+      // Apply server tombstone (it's newer)
+      await softDeleteFn(serverRecord.client_tx_id);
+      return;
+    }
+  }
+  
+  // Conflict detection: compare updated_at timestamps
+  if (existing && existing.updated_at) {
+    const timeDiff = compareTimestamps(serverRecord, existing);
+    
+    if (timeDiff < 0) {
+      // Local is newer - potential conflict, server-wins strategy
+      logger.warn('Conflict detected - server wins', { 
+        table,
+        clientTxId: serverRecord.client_tx_id,
+        localTime: existing.updated_at,
+        serverTime: serverRecord.updated_at,
+      });
+      notifyListeners({
+        type: 'conflict',
+        table,
+        clientTxId: serverRecord.client_tx_id,
         resolution: 'server-wins',
         localData: existing,
-        serverData: order,
+        serverData: serverRecord,
+        message: CONFLICT_MESSAGES.SERVER_WINS,
       });
     }
   }
   
   // Apply server version to cache
-  if (order.deleted_at) {
-    await softDeleteCachedOrder(order.client_tx_id);
+  if (serverRecord.deleted_at) {
+    await softDeleteFn(serverRecord.client_tx_id);
   } else {
-    await putCachedOrder(order);
+    await putCachedFn(serverRecord);
   }
+}
+
+/**
+ * Apply order from Supabase to local cache
+ */
+async function applyOrderToCache(order) {
+  return applyRecordToCache(order, 'orders');
 }
 
 /**
  * Apply expense from Supabase to local cache
  */
 async function applyExpenseToCache(expense) {
-  const existing = await getCachedExpense(expense.client_tx_id);
-  
-  // Conflict detection
-  if (existing && existing.updated_at) {
-    const serverTime = new Date(expense.updated_at).getTime();
-    const localTime = new Date(existing.updated_at).getTime();
-    
-    if (localTime > serverTime) {
-      logger.warn('Conflict detected for expense - server wins', { 
-        clientTxId: expense.client_tx_id,
-        localTime: new Date(localTime).toISOString(),
-        serverTime: new Date(serverTime).toISOString(),
-      });
-      notifyListeners({
-        type: 'conflict',
-        table: 'expenses',
-        clientTxId: expense.client_tx_id,
-        resolution: 'server-wins',
-        localData: existing,
-        serverData: expense,
-      });
-    }
-  }
-  
-  // Apply server version to cache
-  if (expense.deleted_at) {
-    await softDeleteCachedExpense(expense.client_tx_id);
-  } else {
-    await putCachedExpense(expense);
-  }
+  return applyRecordToCache(expense, 'expenses');
 }
 
 // ==================== FULL SYNC ====================
