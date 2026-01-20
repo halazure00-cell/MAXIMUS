@@ -204,10 +204,9 @@ export function relevantCells(cells, context) {
 /**
  * Generate explanation text for recommendation
  * @param {object} cell - Cell data
- * @param {object} context - Context object
  * @returns {string} Human-readable explanation
  */
-export function generateReason(cell, context) {
+export function generateReason(cell) {
   const reasons = [];
 
   // Primary reason (highest contributing factor)
@@ -296,7 +295,7 @@ export function generateRecommendations(cells, context, options = {}) {
   // 7. Generate explanations and ranks
   topCells.forEach((cell, idx) => {
     cell.rank = idx + 1;
-    cell.reason = generateReason(cell, context);
+    cell.reason = generateReason(cell);
   });
 
   return topCells;
