@@ -18,7 +18,8 @@ export function formatRupiah(value) {
  */
 export function safeRatio(numerator, denominator) {
     if (typeof numerator !== 'number' || typeof denominator !== 'number') return 0;
-    if (denominator === 0 || !Number.isFinite(denominator)) return 0;
+    if (!Number.isFinite(numerator) || !Number.isFinite(denominator)) return 0;
+    if (denominator === 0) return 0;
     const ratio = numerator / denominator;
     return Number.isFinite(ratio) ? ratio : 0;
 }
@@ -64,6 +65,7 @@ function getGrossPrice(order, defaultCommission) {
 function getNetProfit(order, defaultCommission) {
     if (!order) return 0;
     const storedNet = parseNumber(order.net_profit);
+    // Use stored net profit if available (including negative values)
     if (storedNet !== 0) return storedNet;
     const fallbackPrice = parseNumber(order.price);
     if (Number.isFinite(fallbackPrice) && fallbackPrice > 0) return fallbackPrice;

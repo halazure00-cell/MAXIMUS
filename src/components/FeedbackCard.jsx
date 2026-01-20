@@ -14,26 +14,21 @@ export default function FeedbackCard({ orders = [], expenses = [], settings = {}
     const [scope, setScope] = useState('daily'); // 'daily' | 'monthly'
     const [isExpanded, setIsExpanded] = useState(false);
 
-    // Compute metrics (memoized for performance)
-    const dailyMetrics = useMemo(() => 
-        buildDailyMetrics(orders, expenses, settings),
-        [orders, expenses, settings]
-    );
+    // Compute metrics based on current scope (memoized for performance)
+    const currentMetrics = useMemo(() => {
+        if (scope === 'daily') {
+            return buildDailyMetrics(orders, expenses, settings);
+        }
+        return buildMonthlyMetrics(orders, expenses, settings);
+    }, [scope, orders, expenses, settings]);
 
-    const monthlyMetrics = useMemo(() => 
-        buildMonthlyMetrics(orders, expenses, settings),
-        [orders, expenses, settings]
-    );
-
-    // Generate feedback based on scope
+    // Generate feedback based on current metrics
     const feedback = useMemo(() => {
         if (scope === 'daily') {
-            return generateDailyFeedback(dailyMetrics);
+            return generateDailyFeedback(currentMetrics);
         }
-        return generateMonthlyFeedback(monthlyMetrics);
-    }, [scope, dailyMetrics, monthlyMetrics]);
-
-    const currentMetrics = scope === 'daily' ? dailyMetrics : monthlyMetrics;
+        return generateMonthlyFeedback(currentMetrics);
+    }, [scope, currentMetrics]);
 
     // Status color mapping
     const colorClass = {
@@ -185,7 +180,7 @@ function DetailRow({ label, value, sublabel, positive, bold }) {
                 )}
             </div>
             <p className={`text-xs ${bold ? 'font-bold' : 'font-medium'} ${valueColor}`}>
-                Rp {formatRupiah(Math.abs(value))}
+                {value < 0 ? '-' : ''}Rp {formatRupiah(Math.abs(value))}
             </p>
         </div>
     );
