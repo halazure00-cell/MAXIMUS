@@ -9,7 +9,7 @@
  * Phase 2+: Full H3 grid with actual pickup coordinates
  */
 
-import { getTimePeriod, getDayType, getTimePeriodLabel } from './heatmapEngine';
+import { getTimePeriod, getDayType, getTimePeriodLabel, getHourBucket, encodeLocation } from './heatmapEngine';
 import { parseISO, differenceInDays, subDays } from 'date-fns';
 
 // Configuration constants
@@ -226,20 +226,20 @@ export function aggregateOrdersToCells(orders, options = {}) {
     return orderDate >= cutoffDate && hasCoords;
   });
 
-  // Group by H3 cell + hour + day_type
+  // Group by H3 cell + time_period + day_type
   const groups = {};
 
   recentOrders.forEach(order => {
     const orderDate = parseISO(order.created_at);
-    const hour = getHourBucket(orderDate);
+    const timePeriod = getTimePeriod(orderDate); // Use 5 time periods, not hourly
     const dayType = getDayType(orderDate);
     const cellId = encodeLocation(order.pickup_lat, order.pickup_lon);
-    const key = `${cellId}_${hour}_${dayType}`;
+    const key = `${cellId}_${timePeriod}_${dayType}`;
 
     if (!groups[key]) {
       groups[key] = {
         cell_id: cellId,
-        hour_bucket: hour,
+        time_period: timePeriod, // Changed from hour_bucket to time_period
         day_type: dayType,
         orders: [],
       };
