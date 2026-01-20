@@ -3,10 +3,6 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { isSupabaseConfigured, supabaseConfigError } from './lib/supabaseClient';
 import Auth from './components/Auth';
-import ProfitEngine from './components/ProfitEngine';
-import Riwayat from './pages/Riwayat';
-import ProfileSettings from './components/ProfileSettings';
-import HeatmapDebugView from './components/HeatmapDebugView';
 import BottomNavigation from './components/BottomNavigation';
 import PageTransition from './components/PageTransition';
 import ToastContainer from './components/ToastContainer';
@@ -15,8 +11,12 @@ import { ToastProvider, useToast } from './context/ToastContext';
 import { useSettings } from './context/SettingsContext';
 import { SyncProvider } from './context/SyncContext';
 
-// Lazy load heavy component with Leaflet
+// Lazy load heavy routes for better code splitting
+const ProfitEngine = lazy(() => import('./components/ProfitEngine'));
 const Insight = lazy(() => import('./components/Insight'));
+const Riwayat = lazy(() => import('./pages/Riwayat'));
+const ProfileSettings = lazy(() => import('./components/ProfileSettings'));
+const HeatmapDebugView = lazy(() => import('./components/HeatmapDebugView'));
 
 // Loading fallback for lazy components
 function LazyLoadingFallback() {
@@ -40,7 +40,7 @@ function AnimatedRoutes({ showToast }) {
         setShowDebug(params.get('debug') === 'heatmap');
     }, [location.search]);
 
-    // Show debug view if ?debug=heatmap
+    // Show debug view if ?debug=heatmap (lazy-loaded to avoid bundling in main chunk)
     if (showDebug) {
         return (
             <div className="min-h-screen bg-ui-background">
@@ -49,7 +49,9 @@ function AnimatedRoutes({ showToast }) {
                         <div className="text-sm font-bold text-ui-danger">⚠️ DEBUG MODE ACTIVE</div>
                         <div className="text-xs text-ui-muted">Remove ?debug=heatmap from URL to return to normal view</div>
                     </div>
-                    <HeatmapDebugView />
+                    <Suspense fallback={<LazyLoadingFallback />}>
+                        <HeatmapDebugView />
+                    </Suspense>
                 </div>
             </div>
         );
@@ -62,7 +64,9 @@ function AnimatedRoutes({ showToast }) {
                     path="/"
                     element={
                         <PageTransition>
-                            <ProfitEngine showToast={showToast} />
+                            <Suspense fallback={<LazyLoadingFallback />}>
+                                <ProfitEngine showToast={showToast} />
+                            </Suspense>
                         </PageTransition>
                     }
                 />
@@ -80,7 +84,9 @@ function AnimatedRoutes({ showToast }) {
                     path="/history"
                     element={
                         <PageTransition>
-                            <Riwayat showToast={showToast} />
+                            <Suspense fallback={<LazyLoadingFallback />}>
+                                <Riwayat showToast={showToast} />
+                            </Suspense>
                         </PageTransition>
                     }
                 />
@@ -88,7 +94,9 @@ function AnimatedRoutes({ showToast }) {
                     path="/profile"
                     element={
                         <PageTransition>
-                            <ProfileSettings showToast={showToast} />
+                            <Suspense fallback={<LazyLoadingFallback />}>
+                                <ProfileSettings showToast={showToast} />
+                            </Suspense>
                         </PageTransition>
                     }
                 />

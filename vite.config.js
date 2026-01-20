@@ -82,4 +82,28 @@ export default defineConfig({
       }
     })
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // React core libraries
+          'react-vendor': ['react', 'react-dom', 'react-is'],
+          // Router
+          'router-vendor': ['react-router-dom'],
+          // Supabase client
+          'supabase-vendor': ['@supabase/supabase-js'],
+          // Map libraries (Leaflet)
+          'map-vendor': ['leaflet', 'react-leaflet'],
+          // Chart library
+          'chart-vendor': ['recharts'],
+          // IndexedDB and database utilities
+          'db-vendor': ['idb'],
+          // Date utilities
+          'date-vendor': ['date-fns'],
+          // Animation library
+          'animation-vendor': ['framer-motion'],
+        }
+      }
+    }
+  }
 })
