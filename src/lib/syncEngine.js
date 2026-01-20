@@ -27,21 +27,58 @@ const logger = createLogger('syncEngine');
 const MAX_RETRIES = 3;
 
 /**
- * Check if an error is a schema-related error that shouldn't be retried
+ * Check if an error is a permanent error that shouldn't be retried
+ * Includes schema errors (missing columns/tables) and RLS/permission errors
  * @param {Error} error - The error to check
- * @returns {boolean} True if the error is a non-retryable schema error
+ * @returns {Object} { isPermanent: boolean, errorType: string, message: string }
  */
-function isSchemaError(error) {
+function checkPermanentError(error) {
   const errorMsg = error?.message?.toLowerCase() || '';
   const errorCode = error?.code || '';
   
   // PostgreSQL error codes and messages for missing columns/tables
-  return (
+  if (
     (errorMsg.includes('column') && errorMsg.includes('does not exist')) ||
     (errorMsg.includes('relation') && errorMsg.includes('does not exist')) ||
     errorCode === '42703' || // undefined_column
     errorCode === '42P01'    // undefined_table
-  );
+  ) {
+    return {
+      isPermanent: true,
+      errorType: 'schema',
+      message: 'Database schema error. Migration 0004_offline_first required. Contact administrator.',
+    };
+  }
+  
+  // RLS/Permission denied errors (PostgreSQL error codes and Supabase messages)
+  if (
+    errorCode === '42501' || // insufficient_privilege
+    errorCode === 'PGRST301' || // Supabase RLS violation
+    errorMsg.includes('permission denied') ||
+    errorMsg.includes('policy') ||
+    errorMsg.includes('row-level security') ||
+    errorMsg.includes('rls') ||
+    errorMsg.includes('insufficient privilege')
+  ) {
+    return {
+      isPermanent: true,
+      errorType: 'permission',
+      message: 'Permission denied. Row-level security policy issue. Contact administrator.',
+    };
+  }
+  
+  return { isPermanent: false, errorType: null, message: null };
+}
+
+/**
+ * Check if an error is a schema-related error that shouldn't be retried
+ * @deprecated Use checkPermanentError instead
+ * @param {Error} error - The error to check
+ * @returns {boolean} True if the error is a non-retryable schema error
+ */
+function isSchemaError(error) {
+  const result = checkPermanentError(error);
+  return result.isPermanent && result.errorType === 'schema';
 }
 
 // Sync state listeners
@@ -71,16 +108,79 @@ function notifyListeners(state) {
 // ==================== PUSH (LOCAL → SUPABASE) ====================
 
 /**
+ * Optimize oplog by coalescing create-delete pairs
+ * If a record was created and then deleted before ever being synced,
+ * we can skip both operations and just mark the local tombstone.
+ * @param {Array} ops - All pending operations
+ * @returns {Array} Optimized operations with create-delete pairs removed
+ */
+function coalesceOplog(ops) {
+  const createOps = new Map(); // client_tx_id -> op_id
+  const deleteOps = new Set(); // op_ids of deletes to skip
+  const upsertOps = new Set(); // op_ids of upserts/creates to skip
+  
+  // First pass: identify creates/upserts for each client_tx_id
+  for (const op of ops) {
+    if (op.op === 'upsert' && op.client_tx_id) {
+      if (!createOps.has(op.client_tx_id)) {
+        createOps.set(op.client_tx_id, op.op_id);
+      }
+    }
+  }
+  
+  // Second pass: identify delete operations that follow a create for the same client_tx_id
+  for (const op of ops) {
+    if (op.op === 'delete' && op.client_tx_id) {
+      const createOpId = createOps.get(op.client_tx_id);
+      if (createOpId !== undefined) {
+        // Found a create-delete pair - skip both
+        upsertOps.add(createOpId);
+        deleteOps.add(op.op_id);
+        logger.info('Coalescing create-delete pair', { 
+          clientTxId: op.client_tx_id,
+          createOpId,
+          deleteOpId: op.op_id,
+        });
+      }
+    }
+  }
+  
+  // Filter out coalesced operations
+  return ops.filter(op => !upsertOps.has(op.op_id) && !deleteOps.has(op.op_id));
+}
+
+/**
  * Push pending operations to Supabase
  * @param {string} userId - User ID for validation
  * @returns {Promise<Object>} Sync result
  */
 export async function pushToSupabase(userId) {
-  const ops = await getPendingOps();
+  let ops = await getPendingOps();
   
   if (ops.length === 0) {
     return { success: true, processed: 0, failed: 0 };
   }
+  
+  // Coalesce create-delete pairs (optimization to avoid pushing never-synced records)
+  const coalescedOps = coalesceOplog(ops);
+  const skippedCount = ops.length - coalescedOps.length;
+  
+  if (skippedCount > 0) {
+    logger.info('Coalesced operations', { 
+      original: ops.length, 
+      optimized: coalescedOps.length,
+      skipped: skippedCount,
+    });
+    
+    // Remove coalesced operations from oplog
+    for (const op of ops) {
+      if (!coalescedOps.includes(op)) {
+        await removeFromOplog(op.op_id);
+      }
+    }
+  }
+  
+  ops = coalescedOps;
   
   let processed = 0;
   let failed = 0;
@@ -114,25 +214,35 @@ export async function pushToSupabase(userId) {
         break; // Stop processing
       }
       
-      // Check if it's a schema error (non-retryable, permanent issue)
-      if (isSchemaError(error)) {
-        const schemaError = 'Database schema error. Migration 0004_offline_first required. Contact administrator.';
-        logger.error('Schema error detected - non-retryable', { op, error: error.message });
+      // Check if it's a permanent error (schema or RLS/permission)
+      const permErrorCheck = checkPermanentError(error);
+      if (permErrorCheck.isPermanent) {
+        logger.error('Permanent error detected - non-retryable', { 
+          op, 
+          errorType: permErrorCheck.errorType,
+          error: error.message 
+        });
         
         // Immediately move to failed_ops without retrying
         await moveToFailedOps(op);
         await removeFromOplog(op.op_id);
         
-        // Notify about schema error
+        // Notify about permanent error
         notifyListeners({
           type: 'operation_failed',
           table: op.table,
           clientTxId: op.client_tx_id,
-          error: schemaError,
-          schemaError: true,
+          error: permErrorCheck.message,
+          errorType: permErrorCheck.errorType,
+          permanent: true,
         });
         
-        errors.push({ op, error: schemaError, schemaError: true });
+        errors.push({ 
+          op, 
+          error: permErrorCheck.message, 
+          errorType: permErrorCheck.errorType,
+          permanent: true,
+        });
         failed++;
         continue; // Continue processing other ops
       }
@@ -209,7 +319,36 @@ async function pushUpsert(op) {
 async function pushDelete(op) {
   const { table, payload, client_tx_id } = op;
   
-  // Soft delete: update deleted_at
+  // First, check if the row exists on the server
+  // This handles the edge case where a record was created and deleted offline
+  // before ever being synced (though coalesceOplog should catch this)
+  const { data: existing, error: checkError } = await supabase
+    .from(table)
+    .select('id')
+    .eq('user_id', payload.user_id)
+    .eq('client_tx_id', client_tx_id)
+    .maybeSingle();
+  
+  if (checkError) throw checkError;
+  
+  if (!existing) {
+    // Row doesn't exist on server - this is okay, it was never created on server
+    // Just ensure local cache is marked as deleted (tombstone)
+    logger.info('Delete op for non-existent server row - marking local tombstone only', {
+      table,
+      clientTxId: client_tx_id,
+    });
+    
+    if (table === 'orders') {
+      await softDeleteCachedOrder(client_tx_id);
+    } else if (table === 'expenses') {
+      await softDeleteCachedExpense(client_tx_id);
+    }
+    
+    return; // Success - nothing to delete on server
+  }
+  
+  // Row exists on server - perform soft delete
   const { error } = await supabase
     .from(table)
     .update({
@@ -326,6 +465,44 @@ export async function pullFromSupabase(userId) {
 async function applyOrderToCache(order) {
   const existing = await getCachedOrder(order.client_tx_id);
   
+  // CRITICAL: Prevent resurrection of locally deleted records
+  // If local tombstone exists (deleted_at not null), never overwrite with non-deleted server row
+  if (existing && existing.deleted_at) {
+    // Local is deleted
+    if (!order.deleted_at) {
+      // Server has non-deleted version - local deletion wins (tombstone preservation)
+      logger.warn('Preventing resurrection - local tombstone wins over server non-deleted', { 
+        clientTxId: order.client_tx_id,
+        localDeletedAt: existing.deleted_at,
+        serverDeletedAt: order.deleted_at,
+      });
+      notifyListeners({
+        type: 'conflict',
+        table: 'orders',
+        clientTxId: order.client_tx_id,
+        resolution: 'tombstone-preserved',
+        localData: existing,
+        serverData: order,
+        message: 'Data dihapus di perangkat Anda; penghapusan dipertahankan (tidak dikembalikan).',
+      });
+      // Keep local tombstone, do not resurrect
+      return;
+    } else {
+      // Both deleted - keep the one with later deleted_at/updated_at
+      const serverTime = new Date(order.deleted_at || order.updated_at).getTime();
+      const localTime = new Date(existing.deleted_at || existing.updated_at).getTime();
+      if (localTime > serverTime) {
+        logger.info('Both deleted - local tombstone is newer, keeping it', { 
+          clientTxId: order.client_tx_id,
+        });
+        return;
+      }
+      // Apply server tombstone (it's newer)
+      await softDeleteCachedOrder(order.client_tx_id);
+      return;
+    }
+  }
+  
   // Conflict detection: server updated_at > local updated_at
   if (existing && existing.updated_at) {
     const serverTime = new Date(order.updated_at).getTime();
@@ -346,6 +523,7 @@ async function applyOrderToCache(order) {
         resolution: 'server-wins',
         localData: existing,
         serverData: order,
+        message: 'Perubahan Anda bentrok dengan update dari device lain. Data dari server diterapkan (server-wins).',
       });
     }
   }
@@ -363,6 +541,44 @@ async function applyOrderToCache(order) {
  */
 async function applyExpenseToCache(expense) {
   const existing = await getCachedExpense(expense.client_tx_id);
+  
+  // CRITICAL: Prevent resurrection of locally deleted records
+  // If local tombstone exists (deleted_at not null), never overwrite with non-deleted server row
+  if (existing && existing.deleted_at) {
+    // Local is deleted
+    if (!expense.deleted_at) {
+      // Server has non-deleted version - local deletion wins (tombstone preservation)
+      logger.warn('Preventing resurrection - local tombstone wins over server non-deleted', { 
+        clientTxId: expense.client_tx_id,
+        localDeletedAt: existing.deleted_at,
+        serverDeletedAt: expense.deleted_at,
+      });
+      notifyListeners({
+        type: 'conflict',
+        table: 'expenses',
+        clientTxId: expense.client_tx_id,
+        resolution: 'tombstone-preserved',
+        localData: existing,
+        serverData: expense,
+        message: 'Data dihapus di perangkat Anda; penghapusan dipertahankan (tidak dikembalikan).',
+      });
+      // Keep local tombstone, do not resurrect
+      return;
+    } else {
+      // Both deleted - keep the one with later deleted_at/updated_at
+      const serverTime = new Date(expense.deleted_at || expense.updated_at).getTime();
+      const localTime = new Date(existing.deleted_at || existing.updated_at).getTime();
+      if (localTime > serverTime) {
+        logger.info('Both deleted - local tombstone is newer, keeping it', { 
+          clientTxId: expense.client_tx_id,
+        });
+        return;
+      }
+      // Apply server tombstone (it's newer)
+      await softDeleteCachedExpense(expense.client_tx_id);
+      return;
+    }
+  }
   
   // Conflict detection
   if (existing && existing.updated_at) {
@@ -382,6 +598,7 @@ async function applyExpenseToCache(expense) {
         resolution: 'server-wins',
         localData: existing,
         serverData: expense,
+        message: 'Perubahan Anda bentrok dengan update dari device lain. Data dari server diterapkan (server-wins).',
       });
     }
   }

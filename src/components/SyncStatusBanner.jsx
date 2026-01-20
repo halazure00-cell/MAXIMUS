@@ -145,12 +145,14 @@ export default function SyncStatusBanner() {
           <p className="text-xs text-ui-text font-semibold mb-2">
             ⚠️ Data Conflicts ({conflicts.length})
           </p>
-          <p className="text-[10px] text-ui-muted mb-2">
-            Perubahan Anda bentrok dengan update dari device lain. Data dari server diterapkan (server-wins).
-          </p>
           {conflicts.slice(0, 3).map((conflict, idx) => (
             <div key={idx} className="text-[10px] text-ui-muted bg-ui-surface/50 p-2 rounded mb-1">
               <strong>{conflict.table}</strong> - {conflict.clientTxId?.substring(0, 8)}
+              {conflict.message && (
+                <div className="text-[9px] mt-1 text-ui-text/70">
+                  {conflict.message}
+                </div>
+              )}
             </div>
           ))}
           {conflicts.length > 3 && (
