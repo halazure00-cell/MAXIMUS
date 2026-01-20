@@ -55,8 +55,12 @@ const getCachedByTable = {
  * @returns {number} - Positive if server is newer, negative if local is newer, 0 if equal
  */
 function compareTimestamps(serverRecord, localRecord, field = 'updated_at') {
-  const serverTime = new Date(serverRecord[field] || serverRecord.updated_at).getTime();
-  const localTime = new Date(localRecord[field] || localRecord.updated_at).getTime();
+  const serverTimestamp = serverRecord[field] || serverRecord.updated_at || new Date(0).toISOString();
+  const localTimestamp = localRecord[field] || localRecord.updated_at || new Date(0).toISOString();
+  
+  const serverTime = new Date(serverTimestamp).getTime();
+  const localTime = new Date(localTimestamp).getTime();
+  
   return serverTime - localTime;
 }
 
@@ -205,10 +209,10 @@ export async function pushToSupabase(userId) {
       skipped: skippedCount,
     });
     
-    // Remove coalesced operations from oplog using Set for O(1) lookup
-    const coalescedSet = new Set(coalescedOps);
+    // Remove coalesced operations from oplog using Set of op_ids for O(1) lookup
+    const coalescedOpIds = new Set(coalescedOps.map(op => op.op_id));
     for (const op of ops) {
-      if (!coalescedSet.has(op)) {
+      if (!coalescedOpIds.has(op.op_id)) {
         await removeFromOplog(op.op_id);
       }
     }
@@ -504,7 +508,7 @@ async function applyRecordToCache(serverRecord, table) {
   const putCachedFn = putCachedByTable[table];
   
   if (!getCachedFn || !softDeleteFn || !putCachedFn) {
-    throw new Error(`Invalid table: ${table}`);
+    throw new Error(`Unsupported table '${table}'. Missing required cache functions. Supported tables: ${Object.keys(getCachedByTable).join(', ')}`);
   }
   
   const existing = await getCachedFn(serverRecord.client_tx_id);
