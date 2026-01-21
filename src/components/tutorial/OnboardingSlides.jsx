@@ -2,6 +2,40 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, SkipForward, Target, TrendingUp, History, Settings, MapPin } from 'lucide-react';
 
+// Onboarding slide configuration
+const ONBOARDING_SLIDES = [
+    {
+        icon: Target,
+        title: 'Selamat Datang di MAXIMUS',
+        description: 'Asisten keputusan pintar untuk driver ojol. MAXIMUS membantu Anda memaksimalkan profit dengan data real-time.',
+        color: 'text-ui-primary'
+    },
+    {
+        icon: TrendingUp,
+        title: 'Catat Income & Expense',
+        description: 'Mulai dengan mencatat pendapatan dan pengeluaran Anda di halaman Home. Lihat estimasi profit bersih secara instan.',
+        color: 'text-ui-success'
+    },
+    {
+        icon: MapPin,
+        title: 'Lihat Rekomendasi',
+        description: 'Buka halaman Insight untuk melihat heatmap dan rekomendasi lokasi terbaik berdasarkan data historis Anda.',
+        color: 'text-ui-warning'
+    },
+    {
+        icon: History,
+        title: 'Review & Sync',
+        description: 'Pantau riwayat transaksi di halaman History. Data Anda otomatis tersinkronisasi dan aman.',
+        color: 'text-ui-info'
+    },
+    {
+        icon: Settings,
+        title: 'Sesuaikan Pengaturan',
+        description: 'Atur target harian, jenis kendaraan, dan preferensi lainnya di halaman Profile untuk hasil yang lebih akurat.',
+        color: 'text-ui-accent'
+    }
+];
+
 /**
  * OnboardingSlides - First-time onboarding experience
  * Shows once after first successful session
@@ -10,41 +44,8 @@ import { ChevronRight, SkipForward, Target, TrendingUp, History, Settings, MapPi
 export default function OnboardingSlides({ onComplete, onSkip }) {
     const [currentSlide, setCurrentSlide] = useState(0);
 
-    const slides = [
-        {
-            icon: Target,
-            title: 'Selamat Datang di MAXIMUS',
-            description: 'Asisten keputusan pintar untuk driver ojol. MAXIMUS membantu Anda memaksimalkan profit dengan data real-time.',
-            color: 'text-ui-primary'
-        },
-        {
-            icon: TrendingUp,
-            title: 'Catat Income & Expense',
-            description: 'Mulai dengan mencatat pendapatan dan pengeluaran Anda di halaman Home. Lihat estimasi profit bersih secara instan.',
-            color: 'text-ui-success'
-        },
-        {
-            icon: MapPin,
-            title: 'Lihat Rekomendasi',
-            description: 'Buka halaman Insight untuk melihat heatmap dan rekomendasi lokasi terbaik berdasarkan data historis Anda.',
-            color: 'text-ui-warning'
-        },
-        {
-            icon: History,
-            title: 'Review & Sync',
-            description: 'Pantau riwayat transaksi di halaman History. Data Anda otomatis tersinkronisasi dan aman.',
-            color: 'text-ui-info'
-        },
-        {
-            icon: Settings,
-            title: 'Sesuaikan Pengaturan',
-            description: 'Atur target harian, jenis kendaraan, dan preferensi lainnya di halaman Profile untuk hasil yang lebih akurat.',
-            color: 'text-ui-accent'
-        }
-    ];
-
     const handleNext = () => {
-        if (currentSlide < slides.length - 1) {
+        if (currentSlide < ONBOARDING_SLIDES.length - 1) {
             setCurrentSlide(currentSlide + 1);
         } else {
             onComplete();
@@ -55,7 +56,7 @@ export default function OnboardingSlides({ onComplete, onSkip }) {
         onSkip();
     };
 
-    const slide = slides[currentSlide];
+    const slide = ONBOARDING_SLIDES[currentSlide];
     const Icon = slide.icon;
 
     return (
@@ -89,7 +90,7 @@ export default function OnboardingSlides({ onComplete, onSkip }) {
 
                         {/* Progress dots */}
                         <div className="flex justify-center gap-2 mb-8">
-                            {slides.map((_, index) => (
+                            {ONBOARDING_SLIDES.map((_, index) => (
                                 <div
                                     key={index}
                                     className={`h-2 rounded-full transition-all ${
@@ -115,7 +116,7 @@ export default function OnboardingSlides({ onComplete, onSkip }) {
                                 onClick={handleNext}
                                 className="px-6 py-3 bg-ui-primary text-ui-background rounded-ui-lg hover:bg-ui-primary/90 transition-colors flex items-center gap-2 font-medium"
                             >
-                                {currentSlide === slides.length - 1 ? 'Mulai' : 'Lanjut'}
+                                {currentSlide === ONBOARDING_SLIDES.length - 1 ? 'Mulai' : 'Lanjut'}
                                 <ChevronRight size={18} />
                             </button>
                         </div>

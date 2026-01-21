@@ -2,6 +2,13 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, SkipForward } from 'lucide-react';
 
+// Configuration constants
+const TOOLTIP_WIDTH = 320;
+const TOOLTIP_HEIGHT = 200;
+const TOOLTIP_PADDING = 16;
+const HIGHLIGHT_OFFSET = 4;
+const OVERLAY_BOX_SHADOW = '0 0 0 9999px rgba(0, 0, 0, 0.6)';
+
 /**
  * TourOverlay - Lightweight custom tour component
  * Features:
@@ -42,24 +49,20 @@ export default function TourOverlay({ steps = [], onComplete, onSkip }) {
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
         // Calculate tooltip position
-        const tooltipWidth = 320;
-        const tooltipHeight = 200;
-        const padding = 16;
-
-        let top = rect.bottom + padding;
+        let top = rect.bottom + TOOLTIP_PADDING;
         let left = rect.left;
 
         // Adjust if tooltip goes off-screen
-        if (top + tooltipHeight > window.innerHeight) {
-            top = rect.top - tooltipHeight - padding;
+        if (top + TOOLTIP_HEIGHT > window.innerHeight) {
+            top = rect.top - TOOLTIP_HEIGHT - TOOLTIP_PADDING;
         }
 
-        if (left + tooltipWidth > window.innerWidth) {
-            left = window.innerWidth - tooltipWidth - padding;
+        if (left + TOOLTIP_WIDTH > window.innerWidth) {
+            left = window.innerWidth - TOOLTIP_WIDTH - TOOLTIP_PADDING;
         }
 
-        if (left < padding) {
-            left = padding;
+        if (left < TOOLTIP_PADDING) {
+            left = TOOLTIP_PADDING;
         }
 
         setTooltipPosition({ top, left });
@@ -130,11 +133,11 @@ export default function TourOverlay({ steps = [], onComplete, onSkip }) {
                         exit={{ opacity: 0 }}
                         className="absolute border-2 border-ui-primary rounded-lg shadow-lg pointer-events-none"
                         style={{
-                            top: targetRect.top - 4,
-                            left: targetRect.left - 4,
-                            width: targetRect.width + 8,
-                            height: targetRect.height + 8,
-                            boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.6)',
+                            top: targetRect.top - HIGHLIGHT_OFFSET,
+                            left: targetRect.left - HIGHLIGHT_OFFSET,
+                            width: targetRect.width + (HIGHLIGHT_OFFSET * 2),
+                            height: targetRect.height + (HIGHLIGHT_OFFSET * 2),
+                            boxShadow: OVERLAY_BOX_SHADOW,
                         }}
                     />
                 )}
