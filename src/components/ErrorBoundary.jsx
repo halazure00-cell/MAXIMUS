@@ -1,5 +1,6 @@
 import React from "react";
-import { Copy, RefreshCw } from "lucide-react";
+import { Copy, RefreshCw, MessageCircle } from "lucide-react";
+import { classifyError, getDiagnosticsSnapshot, buildBugReportMessage, openWhatsAppReport } from "../lib/diagnostics";
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -9,6 +10,7 @@ export default class ErrorBoundary extends React.Component {
       error: null, 
       errorInfo: null,
       copied: false,
+      errorClassified: null,
     };
   }
 
@@ -18,7 +20,14 @@ export default class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error("UI crash:", error, errorInfo);
-    this.setState({ errorInfo });
+    
+    // Classify the error
+    const classified = classifyError(error);
+    
+    this.setState({ 
+      errorInfo,
+      errorClassified: classified,
+    });
   }
 
   copyErrorInfo = () => {
@@ -38,31 +47,102 @@ Online: ${navigator.onLine}
       setTimeout(() => this.setState({ copied: false }), 2000);
     }).catch((err) => {
       console.error('Failed to copy error info:', err);
+      // Fallback: just log the error, user can screenshot
     });
+  };
+
+  copyDiagnostics = async () => {
+    try {
+      const { error, errorClassified } = this.state;
+      
+      const snapshot = await getDiagnosticsSnapshot({
+        route: window.location.pathname,
+        syncState: {},
+        settingsSummary: {},
+      });
+      
+      // Add error details to snapshot
+      snapshot.crashError = {
+        message: error?.message,
+        code: errorClassified?.code,
+        type: errorClassified?.type,
+        stack: error?.stack?.substring(0, 500), // Truncate
+      };
+      
+      const jsonText = JSON.stringify(snapshot, null, 2);
+      
+      await navigator.clipboard.writeText(jsonText);
+      this.setState({ copied: true });
+      setTimeout(() => this.setState({ copied: false }), 2000);
+    } catch (err) {
+      console.error('Failed to copy diagnostics:', err);
+      // Note: In ErrorBoundary, we don't have access to toast
+      // User can still screenshot the error screen
+    }
+  };
+
+  sendWhatsAppReport = async () => {
+    try {
+      const { error, errorClassified } = this.state;
+      
+      const snapshot = await getDiagnosticsSnapshot({
+        route: window.location.pathname,
+        syncState: {},
+        settingsSummary: {},
+      });
+      
+      // Add error details
+      snapshot.crashError = {
+        message: error?.message,
+        code: errorClassified?.code,
+        type: errorClassified?.type,
+        messageShort: errorClassified?.messageShort,
+      };
+      
+      const message = buildBugReportMessage(snapshot);
+      openWhatsAppReport(message);
+    } catch (err) {
+      console.error('Failed to send WhatsApp report:', err);
+      // Note: In ErrorBoundary, we don't have access to toast
+      // User can use the Copy button as fallback
+    }
   };
 
   render() {
     if (this.state.hasError) {
+      const { error, errorClassified } = this.state;
+      const isDev = import.meta.env.MODE === 'development';
+      
       return (
         <div className="min-h-screen bg-ui-background text-ui-text flex items-center justify-center p-6">
           <div className="max-w-md w-full rounded-ui-xl border border-ui-border bg-ui-surface p-6 shadow-ui-lg">
             <div className="text-lg font-bold mb-2 text-ui-danger">Aplikasi mengalami gangguan</div>
+            
+            {errorClassified && (
+              <div className="mb-3 p-2 bg-ui-warning/10 rounded-ui-lg border border-ui-warning/30">
+                <div className="text-xs font-semibold text-ui-warning mb-1">Kode Error: {errorClassified.code}</div>
+                <div className="text-xs text-ui-muted">{errorClassified.messageShort}</div>
+              </div>
+            )}
+            
             <div className="text-sm text-ui-muted mb-4">
-              Coba muat ulang. Jika sering terjadi, biasanya karena konfigurasi atau data yang belum siap.
+              Coba muat ulang. Jika sering terjadi, laporkan via WhatsApp atau salin diagnostics.
             </div>
             
-            {this.state.error && (
+            {isDev && error && (
               <div className="mb-4 p-3 bg-ui-surface-muted rounded-ui-lg text-xs font-mono text-ui-text overflow-auto max-h-32">
-                <div className="font-bold mb-1">Error:</div>
-                <div className="text-ui-danger">{this.state.error.message || 'Unknown error'}</div>
+                <div className="font-bold mb-1 text-ui-danger">Error (Dev Mode):</div>
+                <div className="text-ui-danger">{error.message || 'Unknown error'}</div>
+                {error.stack && (
+                  <div className="mt-2 text-ui-muted text-[10px]">{error.stack.substring(0, 300)}</div>
+                )}
               </div>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2">
               <button
-                className="flex-1 py-3 rounded-ui-lg bg-ui-primary text-ui-background font-bold flex items-center justify-center gap-2 hover:bg-ui-primary/90 press-effect"
+                className="w-full py-3 rounded-ui-lg bg-ui-primary text-ui-background font-bold flex items-center justify-center gap-2 hover:bg-ui-primary/90 press-effect"
                 onClick={() => {
-                  // Try to navigate home first, fallback to full reload
                   try {
                     window.history.pushState({}, '', '/');
                     window.location.reload();
@@ -75,18 +155,29 @@ Online: ${navigator.onLine}
                 Muat Ulang
               </button>
 
-              <button
-                className={`px-4 py-3 rounded-ui-lg border font-semibold flex items-center justify-center gap-2 press-effect ${
-                  this.state.copied 
-                    ? 'bg-ui-success/10 border-ui-success text-ui-success' 
-                    : 'bg-ui-surface border-ui-border text-ui-text hover:bg-ui-surface-muted'
-                }`}
-                onClick={this.copyErrorInfo}
-                title="Copy error info for debugging"
-              >
-                <Copy size={16} />
-                {this.state.copied ? 'Copied!' : 'Copy'}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  className={`flex-1 px-3 py-3 rounded-ui-lg border font-semibold flex items-center justify-center gap-2 press-effect ${
+                    this.state.copied 
+                      ? 'bg-ui-success/10 border-ui-success text-ui-success' 
+                      : 'bg-ui-surface border-ui-border text-ui-text hover:bg-ui-surface-muted'
+                  }`}
+                  onClick={this.copyDiagnostics}
+                  title="Copy diagnostics untuk debugging"
+                >
+                  <Copy size={16} />
+                  {this.state.copied ? 'Copied!' : 'Copy'}
+                </button>
+
+                <button
+                  className="flex-1 px-3 py-3 rounded-ui-lg bg-ui-success/10 border border-ui-success text-ui-success font-semibold flex items-center justify-center gap-2 hover:bg-ui-success/20 press-effect"
+                  onClick={this.sendWhatsAppReport}
+                  title="Laporkan bug via WhatsApp"
+                >
+                  <MessageCircle size={16} />
+                  WhatsApp
+                </button>
+              </div>
             </div>
           </div>
         </div>

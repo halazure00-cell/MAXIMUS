@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { User, Car, Settings as SettingsIcon, Moon, Sun, ChevronDown, Cloud, RotateCcw } from 'lucide-react';
+import { User, Car, Settings as SettingsIcon, Moon, Sun, ChevronDown, Cloud, RotateCcw, Bug, Copy, MessageCircle, Trash2 } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 import { useTutorial } from '../context/TutorialContext';
+import { useSyncContext } from '../context/SyncContext';
 import { supabase } from '../lib/supabaseClient';
 import Card from './Card';
 import PrimaryButton from './PrimaryButton';
 import SectionTitle from './SectionTitle';
+import { getDiagnosticsSnapshot, buildBugReportMessage, openWhatsAppReport, clearErrorLogs } from '../lib/diagnostics';
 
 // Import version from package.json
 const APP_VERSION = '1.1.0'; // Offline-First Update
@@ -13,9 +15,11 @@ const APP_VERSION = '1.1.0'; // Offline-First Update
 export default function ProfileSettings({ showToast }) {
     const { settings, updateSettings, session } = useSettings();
     const { resetTutorials } = useTutorial();
-    const [loading, setLoading] = useState(true);
+    const syncContext = useSyncContext();
     const [saving, setSaving] = useState(false);
     const [syncPending, setSyncPending] = useState(false);
+    const [showDiagnosticsModal, setShowDiagnosticsModal] = useState(false);
+    const [diagnosticsText, setDiagnosticsText] = useState('');
     const settingsRef = useRef(settings);
     const saveTimeoutRef = useRef(null);
     const pendingSettingsRef = useRef(null);
@@ -40,7 +44,6 @@ export default function ProfileSettings({ showToast }) {
             if (!session?.user) return;
 
             try {
-                setLoading(true);
                 const { data, error } = await supabase
                     .from('profiles')
                     .select('*')
@@ -65,13 +68,14 @@ export default function ProfileSettings({ showToast }) {
                         darkMode: data.dark_mode ?? settings.darkMode,
                     });
                 }
-            } finally {
-                setLoading(false);
+            } catch (err) {
+                console.error('Failed to fetch profile:', err);
             }
         };
 
         fetchProfile();
-    }, [session, updateSettings]); // Careful: updateSettings should be stable
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [session]); // Intentionally excluding updateSettings and settings fields
 
     const flushSave = useCallback(async () => {
         if (!session || !session.user) {
@@ -118,7 +122,8 @@ export default function ProfileSettings({ showToast }) {
                 return;
             }
             if (showToast) showToast('Profil tersimpan di Cloud', 'success');
-        } catch (error) {
+        } catch (catchError) {
+            console.error('Profile save error:', catchError);
             if (showToast) {
                 showToast('Gagal menyimpan profil', 'error');
             }
@@ -187,6 +192,78 @@ export default function ProfileSettings({ showToast }) {
         if (showToast) {
             showToast('Tutorial telah direset. Anda akan melihat panduan lagi.', 'success');
         }
+    };
+
+    // Diagnostics handlers
+    const handleCopyDiagnostics = async () => {
+        try {
+            const snapshot = await getDiagnosticsSnapshot({
+                route: window.location.pathname,
+                syncState: syncContext,
+                settingsSummary: settings,
+            });
+            
+            const jsonText = JSON.stringify(snapshot, null, 2);
+            
+            // Try clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(jsonText);
+                if (showToast) showToast('Diagnostics berhasil disalin!', 'success');
+            } else {
+                // Fallback: show modal with text
+                setDiagnosticsText(jsonText);
+                setShowDiagnosticsModal(true);
+                if (showToast) showToast('Silakan salin manual dari modal', 'info');
+            }
+        } catch (err) {
+            console.error('Failed to copy diagnostics:', err);
+            // Fallback: show modal
+            try {
+                const snapshot = await getDiagnosticsSnapshot({
+                    route: window.location.pathname,
+                    syncState: syncContext,
+                    settingsSummary: settings,
+                });
+                setDiagnosticsText(JSON.stringify(snapshot, null, 2));
+                setShowDiagnosticsModal(true);
+                if (showToast) showToast('Gunakan tombol salin manual', 'warning');
+            } catch (err2) {
+                console.error('Fallback also failed:', err2);
+                if (showToast) showToast('Gagal membuat diagnostics', 'error');
+            }
+        }
+    };
+
+    const handleWhatsAppReport = async () => {
+        try {
+            const snapshot = await getDiagnosticsSnapshot({
+                route: window.location.pathname,
+                syncState: syncContext,
+                settingsSummary: settings,
+            });
+            
+            const message = buildBugReportMessage(snapshot);
+            const success = openWhatsAppReport(message);
+            
+            if (success && showToast) {
+                showToast('Membuka WhatsApp...', 'info');
+            } else if (showToast) {
+                showToast('Gagal membuka WhatsApp. Coba salin diagnostics manual.', 'warning');
+            }
+        } catch (err) {
+            console.error('Failed to open WhatsApp report:', err);
+            if (showToast) showToast('Gagal membuat laporan WhatsApp', 'error');
+        }
+    };
+
+    const handleClearLogs = () => {
+        clearErrorLogs();
+        if (showToast) showToast('Log error telah dihapus', 'success');
+    };
+
+    const closeDiagnosticsModal = () => {
+        setShowDiagnosticsModal(false);
+        setDiagnosticsText('');
     };
 
     return (
@@ -397,6 +474,52 @@ export default function ProfileSettings({ showToast }) {
                 </div>
             </Card>
 
+            {/* Diagnostics Section */}
+            <Card className="p-4 sm:p-5 space-y-4">
+                <SectionTitle className="mb-2 flex items-center gap-2 text-base sm:text-lg">
+                    <Bug className="w-4 h-4" /> Diagnostics
+                </SectionTitle>
+
+                <p className="text-xs text-ui-muted mb-3">
+                    Gunakan untuk melaporkan bug atau masalah ke admin. Data aman, tidak ada info sensitif.
+                </p>
+
+                <div className="space-y-2">
+                    <button
+                        onClick={handleCopyDiagnostics}
+                        className="w-full flex items-center justify-between gap-3 p-3 rounded-ui-lg bg-ui-surface-muted hover:bg-ui-border transition-colors press-effect min-h-[48px]"
+                    >
+                        <div className="min-w-0 text-left">
+                            <div className="text-sm font-bold text-ui-text">Copy Diagnostics</div>
+                            <div className="text-xs text-ui-muted">Salin data diagnostik ke clipboard</div>
+                        </div>
+                        <Copy className="w-4 h-4 text-ui-muted flex-shrink-0" />
+                    </button>
+
+                    <button
+                        onClick={handleWhatsAppReport}
+                        className="w-full flex items-center justify-between gap-3 p-3 rounded-ui-lg bg-ui-success/10 hover:bg-ui-success/20 transition-colors press-effect min-h-[48px] border border-ui-success/30"
+                    >
+                        <div className="min-w-0 text-left">
+                            <div className="text-sm font-bold text-ui-success">Laporkan via WhatsApp</div>
+                            <div className="text-xs text-ui-success/80">Kirim laporan bug ke admin</div>
+                        </div>
+                        <MessageCircle className="w-4 h-4 text-ui-success flex-shrink-0" />
+                    </button>
+
+                    <button
+                        onClick={handleClearLogs}
+                        className="w-full flex items-center justify-between gap-3 p-3 rounded-ui-lg bg-ui-surface-muted hover:bg-ui-border transition-colors press-effect min-h-[48px]"
+                    >
+                        <div className="min-w-0 text-left">
+                            <div className="text-sm font-bold text-ui-text">Clear Logs</div>
+                            <div className="text-xs text-ui-muted">Hapus log error lokal</div>
+                        </div>
+                        <Trash2 className="w-4 h-4 text-ui-muted flex-shrink-0" />
+                    </button>
+                </div>
+            </Card>
+
             <div className="text-center mt-4 pb-4">
                 <p className="text-[10px] text-ui-muted mb-3">
                     MAXIMUS v{APP_VERSION} - Offline-First PWA
@@ -410,6 +533,53 @@ export default function ProfileSettings({ showToast }) {
                 </PrimaryButton>
             </div>
             </div>
+
+            {/* Diagnostics Modal for fallback manual copy */}
+            {showDiagnosticsModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={closeDiagnosticsModal}>
+                    <div className="bg-ui-surface rounded-ui-xl p-4 sm:p-6 max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-bold text-ui-text">Diagnostics JSON</h3>
+                            <button
+                                onClick={closeDiagnosticsModal}
+                                className="text-ui-muted hover:text-ui-text"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <textarea
+                            readOnly
+                            value={diagnosticsText}
+                            className="w-full h-64 p-3 rounded-ui-lg border border-ui-border bg-ui-background text-ui-text font-mono text-xs overflow-auto"
+                            onClick={(e) => e.target.select()}
+                        />
+                        <p className="text-xs text-ui-muted mt-2 mb-4">Klik di dalam teks untuk memilih semua, lalu salin (Ctrl+C / Cmd+C)</p>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await navigator.clipboard.writeText(diagnosticsText);
+                                        if (showToast) showToast('Berhasil disalin!', 'success');
+                                        closeDiagnosticsModal();
+                                    } catch (copyErr) {
+                                        console.error('Copy failed:', copyErr);
+                                        if (showToast) showToast('Gagal salin. Gunakan Ctrl+C manual.', 'warning');
+                                    }
+                                }}
+                                className="flex-1 py-3 rounded-ui-lg bg-ui-primary text-ui-background font-bold hover:bg-ui-primary/90 press-effect"
+                            >
+                                Salin
+                            </button>
+                            <button
+                                onClick={closeDiagnosticsModal}
+                                className="px-6 py-3 rounded-ui-lg border border-ui-border text-ui-text hover:bg-ui-surface-muted press-effect"
+                            >
+                                Tutup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
