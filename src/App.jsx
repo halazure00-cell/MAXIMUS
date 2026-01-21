@@ -10,6 +10,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { useSettings } from './context/SettingsContext';
 import { SyncProvider } from './context/SyncContext';
+import { useTutorial } from './context/TutorialContext';
 
 // Lazy load heavy routes for better code splitting
 const ProfitEngine = lazy(() => import('./components/ProfitEngine'));
@@ -17,6 +18,7 @@ const Insight = lazy(() => import('./components/Insight'));
 const Riwayat = lazy(() => import('./pages/Riwayat'));
 const ProfileSettings = lazy(() => import('./components/ProfileSettings'));
 const HeatmapDebugView = lazy(() => import('./components/HeatmapDebugView'));
+const OnboardingSlides = lazy(() => import('./components/tutorial/OnboardingSlides'));
 
 // Loading fallback for lazy components
 function LazyLoadingFallback() {
@@ -149,6 +151,29 @@ function AppShell({ showToast }) {
 
 function AppContent({ session, loading }) {
     const { showToast } = useToast();
+    const { tutorialState, completeOnboarding } = useTutorial();
+    const [showOnboarding, setShowOnboarding] = useState(false);
+
+    // Show onboarding after successful login if not completed
+    useEffect(() => {
+        if (session && !tutorialState.onboardingCompleted && !loading) {
+            // Small delay to let the app settle
+            const timer = setTimeout(() => {
+                setShowOnboarding(true);
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [session, tutorialState.onboardingCompleted, loading]);
+
+    const handleOnboardingComplete = () => {
+        setShowOnboarding(false);
+        completeOnboarding();
+    };
+
+    const handleOnboardingSkip = () => {
+        setShowOnboarding(false);
+        completeOnboarding();
+    };
 
     if (loading) {
         return (
@@ -177,9 +202,21 @@ function AppContent({ session, loading }) {
     }
 
     return (
-        <BrowserRouter>
-            <AppShell showToast={showToast} />
-        </BrowserRouter>
+        <>
+            <BrowserRouter>
+                <AppShell showToast={showToast} />
+            </BrowserRouter>
+
+            {/* Onboarding overlay */}
+            {showOnboarding && (
+                <Suspense fallback={null}>
+                    <OnboardingSlides
+                        onComplete={handleOnboardingComplete}
+                        onSkip={handleOnboardingSkip}
+                    />
+                </Suspense>
+            )}
+        </>
     );
 }
 

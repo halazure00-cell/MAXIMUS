@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { useSyncContext } from '../context/SyncContext';
+import { useTutorial } from '../context/TutorialContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle } from 'lucide-react';
 
@@ -9,6 +10,11 @@ import { createLogger } from '../lib/logger';
 import Card from './Card';
 import PrimaryButton from './PrimaryButton';
 import SectionTitle from './SectionTitle';
+import HelpButton from './tutorial/HelpButton';
+import { homeTourSteps } from './tutorial/tourConfigs';
+
+// Lazy load tour overlay
+const TourOverlay = lazy(() => import('./tutorial/TourOverlay'));
 
 const logger = createLogger('ProfitEngine');
 
@@ -17,11 +23,13 @@ const MotionPrimaryButton = motion(PrimaryButton);
 export default function ProfitEngine({ showToast }) {
     const { settings, session } = useSettings();
     const { updateStatus } = useSyncContext();
+    const { completePageTour } = useTutorial();
     const [orderPrice, setOrderPrice] = useState('');
     const [distance, setDistance] = useState('');
     const [isPriority, setIsPriority] = useState(settings.defaultCommission === 0.10);
     const [showSuccess, setShowSuccess] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showTour, setShowTour] = useState(false);
     const timeoutRef = useRef(null);
     const isMountedRef = useRef(false);
 
@@ -138,6 +146,20 @@ export default function ProfitEngine({ showToast }) {
         }
     };
 
+    const handleStartTour = () => {
+        setShowTour(true);
+    };
+
+    const handleTourComplete = () => {
+        setShowTour(false);
+        completePageTour('home');
+    };
+
+    const handleTourSkip = () => {
+        setShowTour(false);
+        completePageTour('home');
+    };
+
     return (
         <>
             <AnimatePresence>
@@ -174,11 +196,16 @@ export default function ProfitEngine({ showToast }) {
                 )}
             </AnimatePresence>
 
-            <div className="flex flex-col w-full h-full bg-ui-background">
+            <div className="flex flex-col w-full h-full bg-ui-background" data-tour="home-page">
                 {/* Scrollable content area - responsive padding */}
                 <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 space-y-4 w-full box-border">
+                    {/* Help Button - fixed in top-right */}
+                    <div className="flex justify-end mb-2">
+                        <HelpButton onClick={handleStartTour} />
+                    </div>
+
                     {/* Header Card */}
-                    <Card className="p-4 sm:p-5 flex flex-col items-center justify-center space-y-2 text-center">
+                    <Card className="p-4 sm:p-5 flex flex-col items-center justify-center space-y-2 text-center" data-tour="home-summary">
                         <SectionTitle>Estimasi Bersih</SectionTitle>
                         <div className={`text-3xl sm:text-4xl font-bold ${estimatedNetProfit > 0 ? 'text-ui-text' : 'text-ui-danger'}`}>
                             <span className="text-sm sm:text-lg text-ui-muted font-normal mr-1">Rp</span>
@@ -188,7 +215,7 @@ export default function ProfitEngine({ showToast }) {
 
                     {/* Input Section */}
                     <Card className="p-4 sm:p-5 space-y-4">
-                        <div>
+                        <div data-tour="home-input-price">
                             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-2 mb-2">
                                 <SectionTitle className="text-[10px] tracking-[0.3em]">Omzet Order (Rp)</SectionTitle>
                                 {orderPrice && (
@@ -229,7 +256,7 @@ export default function ProfitEngine({ showToast }) {
                             </div>
                         </div>
 
-                        <div>
+                        <div data-tour="home-input-distance">
                             <SectionTitle className="text-[10px] tracking-[0.3em] mb-2">Jarak (KM)</SectionTitle>
                             <input
                                 id="order-distance-calc"
@@ -251,7 +278,7 @@ export default function ProfitEngine({ showToast }) {
                         </div>
 
                         {/* Priority Toggle */}
-                        <div className="flex items-center justify-between pt-3 border-t border-ui-border/60">
+                        <div className="flex items-center justify-between pt-3 border-t border-ui-border/60" data-tour="home-priority-toggle">
                             <div>
                                 <span className="text-sm font-bold text-ui-text">Prioritas?</span>
                                 <p className="text-[10px] text-ui-muted">{isPriority ? 'Potongan 10%' : 'Potongan 15%'}</p>
@@ -287,6 +314,7 @@ export default function ProfitEngine({ showToast }) {
                         onClick={handleAccept}
                         disabled={!orderPrice || !distance || isSubmitting}
                         className="w-full py-3 sm:py-4 text-base sm:text-lg font-bold shadow-ui-md disabled:bg-ui-surface-muted disabled:text-ui-muted min-h-[48px]"
+                        data-tour="home-save-button"
                     >
                         {isSubmitting ? (
                             <span className="flex items-center justify-center gap-2">
@@ -298,6 +326,17 @@ export default function ProfitEngine({ showToast }) {
                         )}
                     </MotionPrimaryButton>
                 </div>
+
+                {/* Tour overlay */}
+                {showTour && (
+                    <Suspense fallback={null}>
+                        <TourOverlay
+                            steps={homeTourSteps}
+                            onComplete={handleTourComplete}
+                            onSkip={handleTourSkip}
+                        />
+                    </Suspense>
+                )}
             </div>
         </>
 
