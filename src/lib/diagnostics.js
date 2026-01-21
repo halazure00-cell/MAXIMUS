@@ -41,9 +41,9 @@ export function classifyError(err) {
 
   // Schema mismatch (missing column/table)
   if (
-    errMsg.includes('column') && (errMsg.includes('does not exist') || errMsg.includes('not found')) ||
-    errMsg.includes('relation') && errMsg.includes('does not exist') ||
-    errMsg.includes('table') && errMsg.includes('does not exist') ||
+    (errMsg.includes('column') && (errMsg.includes('does not exist') || errMsg.includes('not found'))) ||
+    (errMsg.includes('relation') && errMsg.includes('does not exist')) ||
+    (errMsg.includes('table') && errMsg.includes('does not exist')) ||
     pgCode === '42703' || // undefined column
     pgCode === '42P01'    // undefined table
   ) {

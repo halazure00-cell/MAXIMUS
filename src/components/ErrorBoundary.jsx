@@ -47,8 +47,7 @@ Online: ${navigator.onLine}
       setTimeout(() => this.setState({ copied: false }), 2000);
     }).catch((err) => {
       console.error('Failed to copy error info:', err);
-      // Fallback: try to select text in a textarea
-      alert('Gagal menyalin. Coba screenshot layar ini.');
+      // Fallback: just log the error, user can screenshot
     });
   };
 
@@ -77,7 +76,8 @@ Online: ${navigator.onLine}
       setTimeout(() => this.setState({ copied: false }), 2000);
     } catch (err) {
       console.error('Failed to copy diagnostics:', err);
-      alert('Gagal menyalin diagnostics. Coba screenshot layar ini.');
+      // Note: In ErrorBoundary, we don't have access to toast
+      // User can still screenshot the error screen
     }
   };
 
@@ -103,7 +103,8 @@ Online: ${navigator.onLine}
       openWhatsAppReport(message);
     } catch (err) {
       console.error('Failed to send WhatsApp report:', err);
-      alert('Gagal membuka WhatsApp. Coba salin diagnostics manual.');
+      // Note: In ErrorBoundary, we don't have access to toast
+      // User can use the Copy button as fallback
     }
   };
 
