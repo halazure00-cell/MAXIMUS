@@ -1,0 +1,54 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+    open-pull-requests-limit: 5
+    groups:
+      dev-tools:
+        patterns:
+          - "eslint*"
+          - "vitest*"
+          - "@vitest/*"
+          - "@testing-library/*"
+          - "jsdom"
+          - "vite"
+          - "vite-plugin-*"
+          - "@vitejs/*"
+          - "autoprefixer"
+          - "postcss"
+          - "tailwindcss"
+        update-types:
+          - "minor"
+          - "patch"
+      runtime:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "eslint*"
+          - "vitest*"
+          - "@vitest/*"
+          - "@testing-library/*"
+          - "jsdom"
+          - "vite"
+          - "vite-plugin-*"
+          - "@vitejs/*"
+          - "autoprefixer"
+          - "postcss"
+          - "tailwindcss"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # Ignore major version updates for critical runtime dependencies to avoid breaking changes
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-router-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@supabase/supabase-js"
+        update-types: ["version-update:semver-major"]
