@@ -23,6 +23,7 @@ import {
 import { importFromSupabase } from '../lib/offlineOps';
 import { fetchOrdersAndExpenses, monthRangeLocal } from '../lib/db';
 import { createLogger } from '../lib/logger';
+import { classifyError, addErrorLog } from '../lib/diagnostics';
 
 const logger = createLogger('SyncContext');
 
@@ -140,8 +141,27 @@ export const SyncProvider = ({ children }) => {
         if (isMountedRef.current) {
           setConflicts(prev => [...prev, state]);
         }
+        
+        // Log conflict to diagnostics
+        const classified = classifyError(state.error || { message: 'Sync conflict' });
+        addErrorLog({
+          route: window.location.pathname,
+          code: classified.code,
+          messageShort: classified.messageShort,
+          context: { type: 'conflict', table: state.table, op: state.op },
+        });
       } else if (state.type === 'operation_failed') {
         logger.error('Operation permanently failed', state);
+        
+        // Log failed operation to diagnostics
+        const classified = classifyError(state.error || { message: 'Operation failed' });
+        addErrorLog({
+          route: window.location.pathname,
+          code: classified.code,
+          messageShort: classified.messageShort,
+          context: { type: 'operation_failed', table: state.table, op: state.op },
+        });
+        
         // Update failed ops count
         updateStatus();
       }
