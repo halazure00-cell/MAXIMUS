@@ -6,3 +6,7 @@ dist
 .env.*
 !.env.example
 .env
+
+# Test coverage
+coverage
+.nyc_output
