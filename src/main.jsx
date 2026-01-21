@@ -4,6 +4,7 @@ import './index.css'
 import 'leaflet/dist/leaflet.css'
 import App from './App.jsx'
 import { SettingsProvider } from './context/SettingsContext'
+import { TutorialProvider } from './context/TutorialContext'
 
 // Load sync debug utilities in development
 if (import.meta.env.DEV) {
@@ -16,7 +17,9 @@ if (import.meta.env.DEV) {
 createRoot(document.getElementById('root')).render(
     <StrictMode>
         <SettingsProvider>
-            <App />
+            <TutorialProvider>
+                <App />
+            </TutorialProvider>
         </SettingsProvider>
     </StrictMode>,
 )
