@@ -18,9 +18,9 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.90.1",
+    "@supabase/supabase-js": "^2.91.0",
     "date-fns": "^4.1.0",
-    "framer-motion": "^12.25.0",
+    "framer-motion": "^12.28.1",
     "h3-js": "^4.4.0",
     "idb": "^8.0.3",
     "leaflet": "^1.9.4",
