@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { User, Car, Settings as SettingsIcon, Moon, Sun, ChevronDown, Cloud } from 'lucide-react';
+import { User, Car, Settings as SettingsIcon, Moon, Sun, ChevronDown, Cloud, RotateCcw } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
+import { useTutorial } from '../context/TutorialContext';
 import { supabase } from '../lib/supabaseClient';
 import Card from './Card';
 import PrimaryButton from './PrimaryButton';
@@ -11,6 +12,7 @@ const APP_VERSION = '1.1.0'; // Offline-First Update
 
 export default function ProfileSettings({ showToast }) {
     const { settings, updateSettings, session } = useSettings();
+    const { resetTutorials } = useTutorial();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [syncPending, setSyncPending] = useState(false);
@@ -180,8 +182,15 @@ export default function ProfileSettings({ showToast }) {
 
     const formatCurrency = (value) => new Intl.NumberFormat('id-ID').format(value);
 
+    const handleResetTutorials = () => {
+        resetTutorials();
+        if (showToast) {
+            showToast('Tutorial telah direset. Anda akan melihat panduan lagi.', 'success');
+        }
+    };
+
     return (
-        <div className="flex flex-col w-full h-full bg-ui-background">
+        <div className="flex flex-col w-full h-full bg-ui-background" data-tour="profile-page">
             {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 space-y-4 pb-8 box-border w-full">
                 {/* Header */}
@@ -201,7 +210,7 @@ export default function ProfileSettings({ showToast }) {
                 </div>
 
             {/* A. Driver Profile */}
-            <Card className="p-4 sm:p-5 space-y-4">
+            <Card className="p-4 sm:p-5 space-y-4" data-tour="profile-personal">
                 <SectionTitle className="mb-2 flex items-center gap-2 text-base sm:text-lg">
                     <User className="w-4 h-4" /> Data Driver
                 </SectionTitle>
@@ -282,7 +291,7 @@ export default function ProfileSettings({ showToast }) {
                     </div>
                 </div>
 
-                <div>
+                <div data-tour="profile-costs">
                     <label htmlFor="fuel-efficiency" className="block text-xs font-medium text-ui-muted mb-1.5">Konsumsi BBM (Rp/KM)</label>
                     <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ui-muted pointer-events-none" style={{ fontSize: 'max(16px, 1rem)' }}>Rp</span>
@@ -370,6 +379,20 @@ export default function ProfileSettings({ showToast }) {
                         <div className={`w-6 h-6 rounded-full bg-ui-surface shadow-ui-sm absolute transition-transform transform flex items-center justify-center ${settings.darkMode ? 'translate-x-7' : 'translate-x-1'}`}>
                             {settings.darkMode ? <Moon className="w-3 h-3 text-ui-text" /> : <Sun className="w-3 h-3 text-ui-warning" />}
                         </div>
+                    </button>
+                </div>
+
+                {/* Reset Tutorial Button */}
+                <div className="pt-3 border-t border-ui-border/60" data-tour="profile-reset-tutorial">
+                    <button
+                        onClick={handleResetTutorials}
+                        className="w-full flex items-center justify-between gap-3 p-3 rounded-ui-lg bg-ui-surface-muted hover:bg-ui-border transition-colors press-effect min-h-[48px]"
+                    >
+                        <div className="min-w-0 text-left">
+                            <div className="text-sm font-bold text-ui-text">Reset Tutorial</div>
+                            <div className="text-xs text-ui-muted">Tampilkan semua panduan lagi</div>
+                        </div>
+                        <RotateCcw className="w-4 h-4 text-ui-muted flex-shrink-0" />
                     </button>
                 </div>
             </Card>
