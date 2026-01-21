@@ -106,7 +106,7 @@ drop policy if exists "orders_delete_own" on public.orders;
 -- NOTE: No DELETE policy for orders
 -- DELETE STRATEGY: Soft-delete only
 --   - Client calls UPDATE to set deleted_at (see: offlineOps.deleteOrder)
---   - syncEngine.pushDelete sends UPDATE, not DELETE (see: syncEngine.js line 390)
+--   - syncEngine.pushDelete sends UPDATE, not DELETE (see: syncEngine.js pushDelete function)
 --   - Hard DELETE is blocked to prevent data loss and sync breakage
 --   - Tombstones (deleted_at != null) are preserved for multi-device sync
 

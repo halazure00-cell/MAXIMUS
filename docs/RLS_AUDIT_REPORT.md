@@ -332,8 +332,8 @@ ORDER BY event_object_table;
 **Chosen Strategy:** Soft-delete only (Option A)
 
 **Evidence:**
-- `syncEngine.js` line 356-406: `pushDelete` uses `UPDATE` to set `deleted_at`
-- `offlineOps.js` line 109-133, 214-238: `deleteOrder`/`deleteExpense` call `softDeleteCached*`
+- `syncEngine.js` `pushDelete()` function: uses `UPDATE` to set `deleted_at`
+- `offlineOps.js` `deleteOrder()` and `deleteExpense()` functions: call `softDeleteCached*`
 - Migration 0004_offline_first.sql added `deleted_at` columns specifically for soft-delete
 
 **Implementation:**

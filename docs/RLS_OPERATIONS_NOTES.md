@@ -29,7 +29,7 @@ This document provides operational guidance for managing Row Level Security (RLS
 
 **Implementation:**
 - `offlineOps.js`: `deleteOrder()` / `deleteExpense()` call `softDeleteCached*()`
-- `syncEngine.js`: `pushDelete()` sends UPDATE, not DELETE (line 390)
+- `syncEngine.js`: `pushDelete()` function sends UPDATE, not DELETE
 - Migration 0005: Removes DELETE policies to enforce at DB level
 
 **Client Code Pattern:**
