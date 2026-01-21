@@ -75,12 +75,12 @@ export default function TourOverlay({ steps = [], onComplete, onSkip }) {
     useEffect(() => {
         const handleEscape = (e) => {
             if (e.key === 'Escape') {
-                handleSkip();
+                if (onSkip) onSkip();
             }
         };
         window.addEventListener('keydown', handleEscape);
         return () => window.removeEventListener('keydown', handleEscape);
-    }, []);
+    }, [onSkip]);
 
     const handleNext = () => {
         if (currentStep < steps.length - 1) {
