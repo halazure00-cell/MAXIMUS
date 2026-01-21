@@ -3,6 +3,7 @@
  * Configures jest-dom matchers and test environment
  */
 
+import { vi } from 'vitest';
 import '@testing-library/jest-dom';
 
 // Mock window.matchMedia (required for React components that use media queries)
@@ -21,7 +22,7 @@ Object.defineProperty(window, 'matchMedia', {
 });
 
 // Mock IntersectionObserver (required for some UI components)
-global.IntersectionObserver = class IntersectionObserver {
+globalThis.IntersectionObserver = class IntersectionObserver {
   constructor() {}
   disconnect() {}
   observe() {}
@@ -30,3 +31,4 @@ global.IntersectionObserver = class IntersectionObserver {
   }
   unobserve() {}
 };
+
