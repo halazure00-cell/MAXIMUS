@@ -109,9 +109,9 @@ export const SettingsProvider = ({ children }) => {
     }, []);
 
     // Helper to check if user has PRO subscription
-    // Simple logic for now: just check if subscription_tier === 'pro'
-    // Can be enhanced later to check expiry date
-    const isPro = profile?.subscription_tier === 'pro';
+    // Check both subscription_tier and expiry date
+    const isPro = profile?.subscription_tier === 'pro' && 
+                  (!profile?.subscription_expiry || new Date(profile.subscription_expiry) > new Date());
 
     const value = {
         settings,
