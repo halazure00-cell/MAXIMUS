@@ -44,7 +44,7 @@ describe('TourOverlay', () => {
       />
     );
     
-    const backdrop = document.body.querySelector('.bg-black\\/60');
+    const backdrop = document.body.querySelector('[data-testid="tour-backdrop"]');
     expect(backdrop).toBeInTheDocument();
   });
 

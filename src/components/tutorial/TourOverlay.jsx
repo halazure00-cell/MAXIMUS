@@ -9,6 +9,8 @@ const TOOLTIP_HEIGHT = 200;
 const TOOLTIP_PADDING = 16;
 const HIGHLIGHT_OFFSET = 4;
 const OVERLAY_BOX_SHADOW = '0 0 0 9999px rgba(0, 0, 0, 0.6)';
+// z-index must be higher than BottomNavigation (999999)
+const OVERLAY_Z_INDEX = 9999999;
 
 /**
  * TourOverlay - Lightweight custom tour component
@@ -117,7 +119,7 @@ export default function TourOverlay({ steps = [], onComplete, onSkip }) {
                 className="fixed inset-0"
                 style={{ 
                     pointerEvents: 'auto',
-                    zIndex: 9999999 // Higher than BottomNavigation (999999)
+                    zIndex: OVERLAY_Z_INDEX
                 }}
             >
                 {/* Dark overlay */}
@@ -127,6 +129,7 @@ export default function TourOverlay({ steps = [], onComplete, onSkip }) {
                     exit={{ opacity: 0 }}
                     className="absolute inset-0 bg-black/60"
                     onClick={handleSkip}
+                    data-testid="tour-backdrop"
                 />
 
                 {/* Highlight area (cut-out) */}
