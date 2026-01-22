@@ -1,0 +1,151 @@
+name: Bug Report
+description: Laporkan bug atau masalah di MAXIMUS PWA
+title: "[BUG] "
+labels: ["bug", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Terima kasih telah melaporkan bug. Isi form ini selengkap mungkin agar kami bisa debug dengan cepat.
+
+  - type: input
+    id: version
+    attributes:
+      label: App Version
+      description: Versi MAXIMUS (cek di Profile → Diagnostics → app.version)
+      placeholder: "1.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device/HP
+      description: Model HP dan Android version (misal Samsung A12, Android 11)
+      placeholder: "Samsung Galaxy A12, Android 11"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: Seberapa parah masalah ini?
+      options:
+        - S0 - Data Loss (data hilang/corrupt)
+        - S1 - Broken Core Flow (fitur utama tidak bisa digunakan)
+        - S2 - Degraded (fitur masih bisa digunakan tapi terganggu)
+        - S3 - Cosmetic (masalah UI/UX kecil)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: error_code
+    attributes:
+      label: Error Code
+      description: Kode error dari diagnostics (jika ada)
+      options:
+        - RLS_DENIED
+        - SCHEMA_MISMATCH
+        - NETWORK_OFFLINE
+        - TIMEOUT
+        - RATE_LIMIT
+        - UNKNOWN
+        - N/A (tidak ada error code)
+    validations:
+      required: true
+
+  - type: input
+    id: route
+    attributes:
+      label: Route/Halaman
+      description: Halaman saat error terjadi (/, /expenses, /insight, /profile, /strategy-map)
+      placeholder: "/"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Langkah Reproduksi
+      description: Bagaimana cara reproduce bug ini? Tulis langkah-langkahnya.
+      placeholder: |
+        1. Buka halaman Expenses
+        2. Tap tombol (+) untuk buat expense baru
+        3. Isi type: Bensin, amount: 10000
+        4. Tap Submit
+        5. Error muncul: RLS_DENIED
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: Apa yang seharusnya terjadi?
+      placeholder: "Expense seharusnya tersimpan dan muncul di list"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: Apa yang sebenarnya terjadi?
+      placeholder: "Muncul error RLS_DENIED, expense tidak tersimpan"
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot
+      description: Upload screenshot jika ada (drag & drop gambar ke sini)
+      placeholder: "Drag & drop screenshot di sini"
+    validations:
+      required: false
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics JSON
+      description: Copy-paste JSON dari Profile → Diagnostics → Copy Diagnostics
+      placeholder: |
+        {
+          "app": {
+            "name": "MAXIMUS PWA",
+            "version": "1.1.0",
+            "mode": "production"
+          },
+          ...
+        }
+      render: json
+    validations:
+      required: true
+
+  - type: dropdown
+    id: reproducibility
+    attributes:
+      label: Reproducibility
+      description: Apakah bug ini bisa direproduksi?
+      options:
+        - Always (selalu terjadi)
+        - Sometimes (kadang-kadang)
+        - Once (hanya sekali)
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Informasi tambahan (opsional)
+      placeholder: |
+        - Waktu error: 14:30 WIB
+        - Lokasi: Bandung, Cimahi
+        - Koneksi: WiFi / 4G
+        - Apakah sudah coba logout/login? Ya/Tidak
+    validations:
+      required: false

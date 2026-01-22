@@ -1,0 +1,143 @@
+name: Beta Feedback
+description: Feedback atau saran untuk MAXIMUS PWA (bukan bug report)
+title: "[FEEDBACK] "
+labels: ["feedback", "beta"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Terima kasih atas feedback Anda! Form ini untuk saran, komentar, atau feature request (bukan untuk bug report).
+
+  - type: input
+    id: tester_id
+    attributes:
+      label: Tester ID (Opsional)
+      description: ID tester Anda jika ada (misal BDG-001, atau biarkan kosong)
+      placeholder: "BDG-001"
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: App Version
+      description: Versi MAXIMUS yang Anda pakai (cek di Profile → Diagnostics)
+      placeholder: "1.1.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what_worked
+    attributes:
+      label: Apa yang Sudah Bagus?
+      description: Fitur atau aspek apa yang Anda suka dari MAXIMUS?
+      placeholder: |
+        - Fitur sync offline sangat membantu
+        - UI simple dan mudah dipakai
+        - Kalkulasi laba bersih akurat
+    validations:
+      required: true
+
+  - type: textarea
+    id: what_confused
+    attributes:
+      label: Apa yang Membingungkan?
+      description: Fitur atau flow apa yang membingungkan atau tidak jelas?
+      placeholder: |
+        - Tidak tahu cara delete order
+        - Bingung perbedaan commission type "Standard" vs "Priority"
+        - Tidak tahu cara sync manual
+    validations:
+      required: false
+
+  - type: textarea
+    id: top_feature_request
+    attributes:
+      label: Top 1 Feature Request
+      description: Fitur apa yang paling Anda inginkan ditambahkan?
+      placeholder: |
+        Fitur export data ke Excel atau PDF untuk laporan bulanan
+    validations:
+      required: false
+
+  - type: dropdown
+    id: time_saved
+    attributes:
+      label: Time Saved / Earnings Impact
+      description: Apakah MAXIMUS membantu menghemat waktu atau meningkatkan pendapatan Anda?
+      options:
+        - Sangat membantu (hemat > 30 menit per hari)
+        - Cukup membantu (hemat 10-30 menit per hari)
+        - Sedikit membantu (hemat < 10 menit per hari)
+        - Tidak ada dampak signifikan
+        - Belum pakai cukup lama untuk evaluasi
+    validations:
+      required: true
+
+  - type: textarea
+    id: earnings_impact
+    attributes:
+      label: Earnings Impact (Opsional)
+      description: Jika ada, ceritakan bagaimana MAXIMUS berdampak pada pendapatan Anda
+      placeholder: |
+        Setelah pakai fitur heatmap, saya bisa pilih lokasi strategis dan dapat lebih banyak orderan (~10% peningkatan per hari)
+    validations:
+      required: false
+
+  - type: dropdown
+    id: recommendation
+    attributes:
+      label: Recommendation
+      description: Apakah Anda akan merekomendasikan MAXIMUS ke driver lain?
+      options:
+        - Sangat merekomendasikan
+        - Merekomendasikan
+        - Netral
+        - Tidak merekomendasikan
+    validations:
+      required: true
+
+  - type: textarea
+    id: ui_ux_feedback
+    attributes:
+      label: UI/UX Feedback
+      description: Feedback tentang tampilan, warna, navigasi, atau user experience
+      placeholder: |
+        - Tombol (+) untuk buat order terlalu kecil
+        - Dark mode sangat membantu untuk ngojek malam
+        - Font size di insight terlalu kecil, sulit dibaca
+    validations:
+      required: false
+
+  - type: textarea
+    id: performance_feedback
+    attributes:
+      label: Performance Feedback
+      description: Apakah app cepat, lambat, lag, atau smooth?
+      placeholder: |
+        - App load cepat (< 2 detik)
+        - Kadang lag saat buka insight kalau data banyak
+        - Sync kadang lambat saat koneksi 3G
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional_comments
+    attributes:
+      label: Additional Comments
+      description: Komentar atau saran lain (opsional)
+      placeholder: |
+        Overall app sangat membantu. Terima kasih sudah buat MAXIMUS!
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: willing_to_interview
+    attributes:
+      label: Willing to Interview?
+      description: Apakah Anda bersedia diwawancara (via WhatsApp call atau chat) untuk feedback lebih detail?
+      options:
+        - label: Ya, saya bersedia diwawancara (30 menit)
+        - label: Tidak, feedback tertulis saja cukup
