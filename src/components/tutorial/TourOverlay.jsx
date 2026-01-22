@@ -4,8 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, SkipForward } from 'lucide-react';
 
 // Configuration constants
-const TOOLTIP_WIDTH = 320;
-const TOOLTIP_HEIGHT = 200;
 const TOOLTIP_PADDING = 16;
 const HIGHLIGHT_OFFSET = 4;
 const OVERLAY_BOX_SHADOW = '0 0 0 9999px rgba(0, 0, 0, 0.6)';
@@ -28,6 +26,7 @@ export default function TourOverlay({ steps = [], onComplete, onSkip }) {
     const [targetRect, setTargetRect] = useState(null);
     const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
     const overlayRef = useRef(null);
+    const tooltipRef = useRef(null);
 
     const step = steps[currentStep];
 
@@ -51,24 +50,62 @@ export default function TourOverlay({ steps = [], onComplete, onSkip }) {
         // Scroll element into view if needed
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-        // Calculate tooltip position
+        // Calculate initial tooltip position (below anchor)
         let top = rect.bottom + TOOLTIP_PADDING;
         let left = rect.left;
 
-        // Adjust if tooltip goes off-screen
-        if (top + TOOLTIP_HEIGHT > window.innerHeight) {
-            top = rect.top - TOOLTIP_HEIGHT - TOOLTIP_PADDING;
-        }
+        // Apply viewport clamping with safe margins
+        // Use requestAnimationFrame to ensure tooltip dimensions are measured after render
+        const frameId = requestAnimationFrame(() => {
+            const margin = 12; // Safe margin for mobile compatibility
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
 
-        if (left + TOOLTIP_WIDTH > window.innerWidth) {
-            left = window.innerWidth - TOOLTIP_WIDTH - TOOLTIP_PADDING;
-        }
+            // Get actual tooltip dimensions after render
+            const tooltipEl = tooltipRef.current;
+            if (!tooltipEl) {
+                // Fallback to default dimensions if ref not available yet
+                setTooltipPosition({ top, left });
+                return;
+            }
 
-        if (left < TOOLTIP_PADDING) {
-            left = TOOLTIP_PADDING;
-        }
+            const tooltipRect = tooltipEl.getBoundingClientRect();
 
-        setTooltipPosition({ top, left });
+            let nextTop = top;
+            let nextLeft = left;
+
+            // Vertical positioning with fallback placement
+            // If tooltip would go off-screen at the top
+            if (nextTop < margin) {
+                // Try placing below anchor
+                nextTop = rect.bottom + margin;
+            }
+
+            // If tooltip would go off-screen at the bottom
+            if (nextTop + tooltipRect.height > vh - margin) {
+                // Try placing above anchor
+                const topPlacement = rect.top - tooltipRect.height - margin;
+                if (topPlacement >= margin) {
+                    nextTop = topPlacement;
+                } else {
+                    // If neither works, clamp to available space
+                    nextTop = Math.max(margin, Math.min(nextTop, vh - tooltipRect.height - margin));
+                }
+            }
+
+            // Horizontal clamping
+            if (nextLeft < margin) {
+                nextLeft = margin;
+            }
+            if (nextLeft + tooltipRect.width > vw - margin) {
+                nextLeft = Math.max(margin, vw - margin - tooltipRect.width);
+            }
+
+            setTooltipPosition({ top: nextTop, left: nextLeft });
+        });
+
+        // Cleanup function to cancel animation frame if component unmounts
+        return () => cancelAnimationFrame(frameId);
     }, [step]);
 
     useEffect(() => {
@@ -151,6 +188,7 @@ export default function TourOverlay({ steps = [], onComplete, onSkip }) {
 
                 {/* Tooltip */}
                 <motion.div
+                    ref={tooltipRef}
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
