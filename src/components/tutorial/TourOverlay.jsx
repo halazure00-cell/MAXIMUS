@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, SkipForward } from 'lucide-react';
 
@@ -8,6 +9,8 @@ const TOOLTIP_HEIGHT = 200;
 const TOOLTIP_PADDING = 16;
 const HIGHLIGHT_OFFSET = 4;
 const OVERLAY_BOX_SHADOW = '0 0 0 9999px rgba(0, 0, 0, 0.6)';
+// z-index must be higher than BottomNavigation (999999)
+const OVERLAY_Z_INDEX = 9999999;
 
 /**
  * TourOverlay - Lightweight custom tour component
@@ -109,12 +112,15 @@ export default function TourOverlay({ steps = [], onComplete, onSkip }) {
 
     if (!step) return null;
 
-    return (
+    const overlayContent = (
         <AnimatePresence>
             <div
                 ref={overlayRef}
-                className="fixed inset-0 z-[9999]"
-                style={{ pointerEvents: 'auto' }}
+                className="fixed inset-0"
+                style={{ 
+                    pointerEvents: 'auto',
+                    zIndex: OVERLAY_Z_INDEX
+                }}
             >
                 {/* Dark overlay */}
                 <motion.div
@@ -123,6 +129,7 @@ export default function TourOverlay({ steps = [], onComplete, onSkip }) {
                     exit={{ opacity: 0 }}
                     className="absolute inset-0 bg-black/60"
                     onClick={handleSkip}
+                    data-testid="tour-backdrop"
                 />
 
                 {/* Highlight area (cut-out) */}
@@ -212,4 +219,7 @@ export default function TourOverlay({ steps = [], onComplete, onSkip }) {
             </div>
         </AnimatePresence>
     );
+
+    // Render via portal to escape AppShell's isolation context
+    return createPortal(overlayContent, document.body);
 }
