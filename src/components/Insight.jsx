@@ -53,6 +53,7 @@ import {
     isSameDay
 } from 'date-fns';
 import Card from './Card';
+import SubscriptionModal from './SubscriptionModal';
 
 /**
  * Insight Component - Clean & Fast UI for Ojol Drivers
@@ -167,7 +168,7 @@ const SpotCard = ({ spot, isTop, onNavigate }) => {
 };
 
 export default function Insight({ showToast }) {
-    const { session } = useSettings();
+    const { session, isPro } = useSettings();
     const { isInitialized } = useSyncContext();
     const [orders, setOrders] = useState([]);
     const [expenses, setExpenses] = useState([]);
@@ -176,6 +177,7 @@ export default function Insight({ showToast }) {
     const [activeTab, setActiveTab] = useState('now');
     const [userLocation, setUserLocation] = useState(null);
     const [expandedSection, setExpandedSection] = useState(null);
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     
     // Heatmap state
     const [heatmapCells, setHeatmapCells] = useState([]);
@@ -606,6 +608,60 @@ export default function Insight({ showToast }) {
             window.open(`https://www.google.com/maps/dir/?api=1&destination=${spot.latitude},${spot.longitude}`, '_blank');
         }
     };
+
+    // SECURITY GATE: Lock feature if not PRO
+    if (!isPro) {
+        return (
+            <div className="relative h-[calc(100vh-80px)] overflow-hidden bg-ui-surface flex flex-col">
+                {/* 1. Blurred Background Preview (Psychological Trigger) */}
+                <div className="flex-1 p-4 filter blur-sm opacity-50 select-none pointer-events-none overflow-hidden">
+                    {/* Fake Chart / Map Skeleton */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="h-32 bg-ui-background rounded-xl border border-ui-border"></div>
+                        <div className="h-32 bg-ui-background rounded-xl border border-ui-border"></div>
+                    </div>
+                    <div className="h-64 bg-ui-background rounded-xl border border-ui-border mb-4"></div>
+                    <div className="space-y-2">
+                        <div className="h-8 bg-ui-background rounded w-3/4"></div>
+                        <div className="h-8 bg-ui-background rounded w-1/2"></div>
+                    </div>
+                </div>
+
+                {/* 2. Lock Overlay (The Gate) */}
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center bg-gradient-to-b from-transparent via-ui-surface/95 to-ui-surface">
+                    <div className="w-24 h-24 bg-yellow-500/10 rounded-full flex items-center justify-center mb-6 shadow-xl ring-1 ring-yellow-500/30 animate-pulse">
+                        <span className="text-5xl">🔒</span>
+                    </div>
+
+                    <h2 className="text-3xl font-black text-ui-text mb-2 tracking-tight">
+                        Fitur Sultan Terkunci
+                    </h2>
+
+                    <p className="text-ui-muted mb-8 max-w-xs mx-auto leading-relaxed">
+                        Lihat <span className="text-yellow-500 font-bold">Titik Orderan Gacor</span> & analisis pendapatan real-time hanya untuk member PRO.
+                    </p>
+
+                    <button 
+                        onClick={() => setShowUpgradeModal(true)}
+                        className="w-full max-w-xs py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-black font-black text-lg rounded-xl shadow-xl shadow-yellow-500/20 transform transition hover:scale-105 active:scale-95 flex items-center justify-center space-x-2"
+                    >
+                        <span>Buka Kunci (Rp 15.000)</span>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                    </button>
+
+                    <p className="mt-6 text-xs text-ui-muted opacity-70">
+                        Investasi kecil untuk penghasilan besar.
+                    </p>
+                </div>
+
+                <SubscriptionModal 
+                    isOpen={showUpgradeModal} 
+                    onClose={() => setShowUpgradeModal(false)}
+                    userEmail={session?.user?.email} 
+                />
+            </div>
+        );
+    }
 
     // Loading
     if (loading) {
