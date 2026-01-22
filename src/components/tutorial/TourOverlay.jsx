@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, SkipForward } from 'lucide-react';
 
@@ -109,12 +110,15 @@ export default function TourOverlay({ steps = [], onComplete, onSkip }) {
 
     if (!step) return null;
 
-    return (
+    const overlayContent = (
         <AnimatePresence>
             <div
                 ref={overlayRef}
-                className="fixed inset-0 z-[9999]"
-                style={{ pointerEvents: 'auto' }}
+                className="fixed inset-0"
+                style={{ 
+                    pointerEvents: 'auto',
+                    zIndex: 9999999 // Higher than BottomNavigation (999999)
+                }}
             >
                 {/* Dark overlay */}
                 <motion.div
@@ -212,4 +216,7 @@ export default function TourOverlay({ steps = [], onComplete, onSkip }) {
             </div>
         </AnimatePresence>
     );
+
+    // Render via portal to escape AppShell's isolation context
+    return createPortal(overlayContent, document.body);
 }
