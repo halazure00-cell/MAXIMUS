@@ -40,17 +40,19 @@ import Card from '../components/Card';
 import PrimaryButton from '../components/PrimaryButton';
 import SectionTitle from '../components/SectionTitle';
 import SyncStatusBanner from '../components/SyncStatusBanner';
+import SubscriptionModal from '../components/SubscriptionModal';
 
 const logger = createLogger('Riwayat');
 
 export default function Riwayat() {
-    const { settings, session } = useSettings();
+    const { settings, session, isPro } = useSettings();
     const { showToast } = useToast();
     const { updateStatus, isInitialized, importInitialData } = useSyncContext();
     const [transactions, setTransactions] = useState([]);
     const [visibleCount, setVisibleCount] = useState(20);
     const [loading, setLoading] = useState(true);
     const [showExpenseModal, setShowExpenseModal] = useState(false);
+    const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
     const [chartData, setChartData] = useState([]);
     const [dailyRecapData, setDailyRecapData] = useState([]);
     const [activeRecap, setActiveRecap] = useState('omzet');
@@ -706,6 +708,36 @@ export default function Riwayat() {
             {/* Sync Status Banner */}
             <SyncStatusBanner />
             
+            {/* Upgrade Banner for Free Users */}
+            {!isPro && (
+                <div 
+                    onClick={() => setShowSubscriptionModal(true)}
+                    className="px-4 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 cursor-pointer hover:from-yellow-600 hover:to-yellow-700 transition-all border-b-2 border-yellow-700 shadow-md"
+                >
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                            <span className="text-2xl">🚀</span>
+                            <div className="flex flex-col">
+                                <span className="text-sm font-bold text-black">
+                                    Akunmu belum Gacor?
+                                </span>
+                                <span className="text-xs text-black/80">
+                                    Upgrade PRO cuma 15rb - Buka fitur peta harta karun!
+                                </span>
+                            </div>
+                        </div>
+                        <svg 
+                            className="w-5 h-5 text-black flex-shrink-0" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </div>
+                </div>
+            )}
+            
             {/* Header */}
             <div className="px-4 pt-5 pb-3 bg-ui-background sticky top-0 z-10">
                 <h1 className="text-2xl font-bold text-ui-text font-display">Financial Board</h1>
@@ -1107,6 +1139,12 @@ export default function Riwayat() {
                 title="Hapus Transaksi?"
                 message="Apakah Anda yakin ingin menghapus data ini? Data tidak dapat dikembalikan."
                 isDestructive={true}
+            />
+
+            <SubscriptionModal
+                isOpen={showSubscriptionModal}
+                onClose={() => setShowSubscriptionModal(false)}
+                userEmail={session?.user?.email || ''}
             />
         </div>
     );

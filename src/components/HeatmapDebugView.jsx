@@ -3,6 +3,8 @@
  * 
  * Dev-only component to show score breakdown and validate recommendations
  * Enable by adding ?debug=heatmap to URL
+ * 
+ * PRO FEATURE: Access requires active PRO subscription
  */
 
 import { useState, useEffect } from 'react';
@@ -19,11 +21,14 @@ import {
     getTimePeriod,
     getDayType
 } from '../lib/heatmapEngine';
+import SubscriptionModal from './SubscriptionModal';
+import PrimaryButton from './PrimaryButton';
 
 export default function HeatmapDebugView() {
-    const { session } = useSettings();
+    const { session, isPro } = useSettings();
     const [debugData, setDebugData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
     useEffect(() => {
         async function loadDebugData() {
@@ -76,6 +81,80 @@ export default function HeatmapDebugView() {
 
     if (loading) {
         return <div className="p-4 bg-ui-surface">Loading debug data...</div>;
+    }
+
+    // Feature Gate: Show lock overlay if user is not PRO
+    if (!isPro) {
+        return (
+            <>
+                <div className="relative min-h-screen bg-ui-surface">
+                    {/* Blurred Preview */}
+                    <div className="blur-md opacity-30 p-4 bg-ui-surface text-xs font-mono">
+                        <h1 className="text-lg font-bold mb-4 text-ui-primary">🔍 Heatmap QA Debug View</h1>
+                        <div className="mb-4 p-3 bg-ui-background rounded-ui-lg">
+                            <h2 className="font-bold mb-2 text-ui-text">Summary</h2>
+                            <div className="space-y-1 text-ui-muted">
+                                <div>Total Orders: ███</div>
+                                <div>Total Cells: ███</div>
+                                <div>Recommendations: ███</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Lock Overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-ui-background/95 backdrop-blur-sm">
+                        <div className="max-w-md p-8 text-center space-y-6">
+                            {/* Lock Icon */}
+                            <div className="flex justify-center">
+                                <div className="w-20 h-20 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                                    <svg 
+                                        className="w-10 h-10 text-yellow-500" 
+                                        fill="none" 
+                                        stroke="currentColor" 
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path 
+                                            strokeLinecap="round" 
+                                            strokeLinejoin="round" 
+                                            strokeWidth={2} 
+                                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" 
+                                        />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            {/* Lock Message */}
+                            <div className="space-y-3">
+                                <h2 className="text-2xl font-bold text-ui-text">
+                                    🔒 Fitur Terkunci
+                                </h2>
+                                <p className="text-lg text-ui-muted">
+                                    Upgrade ke <span className="text-yellow-500 font-bold">PRO</span> untuk melihat titik gacor.
+                                </p>
+                                <p className="text-sm text-ui-muted">
+                                    Dapatkan akses ke Peta Harta Karun dan analisis lengkap untuk maksimalkan penghasilan harian.
+                                </p>
+                            </div>
+
+                            {/* CTA Button */}
+                            <PrimaryButton
+                                onClick={() => setShowSubscriptionModal(true)}
+                                className="w-full py-4 bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-base shadow-lg"
+                            >
+                                Upgrade ke PRO - Rp 15.000/Bulan
+                            </PrimaryButton>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Subscription Modal */}
+                <SubscriptionModal
+                    isOpen={showSubscriptionModal}
+                    onClose={() => setShowSubscriptionModal(false)}
+                    userEmail={session?.user?.email || ''}
+                />
+            </>
+        );
     }
 
     if (!debugData) {
