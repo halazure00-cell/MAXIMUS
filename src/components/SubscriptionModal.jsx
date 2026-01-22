@@ -25,7 +25,8 @@ export default function SubscriptionModal({ isOpen, onClose, userEmail = '' }) {
             onClick={handleOverlayClick}
         >
             {/* Main Container: Added max-h and flex-col to enable scrolling */}
-            <div className="relative w-full max-w-md bg-ui-surface rounded-ui-xl shadow-2xl border border-ui-border max-h-[85vh] flex flex-col animate-in fade-in zoom-in duration-200">
+            <div className="relative w-full max-w-md bg-ui-surface rounded-ui-xl shadow-2xl border border-ui-border max-h-[85vh] flex flex-col"
+>
                 
                 {/* 1. Header Area (Fixed) */}
                 <div className="absolute top-4 right-4 z-20">
