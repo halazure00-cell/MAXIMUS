@@ -38,6 +38,7 @@ export const SettingsProvider = ({ children }) => {
 
     const [session, setSession] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [profile, setProfile] = useState(null);
 
     // Initial session check
     useEffect(() => {
@@ -65,7 +66,10 @@ export const SettingsProvider = ({ children }) => {
 
     // Fetch from Supabase when session becomes available
     useEffect(() => {
-        if (!session) return;
+        if (!session) {
+            setProfile(null);
+            return;
+        }
 
         const fetchProfile = async () => {
             const { data, error } = await supabase
@@ -75,6 +79,9 @@ export const SettingsProvider = ({ children }) => {
                 .maybeSingle();
 
             if (data && !error) {
+                // Store full profile data including subscription info
+                setProfile(data);
+                
                 // Merge Supabase data into settings, using fallback for missing fields
                 setSettings(prev => ({
                     ...prev,
@@ -101,11 +108,18 @@ export const SettingsProvider = ({ children }) => {
         setSettings(prev => ({ ...prev, ...newSettings }));
     }, []);
 
+    // Helper to check if user has PRO subscription
+    // Simple logic for now: just check if subscription_tier === 'pro'
+    // Can be enhanced later to check expiry date
+    const isPro = profile?.subscription_tier === 'pro';
+
     const value = {
         settings,
         updateSettings,
         session,
-        loading
+        loading,
+        profile,
+        isPro
     };
 
     return (
