@@ -166,7 +166,7 @@ describe('TourOverlay', () => {
       expect(tooltip).toBeInTheDocument();
 
       // Get the computed top position
-      const topPosition = parseInt(tooltip.style.top);
+      const topPosition = parseFloat(tooltip.style.top);
       
       // Tooltip should not have negative top position
       // It should be clamped to at least the safe margin (12px)
@@ -205,7 +205,7 @@ describe('TourOverlay', () => {
       const tooltip = document.body.querySelector('.absolute.bg-ui-surface');
       expect(tooltip).toBeInTheDocument();
 
-      const topPosition = parseInt(tooltip.style.top);
+      const topPosition = parseFloat(tooltip.style.top);
       
       // Tooltip should be visible (not below viewport)
       expect(topPosition).toBeGreaterThanOrEqual(0);
@@ -236,7 +236,7 @@ describe('TourOverlay', () => {
       const tooltip = document.body.querySelector('.absolute.bg-ui-surface');
       expect(tooltip).toBeInTheDocument();
 
-      const leftPosition = parseInt(tooltip.style.left);
+      const leftPosition = parseFloat(tooltip.style.left);
       
       // Tooltip should have safe left margin (at least 12px)
       expect(leftPosition).toBeGreaterThanOrEqual(12);
@@ -267,7 +267,7 @@ describe('TourOverlay', () => {
       const tooltip = document.body.querySelector('.absolute.bg-ui-surface');
       expect(tooltip).toBeInTheDocument();
 
-      const leftPosition = parseInt(tooltip.style.left);
+      const leftPosition = parseFloat(tooltip.style.left);
       
       // Tooltip should not exceed viewport width (left + width should be within bounds)
       expect(leftPosition).toBeGreaterThanOrEqual(0);

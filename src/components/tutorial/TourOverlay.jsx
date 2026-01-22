@@ -56,7 +56,7 @@ export default function TourOverlay({ steps = [], onComplete, onSkip }) {
 
         // Apply viewport clamping with safe margins
         // Use requestAnimationFrame to ensure tooltip dimensions are measured after render
-        requestAnimationFrame(() => {
+        const frameId = requestAnimationFrame(() => {
             const margin = 12; // Safe margin for mobile compatibility
             const vw = window.innerWidth;
             const vh = window.innerHeight;
@@ -101,19 +101,11 @@ export default function TourOverlay({ steps = [], onComplete, onSkip }) {
                 nextLeft = Math.max(margin, vw - margin - tooltipRect.width);
             }
 
-            // Debug logging in dev mode (only once per tooltip show)
-            if (import.meta.env.DEV) {
-                console.log('[TourOverlay] Position debug:', {
-                    computedTop: top,
-                    finalTop: nextTop,
-                    anchorRect: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right },
-                    tooltipRect: { width: tooltipRect.width, height: tooltipRect.height },
-                    viewport: { width: vw, height: vh }
-                });
-            }
-
             setTooltipPosition({ top: nextTop, left: nextLeft });
         });
+
+        // Cleanup function to cancel animation frame if component unmounts
+        return () => cancelAnimationFrame(frameId);
     }, [step]);
 
     useEffect(() => {
