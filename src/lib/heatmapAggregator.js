@@ -9,7 +9,7 @@
  * Phase 2+: Full H3 grid with actual pickup coordinates
  */
 
-import { getTimePeriod, getDayType, getTimePeriodLabel, getHourBucket, encodeLocation } from './heatmapEngine';
+import { getTimePeriod, getDayType, getTimePeriodLabel, encodeLocation } from './heatmapEngine';
 import { parseISO, differenceInDays, subDays } from 'date-fns';
 
 // Configuration constants

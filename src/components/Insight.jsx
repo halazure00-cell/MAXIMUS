@@ -179,11 +179,15 @@ export default function Insight({ showToast }) {
     const [expandedSection, setExpandedSection] = useState(null);
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     
-    // Heatmap state
-    const [heatmapCells, setHeatmapCells] = useState([]);
-    const [recommendations, setRecommendations] = useState([]);
-    const [enrichedSpots, setEnrichedSpots] = useState([]);
-    const [useHeatmap, setUseHeatmap] = useState(false); // Toggle between static spots and heatmap
+    // Heatmap state - Reserved for future heatmap feature
+    // eslint-disable-next-line no-unused-vars
+    const [_heatmapCells, setHeatmapCells] = useState([]);
+    // eslint-disable-next-line no-unused-vars
+    const [_recommendations, setRecommendations] = useState([]);
+    // eslint-disable-next-line no-unused-vars
+    const [_enrichedSpots, setEnrichedSpots] = useState([]);
+    // eslint-disable-next-line no-unused-vars
+    const [_useHeatmap, setUseHeatmap] = useState(false);
     
     // Location state
     const [locationStatus, setLocationStatus] = useState('prompt'); // 'granted' | 'denied' | 'prompt' | 'unsupported' | 'error'

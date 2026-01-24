@@ -3,14 +3,6 @@ import { supabase } from '../lib/supabaseClient';
 
 const SettingsContext = createContext();
 
-export const useSettings = () => {
-    const context = useContext(SettingsContext);
-    if (!context) {
-        throw new Error('useSettings must be used within a SettingsProvider');
-    }
-    return context;
-};
-
 export const SettingsProvider = ({ children }) => {
     // Initial state with defaults
     const [settings, setSettings] = useState(() => {
@@ -127,4 +119,13 @@ export const SettingsProvider = ({ children }) => {
             {children}
         </SettingsContext.Provider>
     );
+};
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const useSettings = () => {
+    const context = useContext(SettingsContext);
+    if (!context) {
+        throw new Error('useSettings must be used within a SettingsProvider');
+    }
+    return context;
 };

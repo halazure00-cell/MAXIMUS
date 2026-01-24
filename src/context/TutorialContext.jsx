@@ -2,14 +2,6 @@ import { createContext, useState, useEffect, useContext, useCallback } from 'rea
 
 const TutorialContext = createContext();
 
-export const useTutorial = () => {
-    const context = useContext(TutorialContext);
-    if (!context) {
-        throw new Error('useTutorial must be used within a TutorialProvider');
-    }
-    return context;
-};
-
 const TUTORIAL_VERSION = '1.0.0';
 const STORAGE_KEY = 'maximus_tutorial_state';
 
@@ -102,4 +94,13 @@ export const TutorialProvider = ({ children }) => {
             {children}
         </TutorialContext.Provider>
     );
+};
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const useTutorial = () => {
+    const context = useContext(TutorialContext);
+    if (!context) {
+        throw new Error('useTutorial must be used within a TutorialProvider');
+    }
+    return context;
 };

@@ -3,7 +3,7 @@
  * Tests for error classification, logging, and snapshot generation
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   classifyError,
   addErrorLog,

@@ -8,7 +8,7 @@ import { TutorialProvider } from './context/TutorialContext'
 
 // Load sync debug utilities in development
 if (import.meta.env.DEV) {
-    import('./lib/syncDebug').then(module => {
+    import('./lib/syncDebug').then(() => {
         console.log('🔧 Development mode: Sync debug utils loaded');
         console.log('💡 Use syncDebug.checkHealth() in console to check sync status');
     });
