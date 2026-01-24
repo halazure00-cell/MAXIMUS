@@ -40,7 +40,9 @@ import {
     ChevronUp,
     BarChart2,
     AlertTriangle,
-    RefreshCw
+    RefreshCw,
+    Map,
+    ChevronRight
 } from 'lucide-react';
 import {
     format,
@@ -54,6 +56,8 @@ import {
 } from 'date-fns';
 import Card from './Card';
 import SubscriptionModal from './SubscriptionModal';
+import HeatmapOverlay from './HeatmapOverlay';
+import { isGeocoreConfigured, getHeatmapCells } from '../lib/geocoreClient';
 
 /**
  * Insight Component - Clean & Fast UI for Ojol Drivers
@@ -188,6 +192,12 @@ export default function Insight({ showToast }) {
     const [_enrichedSpots, setEnrichedSpots] = useState([]);
     // eslint-disable-next-line no-unused-vars
     const [_useHeatmap, setUseHeatmap] = useState(false);
+    
+    // Geocore heatmap overlay state
+    const [showHeatmapOverlay, setShowHeatmapOverlay] = useState(false);
+    const [geocoreCells, setGeocoreCells] = useState([]);
+    const [geocoreLoading, setGeocoreLoading] = useState(false);
+    const [geocoreError, setGeocoreError] = useState(null);
     
     // Location state
     const [locationStatus, setLocationStatus] = useState('prompt'); // 'granted' | 'denied' | 'prompt' | 'unsupported' | 'error'
@@ -356,6 +366,44 @@ export default function Insight({ showToast }) {
             }
         }
     }, []);
+
+    // Fetch geocore heatmap data
+    const fetchGeocoreHeatmap = useCallback(async () => {
+        try {
+            setGeocoreLoading(true);
+            setGeocoreError(null);
+            
+            logger.info('Fetching geocore heatmap data');
+            
+            // Check if geocore is configured
+            if (!isGeocoreConfigured()) {
+                logger.warn('Geocore not configured, using local heatmap cells as fallback');
+                // Use local heatmap cells as fallback
+                setGeocoreCells(heatmapCells);
+                setGeocoreLoading(false);
+                return;
+            }
+            
+            // Fetch from geocore API
+            const cells = await getHeatmapCells({ minIntensity: 1, limit: 200 });
+            logger.info('Geocore heatmap data fetched', { count: cells.length });
+            setGeocoreCells(cells);
+        } catch (error) {
+            logger.error('Failed to fetch geocore heatmap', error);
+            setGeocoreError(error.message || 'Gagal memuat data heatmap');
+            // Fallback to local heatmap cells
+            setGeocoreCells(heatmapCells);
+        } finally {
+            setGeocoreLoading(false);
+        }
+    }, [heatmapCells]);
+
+    // Auto-fetch geocore data when overlay opens
+    useEffect(() => {
+        if (showHeatmapOverlay) {
+            fetchGeocoreHeatmap();
+        }
+    }, [showHeatmapOverlay, fetchGeocoreHeatmap]);
 
     // Improved Geolocation with location service
     useEffect(() => {
@@ -883,6 +931,28 @@ export default function Insight({ showToast }) {
                             exit={{ opacity: 0, y: -10 }}
                             className="space-y-3 pt-2"
                         >
+                            {/* Heatmap Live Button */}
+                            <button
+                                onClick={() => setShowHeatmapOverlay(true)}
+                                className="w-full p-4 rounded-ui-xl bg-gradient-to-r from-ui-danger via-ui-warning to-ui-primary text-white shadow-lg press-effect flex items-center justify-between"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-white/20 rounded-ui-lg">
+                                        <Map size={24} />
+                                    </div>
+                                    <div className="text-left">
+                                        <div className="flex items-center gap-2 mb-0.5">
+                                            <span className="text-sm font-bold">Heatmap Live</span>
+                                            <span className="px-2 py-0.5 bg-white/30 rounded-full text-[9px] font-semibold uppercase tracking-wide">
+                                                NEW
+                                            </span>
+                                        </div>
+                                        <p className="text-xs opacity-90">Lihat peta zona orderan real-time</p>
+                                    </div>
+                                </div>
+                                <ChevronRight size={20} />
+                            </button>
+
                             <p className="text-xs text-ui-muted">
                                 {strategicSpots.length} lokasi strategis di Bandung
                             </p>
@@ -1141,6 +1211,17 @@ export default function Insight({ showToast }) {
                     )}
                 </AnimatePresence>
             </div>
+
+            {/* Heatmap Overlay */}
+            <HeatmapOverlay
+                isOpen={showHeatmapOverlay}
+                onClose={() => setShowHeatmapOverlay(false)}
+                cells={geocoreCells}
+                userLocation={userLocation}
+                isLoading={geocoreLoading}
+                error={geocoreError}
+                onRefresh={fetchGeocoreHeatmap}
+            />
         </div>
     );
 }
