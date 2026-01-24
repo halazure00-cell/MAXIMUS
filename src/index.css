@@ -418,3 +418,29 @@
   left: 50%;
   transform: translateX(-50%);
 }
+
+/* Heatmap Cell Animation */
+.heatmap-cell {
+    transition: all 0.2s ease;
+}
+.heatmap-cell:hover {
+    filter: brightness(1.2);
+}
+
+/* User Location Pulse */
+.user-location-pulse {
+    animation: pulse-ring 2s ease-out infinite;
+}
+@keyframes pulse-ring {
+    0% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(2); }
+}
+
+/* Leaflet Popup Override for Dark Mode */
+.dark .leaflet-popup-content-wrapper {
+    background: var(--ui-color-surface);
+    color: var(--ui-color-text);
+}
+.dark .leaflet-popup-tip {
+    background: var(--ui-color-surface);
+}
