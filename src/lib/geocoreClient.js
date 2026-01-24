@@ -78,7 +78,7 @@ export async function getHeatmapData({
 
     try {
         const params = new URLSearchParams();
-        if (resolution) params.append('resolution', resolution);
+        if (resolution !== null && resolution !== undefined) params.append('resolution', resolution);
         if (startDate) params.append('startDate', startDate);
         if (endDate) params.append('endDate', endDate);
         if (limit) params.append('limit', limit);
@@ -116,7 +116,7 @@ export async function getHeatmapCells({ minIntensity = 0, limit = 100 } = {}) {
 
     try {
         const params = new URLSearchParams();
-        if (minIntensity) params.append('minIntensity', minIntensity);
+        if (minIntensity !== null && minIntensity !== undefined) params.append('minIntensity', minIntensity);
         if (limit) params.append('limit', limit);
 
         const url = `${GEOCORE_API_URL}/api/heatmap/cells?${params.toString()}`;
