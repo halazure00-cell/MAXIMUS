@@ -7,10 +7,7 @@
  * syncDebug.checkHealth();
  */
 
-import { getDbStats, getSyncStatus, getLastSyncAt, getPendingOps, getFailedOps } from './localDb';
-import { createLogger } from './logger';
-
-const logger = createLogger('SyncDebug');
+import { getDbStats, getPendingOps, getFailedOps } from './localDb';
 
 /**
  * Check overall sync health

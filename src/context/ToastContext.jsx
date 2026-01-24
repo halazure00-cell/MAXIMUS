@@ -2,16 +2,16 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 const ToastContext = createContext(null);
 
-const generateToastId = () => {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-        return crypto.randomUUID();
-    }
-    return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-};
-
 export function ToastProvider({ children }) {
     const [toasts, setToasts] = useState([]);
     const timeouts = useRef(new Map());
+
+    const generateToastId = () => {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return crypto.randomUUID();
+        }
+        return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    };
 
     const removeToast = useCallback((id) => {
         setToasts((prev) => prev.filter((toast) => toast.id !== id));
@@ -34,9 +34,10 @@ export function ToastProvider({ children }) {
     );
 
     useEffect(() => {
+        const currentTimeouts = timeouts.current;
         return () => {
-            timeouts.current.forEach((timeout) => clearTimeout(timeout));
-            timeouts.current.clear();
+            currentTimeouts.forEach((timeout) => clearTimeout(timeout));
+            currentTimeouts.clear();
         };
     }, []);
 
@@ -52,6 +53,7 @@ export function ToastProvider({ children }) {
     return <ToastContext.Provider value={value}>{children}</ToastContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useToast() {
     const context = useContext(ToastContext);
     if (!context) {

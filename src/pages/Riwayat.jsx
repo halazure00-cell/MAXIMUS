@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { useSyncContext } from '../context/SyncContext';
 import { 
@@ -209,7 +209,7 @@ export default function Riwayat() {
                 controller.abort();
             }
         };
-    }, [session?.user?.id, isInitialized, settings.defaultCommission, settings.fuelEfficiency, settings.maintenanceFee, safeSetState, showToast, importInitialData]);
+    }, [session, isInitialized, settings.defaultCommission, settings.fuelEfficiency, settings.maintenanceFee, safeSetState, showToast, importInitialData, processFinancials]);
 
     const parseDate = (value) => {
         if (!value) return null;
@@ -227,14 +227,14 @@ export default function Riwayat() {
         return Number.isFinite(parsed) ? parsed : 0;
     };
 
-    const getCommissionRate = (order) => {
+    const getCommissionRate = useCallback((order) => {
         if (!order) return 0;
         const storedRate = parseNumber(order.commission_rate);
         if (storedRate > 0) return storedRate;
         return parseNumber(settings.defaultCommission) || 0;
-    };
+    }, [settings.defaultCommission]);
 
-    const getGrossPrice = (order) => {
+    const getGrossPrice = useCallback((order) => {
         if (!order) return 0;
         const storedGross = parseNumber(order.gross_price);
         if (storedGross > 0) return storedGross;
@@ -243,9 +243,9 @@ export default function Riwayat() {
         const rate = getCommissionRate(order);
         if (rate > 0 && rate < 1) return fallbackPrice / (1 - rate);
         return fallbackPrice;
-    };
+    }, [getCommissionRate]);
 
-    const getNetProfit = (order) => {
+    const getNetProfit = useCallback((order) => {
         if (!order) return 0;
         const storedNet = parseNumber(order.net_profit);
         if (storedNet !== 0) return storedNet;
@@ -254,9 +254,9 @@ export default function Riwayat() {
         const gross = getGrossPrice(order);
         const rate = getCommissionRate(order);
         return gross * (1 - rate);
-    };
+    }, [getGrossPrice, getCommissionRate]);
 
-    const getAppFee = (order) => {
+    const getAppFee = useCallback((order) => {
         if (!order) return 0;
         const storedFee = parseNumber(order.app_fee);
         if (storedFee > 0) return storedFee;
@@ -265,9 +265,9 @@ export default function Riwayat() {
         const gross = getGrossPrice(order);
         const rate = getCommissionRate(order);
         return gross * rate;
-    };
+    }, [getGrossPrice, getCommissionRate]);
 
-    const getFuelCost = (order) => {
+    const getFuelCost = useCallback((order) => {
         if (!order) return 0;
         const storedFuelCost = parseNumber(order.fuel_cost);
         if (storedFuelCost > 0) return storedFuelCost;
@@ -278,14 +278,14 @@ export default function Riwayat() {
             ? storedEfficiency
             : parseNumber(settings.fuelEfficiency) || 0;
         return distance * efficiency;
-    };
+    }, [settings.fuelEfficiency]);
 
-    const getMaintenanceCost = (order) => {
+    const getMaintenanceCost = useCallback((order) => {
         if (!order) return 0;
         const storedMaintenance = parseNumber(order.maintenance_fee ?? order.maintenance_cost);
         if (storedMaintenance > 0) return storedMaintenance;
         return parseNumber(settings.maintenanceFee) || 0;
-    };
+    }, [settings.maintenanceFee]);
 
     const getUpdatedFinancials = (order) => {
         if (!order) return { grossPrice: 0, commissionRate: 0, appFee: 0, netProfit: 0 };
@@ -354,7 +354,7 @@ export default function Riwayat() {
             monthOrders,
             monthExpenses
         };
-    }, []);
+    }, [getAppFee, getGrossPrice, getNetProfit]);
 
     // Refetch function untuk use after mutations
     const refetchData = useCallback(async () => {
@@ -391,7 +391,7 @@ export default function Riwayat() {
             safeSetState(setLoading, false);
             isLoadingRef.current = false;
         }
-    }, [session?.user?.id, isInitialized, updateStatus, safeSetState, showToast]);
+    }, [session, isInitialized, updateStatus, safeSetState, showToast, processFinancials]);
 
     const processFinancials = useCallback((orders, expenses) => {
         try {
@@ -584,7 +584,7 @@ export default function Riwayat() {
             logger.error('Error processing financials:', error);
             showToast('Terjadi kesalahan dalam memproses data', 'error');
         }
-    }, [calculateFinancials, safeSetState, showToast, pageSize]);
+    }, [calculateFinancials, safeSetState, showToast, pageSize, getFuelCost, getMaintenanceCost, getNetProfit]);
 
     const formatCurrency = (val) => {
         const num = parseNumber(val);

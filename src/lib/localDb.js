@@ -16,7 +16,7 @@ let dbPromise = null;
 function isIndexedDBAvailable() {
   try {
     return typeof indexedDB !== 'undefined';
-  } catch (error) {
+  } catch {
     return false;
   }
 }

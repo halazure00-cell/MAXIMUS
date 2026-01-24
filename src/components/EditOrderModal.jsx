@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Clock, Save, X } from 'lucide-react';
 import { format } from 'date-fns';
@@ -38,7 +38,7 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
 
     const title = useMemo(() => (order ? `Edit Order #${order.id}` : 'Edit Order'), [order]);
 
-    const getInitialGrossPrice = () => {
+    const getInitialGrossPrice = useCallback(() => {
         if (!order) return '';
         const grossValue = parseFloat(order.gross_price);
         if (Number.isFinite(grossValue)) return grossValue.toString();
@@ -52,7 +52,7 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
             return (netValue / (1 - fallbackRate)).toString();
         }
         return netValue.toString();
-    };
+    }, [order, settings.defaultCommission]);
 
     useEffect(() => {
         if (!isOpen || !order) return;
@@ -64,7 +64,7 @@ export default function EditOrderModal({ isOpen, onClose, order, onSave, showToa
             : parseFloat(settings.defaultCommission) || 0;
         setCommissionRate(initialCommission.toString());
         setCreatedAtError(false);
-    }, [isOpen, order, settings.defaultCommission]);
+    }, [isOpen, order, settings.defaultCommission, getInitialGrossPrice]);
 
     const handleCreatedAtChange = (event) => {
         const { value } = event.target;

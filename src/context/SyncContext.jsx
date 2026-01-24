@@ -6,7 +6,6 @@
 import { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import { useSettings } from './SettingsContext';
 import { 
-  syncAll, 
   startAutoSync, 
   stopAutoSync,
   onSyncStateChange,
@@ -28,14 +27,6 @@ import { classifyError, addErrorLog } from '../lib/diagnostics';
 const logger = createLogger('SyncContext');
 
 const SyncContext = createContext();
-
-export const useSyncContext = () => {
-  const context = useContext(SyncContext);
-  if (!context) {
-    throw new Error('useSyncContext must be used within a SyncProvider');
-  }
-  return context;
-};
 
 export const SyncProvider = ({ children }) => {
   const { session } = useSettings();
@@ -168,7 +159,7 @@ export const SyncProvider = ({ children }) => {
     });
     
     return unsubscribe;
-  }, [isInitialized]);
+  }, [isInitialized, updateStatus]);
 
   // Start auto-sync when user is logged in
   useEffect(() => {
@@ -354,4 +345,13 @@ export const SyncProvider = ({ children }) => {
       {children}
     </SyncContext.Provider>
   );
+};
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const useSyncContext = () => {
+  const context = useContext(SyncContext);
+  if (!context) {
+    throw new Error('useSyncContext must be used within a SyncProvider');
+  }
+  return context;
 };
