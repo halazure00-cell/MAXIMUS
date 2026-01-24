@@ -10,9 +10,7 @@ import { cellToBoundary } from 'h3-js';
 import { 
     X, 
     RefreshCw, 
-    MapPin, 
     Navigation, 
-    TrendingUp,
     Flame,
     Loader2,
     AlertTriangle,
