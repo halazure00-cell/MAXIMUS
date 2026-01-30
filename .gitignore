@@ -1,13 +1,13 @@
-# build output
+# Build output
 dist
 build
 
-# dependencies
+# Dependencies
 node_modules
 
-# environment variables
+# Environment variables
 .env
 
-# system cache folders
+# System cache files
 .DS_Store
-.cache
+*.log
