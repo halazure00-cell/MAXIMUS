@@ -1,12 +1,13 @@
-node_modules
+# build output
 dist
-.DS_Store
-*.log
-.env
-.env.*
-!.env.example
+build
+
+# dependencies
+node_modules
+
+# environment variables
 .env
 
-# Test coverage
-coverage
-.nyc_output
+# system cache folders
+.DS_Store
+.cache

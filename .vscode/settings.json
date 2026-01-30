@@ -8,7 +8,7 @@
                   "editor.renderWhitespace": "none",
                     "editor.smoothScrolling": false,
                       "editor.hover.enabled": false,
-                        "editor.lightbulb.enabled": false,
+                        "editor.lightbulb.enabled": "off",
                           "editor.stickyScroll.enabled": false,
 
                             "diffEditor.renderSideBySide": false,
